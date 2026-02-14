@@ -1,30 +1,58 @@
+# accounting/models/model_AccountingPeriod.py
+
 from django.db import models
 from django.core.exceptions import ValidationError
-from datetime import date
+from housing.models import Society
 
 
 class AccountingPeriod(models.Model):
-    year = models.PositiveIntegerField()
-    month = models.PositiveIntegerField()  # 1 = Jan, 12 = Dec
-    is_open = models.BooleanField(default=True)
+    society = models.ForeignKey(
+        Society,
+        on_delete=models.CASCADE,
+        related_name="accounting_periods",
+    )
+
+    financial_year = models.ForeignKey(
+        "accounting.FinancialYear",
+        on_delete=models.CASCADE,
+        related_name="periods",
+    )
+
+    start_date = models.DateField()
+    end_date = models.DateField()
+
+    is_open = models.BooleanField(default=False)
 
     class Meta:
-        unique_together = ("year", "month")
-        ordering = ("year", "month")
+        ordering = ("start_date",)
+        unique_together = (
+            "society",
+            "financial_year",
+            "start_date",
+            "end_date",
+        )
 
     def clean(self):
-        if not 1 <= self.month <= 12:
-            raise ValidationError("Month must be between 1 and 12.")
+        if self.start_date >= self.end_date:
+            raise ValidationError("Period start date must be before end date.")
+
+        if (
+            self.start_date < self.financial_year.start_date
+            or self.end_date > self.financial_year.end_date
+        ):
+            raise ValidationError(
+                "Accounting period must fall entirely within the financial year."
+            )
 
     @classmethod
-    def is_period_open(cls, d: date) -> bool:
-        period = cls.objects.filter(
-            year=d.year,
-            month=d.month,
+    def is_period_open(cls, society, date):
+        return cls.objects.filter(
+            society=society,
+            start_date__lte=date,
+            end_date__gte=date,
             is_open=True,
-        ).first()
-        return bool(period)
+        ).exists()
 
     def __str__(self):
         status = "OPEN" if self.is_open else "CLOSED"
-        return f"{self.year}-{self.month:02d} ({status})"
+        return f"{self.start_date} → {self.end_date} ({status})"

@@ -86,9 +86,9 @@ class Voucher(models.Model):
         
 
         # 🔒 Month / Period lock
-        if not AccountingPeriod.is_period_open(self.voucher_date):
+        if not AccountingPeriod.is_period_open(self.society, self.voucher_date):
             raise ValidationError(
-                f"Accounting period {self.voucher_date.strftime('%Y-%m')} is closed."
+                f"No open accounting period for date {self.voucher_date}."
             )
 
         self.full_clean()
