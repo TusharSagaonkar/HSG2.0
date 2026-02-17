@@ -1,41 +1,32 @@
 {% extends "base.html" %}
-
 {% load static %}
 
 {% block title %}
-  User: 
-  
-    {{ object.name }}
-  
-  
+  User: {{ object.name }}
 {% endblock title %}
+
+{% block dashboard_title %}
+  {{ object.name }}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  Account profile details and quick account actions.
+{% endblock dashboard_subtitle %}
+
 {% block content %}
-  <div class="container">
-    <div class="row">
-      <div class="col-sm-12">
-        <h2>
-        
-        
-          {{ object.name }}
-        
-      </h2>
-    </div>
+  <div class="quick-card mb-3">
+    <h2 class="h5 mb-1">{{ object.name }}</h2>
+    <p class="mb-0 text-muted">{{ object.email|default:"No email set" }}</p>
   </div>
+
   {% if object == request.user %}
-    <!-- Action buttons -->
-    <div class="row">
-      <div class="col-sm-12">
+    <div class="quick-card">
+      <h3 class="h6 mb-3">Actions</h3>
+      <div class="d-flex flex-wrap gap-2">
         <a class="btn btn-primary" href="{% url 'users:update' %}" role="button">My Info</a>
-        <a class="btn btn-primary"
-           href="{% url 'account_email' %}"
-           role="button">E-Mail</a>
-        <a class="btn btn-primary"
-           href="{% url 'mfa_index' %}"
-           role="button">MFA</a>
-        <!-- Your Stuff: Custom user template urls -->
+        <a class="btn btn-outline-primary" href="{% url 'account_email' %}" role="button">E-Mail</a>
+        <a class="btn btn-outline-secondary" href="{% url 'mfa_index' %}" role="button">MFA</a>
       </div>
     </div>
-    <!-- End Action buttons -->
   {% endif %}
-</div>
 {% endblock content %}

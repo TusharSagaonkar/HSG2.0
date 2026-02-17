@@ -1,0 +1,43 @@
+{% load i18n %}
+<li class="structure-node">
+  <div class="d-flex flex-wrap justify-content-between gap-2 align-items-start">
+    <div>
+      <strong>{{ structure.name }}</strong>
+      <span class="text-muted">({{ structure.get_structure_type_display }})</span>
+      <div class="small text-muted">
+        {% translate "Units:" %} {{ structure.tree_units|length }}
+      </div>
+    </div>
+    <a href="{% url 'housing:unit-add' %}?society={{ society.pk }}&structure={{ structure.pk }}"
+       class="btn btn-sm btn-outline-primary">{% translate "Add Unit" %}</a>
+  </div>
+
+  {% if structure.tree_units %}
+    <ul class="list-group list-group-flush mt-2 ms-3">
+      {% for unit in structure.tree_units %}
+        <li class="list-group-item px-0 d-flex justify-content-between align-items-start">
+          <div>
+            <strong>{{ unit.identifier }}</strong>
+            <span class="text-muted">({{ unit.get_unit_type_display }})</span>
+            {% if unit.area_sqft %}
+              <div class="small text-muted">{{ unit.area_sqft }} sq ft</div>
+            {% endif %}
+          </div>
+          {% if unit.is_active %}
+            <span class="badge text-bg-success">{% translate "Active" %}</span>
+          {% else %}
+            <span class="badge text-bg-secondary">{% translate "Inactive" %}</span>
+          {% endif %}
+        </li>
+      {% endfor %}
+    </ul>
+  {% endif %}
+
+  {% if structure.tree_children %}
+    <ul class="structure-children">
+      {% for structure in structure.tree_children %}
+        {% include "housing/partials/structure_tree.html" with structure=structure society=society %}
+      {% endfor %}
+    </ul>
+  {% endif %}
+</li>

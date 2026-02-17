@@ -1,7 +1,7 @@
 from django.db import models
 from django.db.models import F
 from django.core.exceptions import ValidationError
-from housing.models import Society
+from societies.models import Society
 
 
 class VoucherSequence(models.Model):

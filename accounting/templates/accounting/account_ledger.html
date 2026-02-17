@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Account Ledger" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Account Ledger" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {{ account.name }} ({{ account.category.get_account_type_display }})
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="mb-3 d-flex gap-2">
+    <a href="{% url 'accounting:account-list' %}" class="btn btn-outline-secondary">{% translate "Back to Accounts" %}</a>
+    <a href="{% url 'accounting:trial-balance' %}" class="btn btn-outline-primary">{% translate "Trial Balance" %}</a>
+    <a href="{% url 'accounting:account-ledger-export-csv' account.pk %}?to_date={{ to_date|date:'Y-m-d' }}" class="btn btn-outline-success">{% translate "Export CSV" %}</a>
+  </div>
+
+  <form method="get" class="row g-2 align-items-end mb-3">
+    <div class="col-auto">
+      <label for="id_to_date" class="form-label">{% translate "Up To Date" %}</label>
+      <input id="id_to_date" name="to_date" type="date" class="form-control" value="{{ to_date|date:'Y-m-d' }}">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-primary">{% translate "Apply" %}</button>
+    </div>
+  </form>
+
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>{% translate "Date" %}</th>
+          <th>{% translate "Voucher" %}</th>
+          <th>{% translate "Narration" %}</th>
+          <th class="text-end">{% translate "Debit" %}</th>
+          <th class="text-end">{% translate "Credit" %}</th>
+          <th class="text-end">{% translate "Running Balance" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for line in ledger_lines %}
+          <tr>
+            <td>{{ line.entry.voucher.voucher_date|date:"M d, Y" }}</td>
+            <td>{{ line.entry.voucher.display_number }}</td>
+            <td>{{ line.entry.voucher.narration|default:"-" }}</td>
+            <td class="text-end">{{ line.entry.debit }}</td>
+            <td class="text-end">{{ line.entry.credit }}</td>
+            <td class="text-end">{{ line.running_balance }} {{ line.balance_side }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">{% translate "No posted ledger entries for this account." %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock content %}

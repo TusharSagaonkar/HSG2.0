@@ -18,6 +18,8 @@ urlpatterns = [
     # User management
     path("users/", include("housing_accounting.users.urls", namespace="users")),
     path("accounts/", include("allauth.urls")),
+    path("housing/", include("housing.urls", namespace="housing")),
+    path("accounting/", include("accounting.urls", namespace="accounting")),
     # Your stuff: custom urls includes go here
     # ...
     # Media files

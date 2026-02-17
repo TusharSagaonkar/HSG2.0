@@ -2,7 +2,7 @@
 
 from django.db import models
 from django.core.exceptions import ValidationError
-from housing.models import Society
+from societies.models import Society
 
 
 class AccountingPeriod(models.Model):

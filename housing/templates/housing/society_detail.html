@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {{ society.name }} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {{ society.name }}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% if society.registration_number %}
+    {% translate "Registration" %}: {{ society.registration_number }}
+  {% else %}
+    {% translate "Society details and structure overview." %}
+  {% endif %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a href="{% url 'housing:structure-add' %}?society={{ society.pk }}" class="btn btn-primary">{% translate "Add Structure" %}</a>
+    <a href="{% url 'housing:unit-add' %}?society={{ society.pk }}" class="btn btn-outline-primary">{% translate "Add Unit" %}</a>
+    <a href="{% url 'housing:ownership-add' %}?society={{ society.pk }}" class="btn btn-outline-primary">{% translate "Add Ownership" %}</a>
+    <a href="{% url 'housing:occupancy-add' %}?society={{ society.pk }}" class="btn btn-outline-primary">{% translate "Add Occupancy" %}</a>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-lg-6">
+      <div class="quick-card">
+        <h3 class="h6 mb-2">{% translate "Address" %}</h3>
+        {% if society.address %}
+          <p class="mb-0 text-muted">{{ society.address }}</p>
+        {% else %}
+          <p class="mb-0 text-muted">{% translate "No address provided." %}</p>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-12 col-lg-6">
+      <div class="quick-card">
+        <h3 class="h6 mb-2">{% translate "Quick Stats" %}</h3>
+        <p class="mb-1"><strong>{% translate "Root structures:" %}</strong> {{ root_structures|length }}</p>
+        <p class="mb-0"><strong>{% translate "Total units:" %}</strong> {{ total_units }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="quick-card">
+    <h3 class="h6 mb-2">{% translate "Structure Hierarchy with Units" %}</h3>
+    <p class="small text-muted">{% translate "Each unit is shown under the exact structure it belongs to." %}</p>
+    {% if root_structures %}
+      <ul class="structure-tree">
+        {% for structure in root_structures %}
+          {% include "housing/partials/structure_tree.html" with structure=structure society=society %}
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="text-muted mb-0">{% translate "No structures added yet." %}</p>
+    {% endif %}
+  </div>
+
+  <div class="mt-3">
+    <a href="{% url 'housing:society-list' %}" class="btn btn-outline-secondary">{% translate "Back to societies" %}</a>
+  </div>
+{% endblock content %}

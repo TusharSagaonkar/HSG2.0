@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Voucher Entry" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Voucher Entry" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Create a draft voucher and add ledger lines." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="mb-3 d-flex flex-wrap gap-2">
+    <a href="{% url 'accounting:voucher-posting' %}" class="btn btn-outline-primary">{% translate "Voucher Posting Menu" %}</a>
+    <a href="{% url 'accounting:voucher-list' %}" class="btn btn-outline-secondary">{% translate "Voucher List" %}</a>
+  </div>
+
+  <form method="post" novalidate>
+    {% csrf_token %}
+    <div class="row g-3">
+      {% for field in voucher_form %}
+        <div class="col-12 col-md-6">
+          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% for error in field.errors %}
+            <div class="text-danger small">{{ error }}</div>
+          {% endfor %}
+        </div>
+      {% endfor %}
+    </div>
+    <p class="small text-muted mt-2 mb-0">
+      {% translate "Changing society reloads the page and updates ledger account options for that society." %}
+    </p>
+
+    <hr class="my-4" />
+
+    <h2 class="h6">{% translate "Ledger Entries" %}</h2>
+    {{ entry_formset.management_form }}
+    {% if entry_formset.non_form_errors %}
+      <div class="alert alert-danger">
+        {% for error in entry_formset.non_form_errors %}
+          <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="table-responsive">
+      <table class="table table-sm align-middle">
+        <thead>
+          <tr>
+            <th>{% translate "Account" %}</th>
+            <th>{% translate "Unit (optional)" %}</th>
+            <th>{% translate "Debit" %}</th>
+            <th>{% translate "Credit" %}</th>
+          </tr>
+        </thead>
+        <tbody id="ledger-entry-rows">
+          {% for form in entry_formset %}
+            <tr>
+              <td>
+                {{ form.account }}
+                {% for error in form.account.errors %}
+                  <div class="text-danger small">{{ error }}</div>
+                {% endfor %}
+              </td>
+              <td>
+                {{ form.unit }}
+                {% for error in form.unit.errors %}
+                  <div class="text-danger small">{{ error }}</div>
+                {% endfor %}
+              </td>
+              <td>
+                {{ form.debit }}
+                {% for error in form.debit.errors %}
+                  <div class="text-danger small">{{ error }}</div>
+                {% endfor %}
+              </td>
+              <td>
+                {{ form.credit }}
+                {% for error in form.credit.errors %}
+                  <div class="text-danger small">{{ error }}</div>
+                {% endfor %}
+              </td>
+            </tr>
+            {% if form.non_field_errors %}
+              <tr>
+                <td colspan="4">
+                  {% for error in form.non_field_errors %}
+                    <div class="text-danger small">{{ error }}</div>
+                  {% endfor %}
+                </td>
+              </tr>
+            {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    <div class="d-flex flex-wrap gap-2 mt-3">
+      <button type="button" id="add-ledger-row" class="btn btn-outline-secondary">
+        {% translate "Add Row" %}
+      </button>
+      <button type="submit" class="btn btn-primary">{% translate "Save Draft Voucher" %}</button>
+    </div>
+  </form>
+
+  <template id="ledger-entry-empty-row-template">
+    <tr>
+      <td>{{ entry_formset.empty_form.account }}</td>
+      <td>{{ entry_formset.empty_form.unit }}</td>
+      <td>{{ entry_formset.empty_form.debit }}</td>
+      <td>{{ entry_formset.empty_form.credit }}</td>
+    </tr>
+  </template>
+{% endblock content %}
+
+{% block inline_javascript %}
+  {{ block.super }}
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      const societyField = document.getElementById("id_society");
+      const addRowButton = document.getElementById("add-ledger-row");
+      const rowsContainer = document.getElementById("ledger-entry-rows");
+      const totalFormsField = document.getElementById("id_entries-TOTAL_FORMS");
+      const emptyRowTemplate = document.getElementById("ledger-entry-empty-row-template");
+
+      if (societyField) {
+        societyField.addEventListener("change", () => {
+          const next = new URL(window.location.href);
+          if (societyField.value) {
+            next.searchParams.set("society", societyField.value);
+          } else {
+            next.searchParams.delete("society");
+          }
+          window.location.href = next.toString();
+        });
+      }
+
+      if (!addRowButton || !rowsContainer || !totalFormsField || !emptyRowTemplate) {
+        return;
+      }
+
+      addRowButton.addEventListener("click", () => {
+        const currentCount = Number.parseInt(totalFormsField.value, 10);
+        if (Number.isNaN(currentCount)) {
+          return;
+        }
+
+        const newRowHtml = emptyRowTemplate.innerHTML.replaceAll(
+          "__prefix__",
+          String(currentCount),
+        );
+        rowsContainer.insertAdjacentHTML("beforeend", newRowHtml);
+        totalFormsField.value = String(currentCount + 1);
+      });
+    });
+  </script>
+{% endblock inline_javascript %}

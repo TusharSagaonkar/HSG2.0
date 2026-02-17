@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Members" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Members" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Track owners, tenants, and nominees by unit." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="mb-3 d-flex gap-2">
+    <a href="{% url 'housing:member-add' %}" class="btn btn-primary">{% translate "Add Member" %}</a>
+    <a href="{% url 'housing:dashboard' %}" class="btn btn-outline-secondary">{% translate "Back to Dashboard" %}</a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>{% translate "Name" %}</th>
+          <th>{% translate "Society" %}</th>
+          <th>{% translate "Unit" %}</th>
+          <th>{% translate "Role" %}</th>
+          <th>{% translate "Status" %}</th>
+          <th>{% translate "Receivable Account" %}</th>
+          <th class="text-end">{% translate "Action" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for member in members %}
+          <tr>
+            <td>{{ member.full_name }}</td>
+            <td>{{ member.society.name }}</td>
+            <td>{{ member.unit.identifier }}</td>
+            <td>{{ member.get_role_display }}</td>
+            <td>{{ member.get_status_display }}</td>
+            <td>{{ member.receivable_account|default:"-" }}</td>
+            <td class="text-end">
+              <a href="{% url 'housing:member-edit' member.pk %}" class="btn btn-sm btn-outline-primary">{% translate "Edit" %}</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-4">{% translate "No members found." %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock content %}

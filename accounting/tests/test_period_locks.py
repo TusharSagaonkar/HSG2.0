@@ -16,14 +16,19 @@ def test_posting_blocked_in_closed_financial_year():
     society = Society.objects.create(name="Test Society")
 
     FinancialYear.objects.create(
+        society=society,
         name="FY 2023-24",
         start_date=date(2023, 4, 1),
         end_date=date(2024, 3, 31),
         is_open=False,
     )
 
-    cat = AccountCategory.objects.create(name="Cash", account_type="ASSET")
-    acc = Account.objects.create(name="Cash", category=cat)
+    cat, _ = AccountCategory.objects.get_or_create(
+        society=society,
+        name="Cash",
+        account_type="ASSET",
+    )
+    acc = Account.objects.create(society=society, name="Cash", category=cat)
 
     v = Voucher.objects.create(
         society=society,
@@ -42,17 +47,27 @@ def test_posting_blocked_in_closed_financial_year():
 def test_posting_blocked_in_closed_month():
     society = Society.objects.create(name="Test Society")
 
-    FinancialYear.objects.create(
+    fy = FinancialYear.objects.create(
+        society=society,
         name="FY 2024-25",
         start_date=date(2024, 4, 1),
         end_date=date(2025, 3, 31),
         is_open=True,
     )
 
-    AccountingPeriod.objects.create(year=2024, month=8, is_open=False)
+    AccountingPeriod.objects.filter(
+        society=society,
+        financial_year=fy,
+        start_date=date(2024, 8, 1),
+        end_date=date(2024, 8, 31),
+    ).update(is_open=False)
 
-    cat = AccountCategory.objects.create(name="Cash", account_type="ASSET")
-    acc = Account.objects.create(name="Cash", category=cat)
+    cat, _ = AccountCategory.objects.get_or_create(
+        society=society,
+        name="Cash",
+        account_type="ASSET",
+    )
+    acc = Account.objects.create(society=society, name="Cash", category=cat)
 
     v = Voucher.objects.create(
         society=society,
@@ -62,6 +77,57 @@ def test_posting_blocked_in_closed_month():
 
     LedgerEntry.objects.create(voucher=v, account=acc, debit=15)
     LedgerEntry.objects.create(voucher=v, account=acc, credit=15)
+
+    with pytest.raises(ValidationError):
+        v.post()
+
+
+@pytest.mark.django_db
+def test_posting_uses_financial_year_of_same_society_only():
+    society_closed = Society.objects.create(name="Closed Society")
+    society_open = Society.objects.create(name="Open Society")
+
+    FinancialYear.objects.create(
+        society=society_closed,
+        name="FY 2024-25 Closed",
+        start_date=date(2024, 4, 1),
+        end_date=date(2025, 3, 31),
+        is_open=False,
+    )
+    fy_open = FinancialYear.objects.create(
+        society=society_open,
+        name="FY 2024-25 Open",
+        start_date=date(2024, 4, 1),
+        end_date=date(2025, 3, 31),
+        is_open=True,
+    )
+
+    AccountingPeriod.objects.filter(
+        society=society_closed,
+        start_date=date(2024, 8, 1),
+        end_date=date(2024, 8, 31),
+    ).update(is_open=True)
+    AccountingPeriod.objects.filter(
+        society=society_open,
+        financial_year=fy_open,
+        start_date=date(2024, 8, 1),
+        end_date=date(2024, 8, 31),
+    ).update(is_open=True)
+
+    cat, _ = AccountCategory.objects.get_or_create(
+        society=society_closed,
+        name="Cash",
+        account_type="ASSET",
+    )
+    acc = Account.objects.create(society=society_closed, name="Cash", category=cat)
+
+    v = Voucher.objects.create(
+        society=society_closed,
+        voucher_type="GENERAL",
+        voucher_date=date(2024, 8, 6),
+    )
+    LedgerEntry.objects.create(voucher=v, account=acc, debit=10)
+    LedgerEntry.objects.create(voucher=v, account=acc, credit=10)
 
     with pytest.raises(ValidationError):
         v.post()

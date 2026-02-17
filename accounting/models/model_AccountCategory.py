@@ -2,6 +2,7 @@ from django.db import models
 from django.core.exceptions import ValidationError
 from django.utils import timezone
 from decimal import Decimal
+from societies.models import Society
 
 class AccountCategory(models.Model):
     class AccountType(models.TextChoices):
@@ -11,6 +12,12 @@ class AccountCategory(models.Model):
         EXPENSE = "EXPENSE", "Expense"
         EQUITY = "EQUITY", "Equity"
 
+    society = models.ForeignKey(
+        Society,
+        on_delete=models.CASCADE,
+        related_name="account_categories",
+    )
+
     name = models.CharField(max_length=100)
     account_type = models.CharField(
         max_length=20,
@@ -18,8 +25,8 @@ class AccountCategory(models.Model):
     )
 
     class Meta:
-        unique_together = ("name", "account_type")
-        ordering = ("account_type", "name")
+        unique_together = ("society", "name", "account_type")
+        ordering = ("society", "account_type", "name")
 
     def __str__(self):
         return f"{self.name} ({self.account_type})"

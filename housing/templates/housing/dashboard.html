@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Housing Dashboard" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Housing Dashboard" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Track societies, units, and occupancy at a glance." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="d-flex flex-wrap gap-2 mb-3">
+    <a href="{% url 'housing:society-add' %}" class="btn btn-primary">{% translate "Add Society" %}</a>
+    <a href="{% url 'housing:structure-add' %}" class="btn btn-outline-primary">{% translate "Add Structure" %}</a>
+    <a href="{% url 'housing:unit-add' %}" class="btn btn-outline-primary">{% translate "Add Unit" %}</a>
+    <a href="{% url 'housing:ownership-add' %}" class="btn btn-outline-primary">{% translate "Add Ownership" %}</a>
+    <a href="{% url 'housing:occupancy-add' %}" class="btn btn-outline-primary">{% translate "Add Occupancy" %}</a>
+    <a href="{% url 'housing:member-list' %}" class="btn btn-outline-primary">{% translate "Members" %}</a>
+    <a href="{% url 'housing:charge-template-add' %}" class="btn btn-outline-primary">{% translate "Add Charge Template" %}</a>
+    <a href="{% url 'housing:billing-generate' %}" class="btn btn-outline-primary">{% translate "Generate Bills" %}</a>
+    <a href="{% url 'housing:receipt-post' %}" class="btn btn-outline-primary">{% translate "Post Receipt" %}</a>
+    <a href="{% url 'housing:outstanding-dashboard' %}" class="btn btn-outline-primary">{% translate "Outstanding" %}</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Societies" %}</p>
+        <h2 class="h3 mb-0">{{ total_societies }}</h2>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Total Units" %}</p>
+        <h2 class="h3 mb-0">{{ total_units }}</h2>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Active Units" %}</p>
+        <h2 class="h3 mb-0">{{ active_units }}</h2>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Active Occupancies" %}</p>
+        <h2 class="h3 mb-0">{{ active_occupancies }}</h2>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Active Members" %}</p>
+        <h2 class="h3 mb-0">{{ active_members }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-6">
+      <div class="quick-card">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <h3 class="h6 mb-0">{% translate "Recent Societies" %}</h3>
+          <a href="{% url 'housing:society-list' %}" class="btn btn-sm btn-outline-primary">{% translate "View all" %}</a>
+        </div>
+        {% if recent_societies %}
+          <ul class="list-group list-group-flush">
+            {% for society in recent_societies %}
+              <li class="list-group-item px-0 d-flex justify-content-between align-items-center">
+                <a href="{% url 'housing:society-detail' society.pk %}" class="text-decoration-none">{{ society.name }}</a>
+                <small class="text-muted">{{ society.created_at|date:"M d, Y" }}</small>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted mb-0">{% translate "No societies found yet." %}</p>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-12 col-lg-6">
+      <div class="quick-card">
+        <h3 class="h6 mb-2">{% translate "Recently Added Units" %}</h3>
+        {% if recent_units %}
+          <ul class="list-group list-group-flush">
+            {% for unit in recent_units %}
+              <li class="list-group-item px-0">
+                <strong>{{ unit.identifier }}</strong>
+                <span class="text-muted">({{ unit.get_unit_type_display }})</span>
+                <div class="small text-muted">{{ unit.structure.society.name }} / {{ unit.structure.name }}</div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted mb-0">{% translate "No units found yet." %}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock content %}

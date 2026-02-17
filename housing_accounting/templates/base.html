@@ -1,4 +1,3 @@
-
 {% load static i18n %}<!DOCTYPE html>
 {% get_current_language as LANGUAGE_CODE %}
 <html lang="{{ LANGUAGE_CODE }}">
@@ -7,135 +6,331 @@
     <meta http-equiv="x-ua-compatible" content="ie=edge" />
     <title>
       {% block title %}
-      Housing Accounting System
-    {% endblock title %}
-  </title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description"
-        content="Multi-user housing society accounting and management system" />
-  <meta name="author"
-        content="Tushar Sagoankar" />
-  <link rel="icon" href="{% static 'images/favicons/favicon.ico' %}" />
-  {% block css %}
-    <!-- Latest compiled and minified Bootstrap CSS -->
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.3/css/bootstrap.min.css"
-          integrity="sha512-SbiR/eusphKoMVVXysTKG/7VseWii+Y3FdHrt0EpKgpToZeemhqHeZeLWLhJutz/2ut2Vw1uQEj2MbRF+TVBUA=="
-          crossorigin="anonymous"
-          referrerpolicy="no-referrer" />
-<!-- Your stuff: Third-party CSS libraries go here -->
-<!-- This file stores project-specific CSS -->
+        Housing Accounting System
+      {% endblock title %}
+    </title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Multi-user housing society accounting and management system" />
+    <meta name="author" content="Tushar Sagoankar" />
+    <link rel="icon" href="{% static 'images/favicons/favicon.ico' %}" />
 
-  
-  <link href="{% static 'css/project.css' %}" rel="stylesheet" />
-
-
-{% endblock css %}
-<!-- Le javascript
-    ================================================== -->
-{# Placed at the top of the document so pages load faster with defer #}
-{% block javascript %}
-
-
-<!-- Bootstrap JS -->
-<script defer
-        src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.2.3/js/bootstrap.min.js"
-        integrity="sha512-1/RvZTcCDEUjY/CypiMz+iqqtaoQfAITmNSJY17Myp4Ms5mdxPS5UV7iOfdZoxcGhzFbOm6sntTKJppjvuhg4g=="
-        crossorigin="anonymous"
-        referrerpolicy="no-referrer"></script>
-<!-- Your stuff: Third-party javascript libraries go here -->
-
-
-<!-- place project specific Javascript in this file -->
-
-  
-  <script defer src="{% static 'js/project.js' %}"></script>
-
-
-{% endblock javascript %}
-</head>
-<body class="{% block bodyclass %}{% endblock bodyclass %}">
-  {% block body %}
-  <div class="mb-1">
-    <nav class="navbar navbar-expand-md navbar-light bg-light">
-      <div class="container-fluid">
-        <button class="navbar-toggler navbar-toggler-right"
-                type="button"
-                data-bs-toggle="collapse"
-                data-bs-target="#navbarSupportedContent"
-                aria-controls="navbarSupportedContent"
-                aria-expanded="false"
-                aria-label="Toggle navigation">
-          <span class="navbar-toggler-icon"></span>
-        </button>
-        <a class="navbar-brand" href="{% url 'home' %}">Housing Accounting System</a>
-        <div class="collapse navbar-collapse" id="navbarSupportedContent">
-          <ul class="navbar-nav mr-auto">
-            <li class="nav-item active">
-              <a class="nav-link" href="{% url 'home' %}">Home <span class="visually-hidden">(current)</span></a>
-            </li>
-            <li class="nav-item">
-              <a class="nav-link" href="{% url 'about' %}">About</a>
-            </li>
-            {% if request.user.is_authenticated %}
-              <li class="nav-item">
-                <a class="nav-link"
-                   href="{% url 'users:detail' request.user.pk %}">{% translate "My Profile" %}</a>
-              </li>
-              <li class="nav-item">
-                {# URL provided by django-allauth/account/urls.py #}
-                <a class="nav-link" href="{% url 'account_logout' %}">{% translate "Sign Out" %}</a>
-              </li>
-            {% else %}
-              {% if ACCOUNT_ALLOW_REGISTRATION %}
-                <li class="nav-item">
-                  {# URL provided by django-allauth/account/urls.py #}
-                  <a id="sign-up-link" class="nav-link" href="{% url 'account_signup' %}">{% translate "Sign Up" %}</a>
-                </li>
-              {% endif %}
-              <li class="nav-item">
-                {# URL provided by django-allauth/account/urls.py #}
-                <a id="log-in-link" class="nav-link" href="{% url 'account_login' %}">{% translate "Sign In" %}</a>
-              </li>
-            {% endif %}
-          </ul>
-        </div>
-      </div>
-    </nav>
-  </div>
-  <div class="container">
-    {% if messages %}
-      {% for message in messages %}
-        <div class="alert alert-dismissible {% if message.tags %}alert-{{ message.tags }}{% endif %}">
-          {{ message }}
-          <button type="button"
-                  class="btn-close"
-                  data-bs-dismiss="alert"
-                  aria-label="Close"></button>
-        </div>
-      {% endfor %}
-    {% endif %}
-    {% block main %}
-      {% block content %}
-        <p>Use this document as a way to quick start any new project.</p>
-      {% endblock content %}
-    {% endblock main %}
-
-  </div>
-  {% endblock body %}
-  <!-- /container -->
-  {% block modal %}
-  {% endblock modal %}
-  {% block inline_javascript %}
-    {% comment %}
-    Script tags with only code, no src (defer by default). To run
-    with a "defer" so that you run inline code:
+    <script src="{% static 'vendor/kaiadmin-lite/assets/js/plugin/webfont/webfont.min.js' %}"></script>
     <script>
-      window.addEventListener('DOMContentLoaded', () => {
-        /* Run whatever you want */
+      WebFont.load({
+        google: { families: ["Public Sans:300,400,500,600,700"] },
+        custom: {
+          families: ["Font Awesome 5 Solid", "Font Awesome 5 Regular", "Font Awesome 5 Brands", "simple-line-icons"],
+          urls: ["{% static 'vendor/kaiadmin-lite/assets/css/fonts.min.css' %}"],
+        },
+        active: function () {
+          sessionStorage.fonts = true;
+        },
       });
     </script>
-    {% endcomment %}
-  {% endblock inline_javascript %}
-</body>
+
+    {% block css %}
+      <link rel="stylesheet" href="{% static 'vendor/kaiadmin-lite/assets/css/bootstrap.min.css' %}" />
+      <link rel="stylesheet" href="{% static 'vendor/kaiadmin-lite/assets/css/plugins.min.css' %}" />
+      <link rel="stylesheet" href="{% static 'vendor/kaiadmin-lite/assets/css/fonts.min.css' %}" />
+      <link rel="stylesheet" href="{% static 'vendor/kaiadmin-lite/assets/css/kaiadmin.min.css' %}" />
+      <link href="{% static 'css/project.css' %}" rel="stylesheet" />
+    {% endblock css %}
+
+    {% block javascript %}
+      <script defer src="{% static 'vendor/kaiadmin-lite/assets/js/core/jquery-3.7.1.min.js' %}"></script>
+      <script defer src="{% static 'vendor/kaiadmin-lite/assets/js/core/popper.min.js' %}"></script>
+      <script defer src="{% static 'vendor/kaiadmin-lite/assets/js/core/bootstrap.min.js' %}"></script>
+      <script defer src="{% static 'vendor/kaiadmin-lite/assets/js/plugin/jquery-scrollbar/jquery.scrollbar.min.js' %}"></script>
+      <script defer src="{% static 'vendor/kaiadmin-lite/assets/js/kaiadmin.min.js' %}"></script>
+      <script defer src="{% static 'js/project.js' %}"></script>
+    {% endblock javascript %}
+  </head>
+  <body class="ka-body {% block bodyclass %}{% endblock bodyclass %}">
+    {% block body %}
+      <div class="wrapper">
+        <div class="sidebar" data-background-color="dark">
+          <div class="sidebar-logo">
+            <div class="logo-header" data-background-color="dark">
+              <a href="{% url 'home' %}" class="logo app-logo">
+                <span class="logo-badge">HA</span>
+                <span class="logo-label">Housing Accounting</span>
+              </a>
+              <div class="nav-toggle">
+                <button class="btn btn-toggle toggle-sidebar" type="button" aria-label="Toggle sidebar">
+                  <i class="gg-menu-right"></i>
+                </button>
+                <button class="btn btn-toggle sidenav-toggler" type="button" aria-label="Toggle mobile sidebar">
+                  <i class="gg-menu-left"></i>
+                </button>
+              </div>
+              <button class="topbar-toggler more" type="button" aria-label="Toggle topbar">
+                <i class="gg-more-vertical-alt"></i>
+              </button>
+            </div>
+          </div>
+
+          <div class="sidebar-wrapper scrollbar scrollbar-inner">
+            <div class="sidebar-content">
+              <ul class="nav nav-secondary">
+                <li class="nav-section">
+                  <span class="sidebar-mini-icon"><i class="fa fa-ellipsis-h"></i></span>
+                  <h4 class="text-section">{% translate "Navigation" %}</h4>
+                </li>
+
+                <li class="nav-item {% if request.resolver_match and request.resolver_match.url_name == 'home' %}active{% endif %}">
+                  <a href="{% url 'home' %}">
+                    <i class="fas fa-home"></i>
+                    <p>{% translate "Home" %}</p>
+                  </a>
+                </li>
+                <li class="nav-item {% if request.resolver_match and request.resolver_match.url_name == 'about' %}active{% endif %}">
+                  <a href="{% url 'about' %}">
+                    <i class="fas fa-info-circle"></i>
+                    <p>{% translate "About" %}</p>
+                  </a>
+                </li>
+                <li class="nav-item {% if request.resolver_match and request.resolver_match.namespace == 'housing' %}active{% endif %}">
+                  <a href="{% url 'housing:dashboard' %}">
+                    <i class="fas fa-layer-group"></i>
+                    <p>{% translate "Housing" %}</p>
+                  </a>
+                </li>
+                <li class="nav-item {% if request.resolver_match and request.resolver_match.namespace == 'accounting' and request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+                  <a href="{% url 'accounting:dashboard' %}">
+                    <i class="fas fa-chart-line"></i>
+                    <p>{% translate "Accounting" %}</p>
+                  </a>
+                </li>
+                <li class="nav-item {% if request.resolver_match and request.resolver_match.namespace == 'accounting' and request.resolver_match.url_name == 'voucher-entry' %}active{% endif %}">
+                  <a href="{% url 'accounting:voucher-entry' %}">
+                    <i class="fas fa-pen-square"></i>
+                    <p>{% translate "Voucher Entry" %}</p>
+                  </a>
+                </li>
+                <li class="nav-item {% if request.resolver_match and request.resolver_match.namespace == 'accounting' and request.resolver_match.url_name == 'voucher-posting' %}active{% endif %}">
+                  <a href="{% url 'accounting:voucher-posting' %}">
+                    <i class="fas fa-check-circle"></i>
+                    <p>{% translate "Voucher Posting" %}</p>
+                  </a>
+                </li>
+                {% if request.user.is_authenticated %}
+                  <li class="nav-item {% if request.resolver_match and request.resolver_match.namespace == 'users' %}active{% endif %}">
+                    <a href="{% url 'users:detail' request.user.pk %}">
+                      <i class="fas fa-user"></i>
+                      <p>{% translate "My Profile" %}</p>
+                    </a>
+                  </li>
+                {% endif %}
+
+                <li class="nav-section">
+                  <span class="sidebar-mini-icon"><i class="fa fa-user-circle"></i></span>
+                  <h4 class="text-section">{% translate "Account" %}</h4>
+                </li>
+
+                {% if request.user.is_authenticated %}
+                  <li class="nav-item">
+                    <a href="{% url 'account_logout' %}">
+                      <i class="fas fa-sign-out-alt"></i>
+                      <p>{% translate "Sign Out" %}</p>
+                    </a>
+                  </li>
+                {% else %}
+                  {% if ACCOUNT_ALLOW_REGISTRATION %}
+                    <li class="nav-item">
+                      <a id="sign-up-link" href="{% url 'account_signup' %}">
+                        <i class="fas fa-user-plus"></i>
+                        <p>{% translate "Sign Up" %}</p>
+                      </a>
+                    </li>
+                  {% endif %}
+                  <li class="nav-item">
+                    <a id="log-in-link" href="{% url 'account_login' %}">
+                      <i class="fas fa-sign-in-alt"></i>
+                      <p>{% translate "Sign In" %}</p>
+                    </a>
+                  </li>
+                {% endif %}
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="main-panel">
+          <div class="main-header">
+            <div class="main-header-logo">
+              <div class="logo-header" data-background-color="dark">
+                <a href="{% url 'home' %}" class="logo app-logo">
+                  <span class="logo-badge">HA</span>
+                  <span class="logo-label">Housing Accounting</span>
+                </a>
+                <div class="nav-toggle">
+                  <button class="btn btn-toggle toggle-sidebar" type="button" aria-label="Toggle sidebar">
+                    <i class="gg-menu-right"></i>
+                  </button>
+                  <button class="btn btn-toggle sidenav-toggler" type="button" aria-label="Toggle mobile sidebar">
+                    <i class="gg-menu-left"></i>
+                  </button>
+                </div>
+                <button class="topbar-toggler more" type="button" aria-label="Toggle topbar">
+                  <i class="gg-more-vertical-alt"></i>
+                </button>
+              </div>
+            </div>
+
+            <nav class="navbar navbar-header navbar-header-transparent navbar-expand-lg border-bottom">
+              <div class="container-fluid">
+                <div class="dashboard-heading">
+                  <h3 class="fw-bold mb-0">{% block dashboard_title %}{% translate "Dashboard" %}{% endblock dashboard_title %}</h3>
+                </div>
+
+                <ul class="navbar-nav topbar-nav ms-md-auto align-items-center">
+                  {% if request.user.is_authenticated %}
+                    <li class="nav-item">
+                      <form method="post" action="{% url 'users:selection-update' %}" class="selection-form">
+                        {% csrf_token %}
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+                        <label class="small mb-0" for="id_selected_society">{% translate "Society" %}</label>
+                        <select id="id_selected_society" name="selected_society_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                          {% for society in selection_societies %}
+                            <option value="{{ society.id }}" {% if selected_society and selected_society.id == society.id %}selected{% endif %}>{{ society.name }}</option>
+                          {% empty %}
+                            <option value="">{% translate "No Society" %}</option>
+                          {% endfor %}
+                        </select>
+                        <label class="small mb-0" for="id_selected_financial_year">{% translate "FY" %}</label>
+                        <select id="id_selected_financial_year" name="selected_financial_year_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                          {% for financial_year in selection_financial_years %}
+                            <option value="{{ financial_year.id }}" {% if selected_financial_year and selected_financial_year.id == financial_year.id %}selected{% endif %}>{{ financial_year.name }}</option>
+                          {% empty %}
+                            <option value="">{% translate "No Financial Year" %}</option>
+                          {% endfor %}
+                        </select>
+                      </form>
+                    </li>
+                    <li class="nav-item">
+                      <button class="btn periods-chip"
+                              type="button"
+                              data-bs-toggle="modal"
+                              data-bs-target="#periodsModal">
+                        <i class="fas fa-calendar-alt me-1"></i>
+                        {% translate "Periods" %} ({{ selection_accounting_periods|length }})
+                      </button>
+                    </li>
+                    <li class="nav-item ms-2">
+                      <span class="badge badge-info user-chip">{{ request.user.get_username }}</span>
+                    </li>
+                    {% if request.user.is_superuser %}
+                      <li class="nav-item ms-2">
+                        <span class="badge badge-warning user-chip">{% translate "Superuser" %}</span>
+                      </li>
+                    {% endif %}
+                  {% endif %}
+                </ul>
+              </div>
+            </nav>
+          </div>
+
+          <div class="container">
+            <div class="page-inner">
+              <div class="d-flex align-items-left align-items-md-center flex-column flex-md-row pt-2 pb-4">
+                <div>
+                  <h6 class="op-7 mb-0">{% block dashboard_subtitle %}{% translate "Manage housing accounting tasks quickly from one place." %}{% endblock dashboard_subtitle %}</h6>
+                </div>
+              </div>
+
+              {% if messages %}
+                {% for message in messages %}
+                  <div class="alert alert-dismissible {% if message.tags %}alert-{{ message.tags }}{% endif %}">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                  </div>
+                {% endfor %}
+              {% endif %}
+
+              <div class="dashboard-content-card card card-round">
+                <div class="card-body">
+                  {% block main %}
+                    {% block content %}
+                      <div class="row g-3">
+                        <div class="col-12 col-md-6 col-xl-3">
+                          <div class="quick-card">
+                            <h2 class="h6 mb-1">{% translate "User Management" %}</h2>
+                            <p class="small text-muted mb-0">{% translate "View and manage your profile details." %}</p>
+                          </div>
+                        </div>
+                        <div class="col-12 col-md-6 col-xl-3">
+                          <div class="quick-card">
+                            <h2 class="h6 mb-1">{% translate "Society Setup" %}</h2>
+                            <p class="small text-muted mb-0">{% translate "Maintain members, units, and ownership records." %}</p>
+                          </div>
+                        </div>
+                        <div class="col-12 col-md-6 col-xl-3">
+                          <div class="quick-card">
+                            <h2 class="h6 mb-1">{% translate "Accounting" %}</h2>
+                            <p class="small text-muted mb-0">{% translate "Track vouchers, ledgers, and periods safely." %}</p>
+                          </div>
+                        </div>
+                        <div class="col-12 col-md-6 col-xl-3">
+                          <div class="quick-card">
+                            <h2 class="h6 mb-1">{% translate "Reports" %}</h2>
+                            <p class="small text-muted mb-0">{% translate "Review balances and monitor financial health." %}</p>
+                          </div>
+                        </div>
+                      </div>
+                    {% endblock content %}
+                  {% endblock main %}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endblock body %}
+
+    {% if request.user.is_authenticated %}
+      <div class="modal fade" id="periodsModal" tabindex="-1" aria-labelledby="periodsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="periodsModalLabel">
+                {% translate "Accounting Periods" %}
+                {% if selected_society %}- {{ selected_society.name }}{% endif %}
+                {% if selected_financial_year %} / {{ selected_financial_year.name }}{% endif %}
+              </h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+              {% if selection_accounting_periods %}
+                <ul class="periods-list mb-0">
+                  {% for period in selection_accounting_periods %}
+                    <li>
+                      <div class="small fw-semibold">{{ period.start_date|date:"M d, Y" }} - {{ period.end_date|date:"M d, Y" }}</div>
+                      <span class="period-status {% if period.is_open %}active{% else %}inactive{% endif %}">
+                        <i class="fas fa-circle"></i>
+                        {% if period.is_open %}
+                          {% translate "Active" %}
+                        {% else %}
+                          {% translate "Closed" %}
+                        {% endif %}
+                      </span>
+                    </li>
+                  {% endfor %}
+                </ul>
+              {% else %}
+                <p class="small text-muted mb-0">{% translate "No accounting periods found for selected society and financial year." %}</p>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    {% block modal %}{% endblock modal %}
+
+    {% block inline_javascript %}
+      {% comment %}
+      Script tags with only code, no src (defer by default).
+      {% endcomment %}
+    {% endblock inline_javascript %}
+  </body>
 </html>

@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {{ form_title }} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {{ form_title }}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {{ form_subtitle }}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger" role="alert">
+        {% for error in form.non_field_errors %}
+          <div>{{ error }}</div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    {% for field in form %}
+      <div class="mb-3">
+        <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+        {{ field }}
+        {% if field.help_text %}
+          <div class="form-text">{{ field.help_text }}</div>
+        {% endif %}
+        {% for error in field.errors %}
+          <div class="text-danger small">{{ error }}</div>
+        {% endfor %}
+      </div>
+    {% endfor %}
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary">{% translate "Save" %}</button>
+      <a href="{% url 'housing:dashboard' %}" class="btn btn-outline-secondary">{% translate "Cancel" %}</a>
+    </div>
+  </form>
+{% endblock content %}

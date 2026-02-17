@@ -4,7 +4,7 @@ from decimal import Decimal
 
 from .model_Voucher import Voucher
 from .model_Account import Account
-from housing.models import Unit
+from members.models import Unit
 
 
 class LedgerEntry(models.Model):
@@ -42,12 +42,28 @@ class LedgerEntry(models.Model):
 
     class Meta:
         ordering = ("id",)
+        indexes = [
+            models.Index(fields=["account", "voucher"]),
+            models.Index(fields=["voucher", "id"]),
+        ]
 
     def clean(self):
         super().clean()
 
         if self.voucher.posted_at:
             raise ValidationError("Cannot modify entries of a posted voucher.")
+
+        if self.account and not self.account.is_active:
+            raise ValidationError({"account": "Cannot post to an inactive account."})
+
+        if self.account and self.voucher and self.account.society_id != self.voucher.society_id:
+            raise ValidationError({"account": "Account must belong to the voucher society."})
+
+        if self.unit and self.voucher and self.unit.structure.society_id != self.voucher.society_id:
+            raise ValidationError({"unit": "Unit must belong to the voucher society."})
+
+        if self.debit < 0 or self.credit < 0:
+            raise ValidationError("Debit and credit amounts must be positive.")
 
         if self.debit > 0 and self.credit > 0:
             raise ValidationError("Ledger entry cannot have both debit and credit.")

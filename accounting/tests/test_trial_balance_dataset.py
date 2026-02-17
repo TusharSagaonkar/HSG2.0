@@ -1,9 +1,8 @@
 from django.test import TestCase
 from datetime import date
 
-from housing.models import Society
+from housing.models import Society, Structure, Unit
 from accounting.models.model_FinancialYear import FinancialYear
-from accounting.models.model_AccountingPeriod import AccountingPeriod
 from accounting.models.model_AccountCategory import AccountCategory
 from accounting.models.model_Account import Account
 from accounting.models.model_Voucher import Voucher
@@ -37,30 +36,25 @@ class TrialBalanceDataSetupTest(TestCase):
         )
 
         # -------------------------------------------------
-        # Accounting Period (OPEN, GLOBAL)
-        # -------------------------------------------------
-        AccountingPeriod.objects.create(
-            year=2024,
-            month=4,
-            is_open=True,
-        )
-
-        # -------------------------------------------------
         # Account Categories
         # -------------------------------------------------
         asset = AccountCategory.objects.create(
+            society=cls.society,
             name="Assets",
             account_type=AccountCategory.AccountType.ASSET,
         )
         income = AccountCategory.objects.create(
+            society=cls.society,
             name="Income",
             account_type=AccountCategory.AccountType.INCOME,
         )
         expense = AccountCategory.objects.create(
+            society=cls.society,
             name="Expenses",
             account_type=AccountCategory.AccountType.EXPENSE,
         )
         equity = AccountCategory.objects.create(
+            society=cls.society,
             name="Equity",
             account_type=AccountCategory.AccountType.EQUITY,
         )
@@ -117,6 +111,17 @@ class TrialBalanceDataSetupTest(TestCase):
             is_active=True,
         )
 
+        cls.structure = Structure.objects.create(
+            society=cls.society,
+            structure_type=Structure.StructureType.BUILDING,
+            name="Building A",
+        )
+        cls.unit_101 = Unit.objects.create(
+            structure=cls.structure,
+            unit_type=Unit.UnitType.FLAT,
+            identifier="101",
+        )
+
         # -------------------------------------------------
         # Voucher 1 — Opening Balance (01-Apr-2024)
         # -------------------------------------------------
@@ -146,6 +151,7 @@ class TrialBalanceDataSetupTest(TestCase):
         LedgerEntry.objects.create(
             voucher=v2,
             account=cls.maintenance_receivable,
+            unit=cls.unit_101,
             debit=20000,
         )
         LedgerEntry.objects.create(
@@ -163,6 +169,7 @@ class TrialBalanceDataSetupTest(TestCase):
             society=cls.society,
             voucher_type=Voucher.VoucherType.RECEIPT,
             voucher_date=date(2024, 4, 10),
+            payment_mode=Voucher.PaymentMode.CASH,
             narration="Maintenance collected",
         )
 
@@ -170,6 +177,7 @@ class TrialBalanceDataSetupTest(TestCase):
         LedgerEntry.objects.create(
             voucher=v3,
             account=cls.maintenance_receivable,
+            unit=cls.unit_101,
             credit=15000,
         )
 
@@ -182,6 +190,7 @@ class TrialBalanceDataSetupTest(TestCase):
             society=cls.society,
             voucher_type=Voucher.VoucherType.PAYMENT,
             voucher_date=date(2024, 4, 15),
+            payment_mode=Voucher.PaymentMode.CASH,
             narration="Electricity bill paid",
         )
 
@@ -205,6 +214,8 @@ class TrialBalanceDataSetupTest(TestCase):
             society=cls.society,
             voucher_type=Voucher.VoucherType.PAYMENT,
             voucher_date=date(2024, 4, 20),
+            payment_mode=Voucher.PaymentMode.BANK_TRANSFER,
+            reference_number="SALARY-APR-2024",
             narration="Salary paid",
         )
 

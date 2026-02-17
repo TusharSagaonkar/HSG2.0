@@ -15,17 +15,37 @@ from housing.models import Society
 def test_posted_voucher_is_immutable():
     society = Society.objects.create(name="Test Society")
 
-    FinancialYear.objects.create(
+    fy = FinancialYear.objects.create(
+        society=society,
         name="FY 2024-25",
         start_date=date(2024, 4, 1),
         end_date=date(2025, 3, 31),
         is_open=True,
     )
 
-    AccountingPeriod.objects.create(year=2024, month=8, is_open=True)
+    AccountingPeriod.objects.filter(
+        society=society,
+        financial_year=fy,
+        start_date=date(2024, 8, 1),
+        end_date=date(2024, 8, 31),
+    ).update(is_open=True)
 
-    cat = AccountCategory.objects.create(name="Cash", account_type="ASSET")
-    acc = Account.objects.create(name="Cash", category=cat)
+    asset_cat, _ = AccountCategory.objects.get_or_create(
+        society=society,
+        name="Cash",
+        account_type="ASSET",
+    )
+    income_cat, _ = AccountCategory.objects.get_or_create(
+        society=society,
+        name="Maintenance Income",
+        account_type="INCOME",
+    )
+    cash_acc = Account.objects.create(society=society, name="Cash", category=asset_cat)
+    income_acc = Account.objects.create(
+        society=society,
+        name="Maintenance Income",
+        category=income_cat,
+    )
 
     v = Voucher.objects.create(
         society=society,
@@ -33,8 +53,8 @@ def test_posted_voucher_is_immutable():
         voucher_date=date(2024, 8, 6),
     )
 
-    LedgerEntry.objects.create(voucher=v, account=acc, debit=10)
-    LedgerEntry.objects.create(voucher=v, account=acc, credit=10)
+    LedgerEntry.objects.create(voucher=v, account=cash_acc, debit=10)
+    LedgerEntry.objects.create(voucher=v, account=income_acc, credit=10)
 
     v.post()
 
@@ -47,17 +67,37 @@ def test_posted_voucher_is_immutable():
 def test_ledger_entry_blocked_after_posting():
     society = Society.objects.create(name="Test Society")
 
-    FinancialYear.objects.create(
+    fy = FinancialYear.objects.create(
+        society=society,
         name="FY 2024-25",
         start_date=date(2024, 4, 1),
         end_date=date(2025, 3, 31),
         is_open=True,
     )
 
-    AccountingPeriod.objects.create(year=2024, month=8, is_open=True)
+    AccountingPeriod.objects.filter(
+        society=society,
+        financial_year=fy,
+        start_date=date(2024, 8, 1),
+        end_date=date(2024, 8, 31),
+    ).update(is_open=True)
 
-    cat = AccountCategory.objects.create(name="Cash", account_type="ASSET")
-    acc = Account.objects.create(name="Cash", category=cat)
+    asset_cat, _ = AccountCategory.objects.get_or_create(
+        society=society,
+        name="Cash",
+        account_type="ASSET",
+    )
+    income_cat, _ = AccountCategory.objects.get_or_create(
+        society=society,
+        name="Maintenance Income",
+        account_type="INCOME",
+    )
+    cash_acc = Account.objects.create(society=society, name="Cash", category=asset_cat)
+    income_acc = Account.objects.create(
+        society=society,
+        name="Maintenance Income",
+        category=income_cat,
+    )
 
     v = Voucher.objects.create(
         society=society,
@@ -65,8 +105,8 @@ def test_ledger_entry_blocked_after_posting():
         voucher_date=date(2024, 8, 6),
     )
 
-    e1 = LedgerEntry.objects.create(voucher=v, account=acc, debit=20)
-    LedgerEntry.objects.create(voucher=v, account=acc, credit=20)
+    e1 = LedgerEntry.objects.create(voucher=v, account=cash_acc, debit=20)
+    LedgerEntry.objects.create(voucher=v, account=income_acc, credit=20)
 
     v.post()
 

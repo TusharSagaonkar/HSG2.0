@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Voucher Posting" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Voucher Posting Menu" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Review draft vouchers and post eligible ones." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="mb-3 d-flex flex-wrap gap-2">
+    <a href="{% url 'accounting:voucher-entry' %}" class="btn btn-primary">{% translate "New Voucher Entry" %}</a>
+    <a href="{% url 'accounting:voucher-list' %}" class="btn btn-outline-secondary">{% translate "All Vouchers" %}</a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>{% translate "Draft Number" %}</th>
+          <th>{% translate "Type" %}</th>
+          <th>{% translate "Date" %}</th>
+          <th>{% translate "Society" %}</th>
+          <th class="text-end">{% translate "Debit" %}</th>
+          <th class="text-end">{% translate "Credit" %}</th>
+          <th class="text-end">{% translate "Action" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for voucher in draft_vouchers %}
+          <tr>
+            <td>
+              <a
+                href="#"
+                class="text-decoration-none fw-semibold"
+                data-voucher-detail-url="{% url 'accounting:voucher-detail' voucher.pk %}"
+                data-voucher-label="{{ voucher.display_number }}"
+              >
+                {{ voucher.display_number }}
+              </a>
+            </td>
+            <td>{{ voucher.get_voucher_type_display }}</td>
+            <td>{{ voucher.voucher_date|date:"M d, Y" }}</td>
+            <td>{{ voucher.society.name }}</td>
+            <td class="text-end">{{ voucher.total_debit|default:0 }}</td>
+            <td class="text-end">{{ voucher.total_credit|default:0 }}</td>
+            <td class="text-end">
+              <div class="d-inline-flex gap-2">
+                <form method="post" action="{% url 'accounting:voucher-post' voucher.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-success">{% translate "Post" %}</button>
+                </form>
+                <form method="post" action="{% url 'accounting:voucher-delete-draft' voucher.pk %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-outline-danger">{% translate "Delete Draft" %}</button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-4">{% translate "No draft vouchers to post." %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock content %}
+
+{% block modal %}
+  {% include "accounting/partials/voucher_detail_modal.html" %}
+{% endblock modal %}

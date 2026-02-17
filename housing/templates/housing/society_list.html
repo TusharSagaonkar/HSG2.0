@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Societies" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Societies" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Browse all registered societies and their structure summary." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="mb-3 d-flex justify-content-end">
+    <a href="{% url 'housing:society-add' %}" class="btn btn-primary">{% translate "Add Society" %}</a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>{% translate "Name" %}</th>
+          <th>{% translate "Registration" %}</th>
+          <th class="text-center">{% translate "Structures" %}</th>
+          <th class="text-center">{% translate "Units" %}</th>
+          <th class="text-end">{% translate "Action" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for society in societies %}
+          <tr>
+            <td>{{ society.name }}</td>
+            <td>{{ society.registration_number|default:"-" }}</td>
+            <td class="text-center">{{ society.structure_count }}</td>
+            <td class="text-center">{{ society.unit_count }}</td>
+            <td class="text-end">
+              <a href="{% url 'housing:society-detail' society.pk %}" class="btn btn-sm btn-outline-primary">{% translate "Open" %}</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="5" class="text-center text-muted py-4">{% translate "No societies available." %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock content %}

@@ -1,13 +1,7 @@
-from django.db import models
-from django.core.exceptions import ValidationError
-from django.utils import timezone
-from decimal import Decimal
-from housing.models import Society
-
 from django.db import models, transaction
-#from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError
 from datetime import date, timedelta
-#from housing.models import Society
+from societies.models import Society
 
 class FinancialYear(models.Model):
     society = models.ForeignKey(
@@ -17,7 +11,7 @@ class FinancialYear(models.Model):
         #null=True,        # ✅ TEMPORARY
         #blank=True, 
     )
-    name = models.CharField(max_length=20, unique=True)
+    name = models.CharField(max_length=20)
     start_date = models.DateField()
     end_date = models.DateField()
     is_open = models.BooleanField(default=True)
@@ -30,16 +24,16 @@ class FinancialYear(models.Model):
         if self.start_date >= self.end_date:
             raise ValidationError("Start date must be before end date.")
 
-    def __str__(self):
-        return self.name
-    
     @classmethod
-    def get_open_year_for_date(cls, date):
-        return cls.objects.filter(
+    def get_open_year_for_date(cls, date, society=None):
+        queryset = cls.objects.filter(
             start_date__lte=date,
             end_date__gte=date,
             is_open=True,
-        ).first()
+        )
+        if society is not None:
+            queryset = queryset.filter(society=society)
+        return queryset.first()
     
     # Save method overridden to create accounting periods upon creation        
     def save(self, *args, **kwargs):
@@ -82,4 +76,4 @@ class FinancialYear(models.Model):
             ).update(is_open=True)
 
     def __str__(self):
-        return self.name
+        return f"{self.society.name} - {self.name}"

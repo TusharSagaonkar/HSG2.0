@@ -1,0 +1,71 @@
+{% load i18n %}
+<div class="row g-3">
+  <div class="col-12 col-md-6">
+    <div><strong>{% translate "Number" %}:</strong> {{ voucher.display_number }}</div>
+    <div><strong>{% translate "Type" %}:</strong> {{ voucher.get_voucher_type_display }}</div>
+    <div><strong>{% translate "Date" %}:</strong> {{ voucher.voucher_date|date:"M d, Y" }}</div>
+    <div><strong>{% translate "Society" %}:</strong> {{ voucher.society.name }}</div>
+  </div>
+  <div class="col-12 col-md-6">
+    <div>
+      <strong>{% translate "Status" %}:</strong>
+      {% if voucher.posted_at %}
+        <span class="badge text-bg-success">{% translate "Posted" %}</span>
+        {% if voucher.reversal_of_id or reversal_voucher %}
+          <span class="badge text-bg-danger">{% translate "Reversed" %}</span>
+        {% endif %}
+      {% else %}
+        <span class="badge text-bg-warning">{% translate "Draft" %}</span>
+      {% endif %}
+    </div>
+    <div><strong>{% translate "Posted At" %}:</strong> {{ voucher.posted_at|date:"M d, Y H:i"|default:"-" }}</div>
+    {% if voucher.reversal_of %}
+      <div><strong>{% translate "Reversal Of" %}:</strong> {{ voucher.reversal_of.display_number }}</div>
+    {% endif %}
+    {% if reversal_voucher %}
+      <div><strong>{% translate "Reversed By" %}:</strong> {{ reversal_voucher.display_number }}</div>
+    {% endif %}
+  </div>
+
+  <div class="col-12">
+    <div><strong>{% translate "Narration" %}:</strong> {{ voucher.narration|default:"-" }}</div>
+  </div>
+
+  <div class="col-12">
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{% translate "Account" %}</th>
+            <th>{% translate "Category" %}</th>
+            <th>{% translate "Unit" %}</th>
+            <th class="text-end">{% translate "Debit" %}</th>
+            <th class="text-end">{% translate "Credit" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for entry in entries %}
+            <tr>
+              <td>{{ entry.account.name }}</td>
+              <td>{{ entry.account.category.name }}</td>
+              <td>{{ entry.unit|default:"-" }}</td>
+              <td class="text-end">{{ entry.debit }}</td>
+              <td class="text-end">{{ entry.credit }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5" class="text-center text-muted">{% translate "No entries." %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr>
+            <th colspan="3" class="text-end">{% translate "Total" %}</th>
+            <th class="text-end">{{ total_debit }}</th>
+            <th class="text-end">{{ total_credit }}</th>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  </div>
+</div>

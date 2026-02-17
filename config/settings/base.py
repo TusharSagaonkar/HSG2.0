@@ -89,6 +89,13 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     "housing_accounting.users",
     # Your stuff: custom apps go here
+    "societies",
+    "members",
+    "billing",
+    "receipts",
+    "notifications",
+    "auditlog",
+    "reconciliation",
     "housing",
     "accounting",
 ]
@@ -194,6 +201,7 @@ TEMPLATES = [
                 "django.template.context_processors.tz",
                 "django.contrib.messages.context_processors.messages",
                 "housing_accounting.users.context_processors.allauth_settings",
+                "housing_accounting.users.context_processors.global_selection",
             ],
         },
     },

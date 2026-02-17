@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Member Outstanding" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Member Outstanding" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Aging of member receivables with action-ready totals." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="mb-3 d-flex flex-wrap gap-2">
+    <a href="{% url 'housing:receipt-post' %}" class="btn btn-primary">{% translate "Post Receipt" %}</a>
+    <form method="post" action="{% url 'housing:reminder-schedule' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-outline-primary">{% translate "Schedule Reminders" %}</button>
+    </form>
+    <a href="{% url 'housing:dashboard' %}" class="btn btn-outline-secondary">{% translate "Back to Dashboard" %}</a>
+  </div>
+
+  <form method="get" class="row g-2 align-items-end mb-3">
+    <div class="col-auto">
+      <label for="id_as_of_date" class="form-label">{% translate "As Of Date" %}</label>
+      <input id="id_as_of_date" name="as_of_date" type="date" class="form-control" value="{{ as_of_date|date:'Y-m-d' }}">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-outline-primary">{% translate "Apply" %}</button>
+    </div>
+  </form>
+
+  {% if outstanding %}
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{% translate "Member" %}</th>
+            <th>{% translate "Unit" %}</th>
+            <th class="text-end">{% translate "Current" %}</th>
+            <th class="text-end">{% translate "1-30" %}</th>
+            <th class="text-end">{% translate "31-60" %}</th>
+            <th class="text-end">{% translate "61-90" %}</th>
+            <th class="text-end">{% translate "90+" %}</th>
+            <th class="text-end">{% translate "Outstanding" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in outstanding.rows %}
+            <tr>
+              <td>{{ row.member.full_name }}</td>
+              <td>{{ row.unit.identifier }}</td>
+              <td class="text-end">{{ row.current }}</td>
+              <td class="text-end">{{ row.bucket_1_30 }}</td>
+              <td class="text-end">{{ row.bucket_31_60 }}</td>
+              <td class="text-end">{{ row.bucket_61_90 }}</td>
+              <td class="text-end">{{ row.bucket_90_plus }}</td>
+              <td class="text-end">{{ row.total_outstanding }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="8" class="text-center text-muted py-4">{% translate "No outstanding receivables." %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="fw-semibold">
+            <td colspan="2">{% translate "Totals" %}</td>
+            <td class="text-end">{{ outstanding.totals.current }}</td>
+            <td class="text-end">{{ outstanding.totals.bucket_1_30 }}</td>
+            <td class="text-end">{{ outstanding.totals.bucket_31_60 }}</td>
+            <td class="text-end">{{ outstanding.totals.bucket_61_90 }}</td>
+            <td class="text-end">{{ outstanding.totals.bucket_90_plus }}</td>
+            <td class="text-end">{{ outstanding.totals.total_outstanding }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  {% else %}
+    <div class="alert alert-warning py-2">{% translate "Select a society to view outstanding balances." %}</div>
+  {% endif %}
+{% endblock content %}

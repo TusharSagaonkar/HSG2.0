@@ -5,3 +5,5 @@ from .model_Account import Account
 from .model_LedgerEntry import LedgerEntry
 from .model_Voucher import Voucher
 from .model_voucher_sequence import VoucherSequence
+from .model_PeriodStatusLog import PeriodStatusLog
+from .model_YearEndCloseLog import YearEndCloseLog

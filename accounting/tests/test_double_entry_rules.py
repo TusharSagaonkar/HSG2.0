@@ -13,8 +13,12 @@ from housing.models import Society
 def test_same_account_dr_cr_blocked():
     society = Society.objects.create(name="Test Society")
 
-    cat = AccountCategory.objects.create(name="Cash", account_type="ASSET")
-    acc = Account.objects.create(name="Cash", category=cat)
+    cat, _ = AccountCategory.objects.get_or_create(
+        society=society,
+        name="Cash",
+        account_type="ASSET",
+    )
+    acc = Account.objects.create(society=society, name="Cash", category=cat)
 
     v = Voucher.objects.create(
         society=society,

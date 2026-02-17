@@ -1,31 +1,27 @@
 {% extends "base.html" %}
-
 {% load crispy_forms_tags %}
 
 {% block title %}
-
-
   {{ user.name }}
-
-
 {% endblock title %}
+
+{% block dashboard_title %}
+  Update Profile
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  Keep your account information up to date.
+{% endblock dashboard_subtitle %}
+
 {% block content %}
-  <h1>
-  
-  
-    {{ user.name }}
-  
-  
-</h1>
-<form class="form-horizontal"
-      method="post"
-      action="{% url 'users:update' %}">
-  {% csrf_token %}
-  {{ form|crispy }}
-  <div class="control-group">
-    <div class="controls">
-      <button type="submit" class="btn btn-primary">Update</button>
-    </div>
+  <div class="quick-card">
+    <form class="form-horizontal" method="post" action="{% url 'users:update' %}">
+      {% csrf_token %}
+      {{ form|crispy }}
+      <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">Update</button>
+        <a href="{% url 'users:detail' request.user.pk %}" class="btn btn-outline-secondary">Cancel</a>
+      </div>
+    </form>
   </div>
-</form>
 {% endblock content %}

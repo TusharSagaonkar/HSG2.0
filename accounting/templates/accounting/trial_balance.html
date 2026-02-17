@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Trial Balance" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Trial Balance" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Posted vouchers only. Deterministic and balanced by design." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="mb-3 d-flex gap-2">
+    <a href="{% url 'accounting:account-list' %}" class="btn btn-outline-secondary">{% translate "Back to Accounts" %}</a>
+    <a href="{% url 'accounting:trial-balance-export-csv' %}?to_date={{ to_date|date:'Y-m-d' }}" class="btn btn-outline-success">{% translate "Export CSV" %}</a>
+  </div>
+
+  {% if trial_balance %}
+    <form method="get" class="row g-2 align-items-end mb-3">
+      <div class="col-auto">
+        <label for="id_to_date" class="form-label">{% translate "Up To Date" %}</label>
+        <input id="id_to_date" name="to_date" type="date" class="form-control" value="{{ to_date|date:'Y-m-d' }}">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary">{% translate "Apply" %}</button>
+      </div>
+    </form>
+
+    {% if trial_balance.is_balanced %}
+      <div class="alert alert-success py-2">{% translate "Integrity check passed: total debit equals total credit." %}</div>
+    {% else %}
+      <div class="alert alert-danger py-2">{% translate "Integrity check failed: debit and credit totals do not match." %}</div>
+    {% endif %}
+
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{% translate "Account" %}</th>
+            <th>{% translate "Type" %}</th>
+            <th class="text-end">{% translate "Total Debit" %}</th>
+            <th class="text-end">{% translate "Total Credit" %}</th>
+            <th class="text-end">{% translate "Balance Debit" %}</th>
+            <th class="text-end">{% translate "Balance Credit" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in trial_balance.rows %}
+            <tr>
+              <td>{{ row.account_name }}</td>
+              <td>{{ row.account_type }}</td>
+              <td class="text-end">{{ row.total_debit }}</td>
+              <td class="text-end">{{ row.total_credit }}</td>
+              <td class="text-end">{{ row.balance_debit }}</td>
+              <td class="text-end">{{ row.balance_credit }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+        <tfoot>
+          <tr class="fw-semibold">
+            <td colspan="2">{% translate "Totals" %}</td>
+            <td class="text-end">{{ trial_balance.grand_total_debit }}</td>
+            <td class="text-end">{{ trial_balance.grand_total_credit }}</td>
+            <td class="text-end">{{ trial_balance.total_balance_debit }}</td>
+            <td class="text-end">{{ trial_balance.total_balance_credit }}</td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  {% else %}
+    <div class="alert alert-warning py-2">{% translate "Select a society to generate trial balance." %}</div>
+  {% endif %}
+{% endblock content %}

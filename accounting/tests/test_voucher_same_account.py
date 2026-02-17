@@ -4,7 +4,9 @@ from datetime import date
 from decimal import Decimal
 
 from accounting.models import (
+    AccountingPeriod,
     Voucher,
+    FinancialYear,
     LedgerEntry,
     Account,
     AccountCategory,
@@ -15,7 +17,21 @@ from housing.models import Society, Unit, Structure
 class SameAccountDrCrTest(TestCase):
 
     def setUp(self):
+        self.voucher_date = date(2024, 8, 6)
         self.society = Society.objects.create(name="Test Society")
+        self.financial_year = FinancialYear.objects.create(
+            society=self.society,
+            name="FY 2024-25",
+            start_date=date(2024, 4, 1),
+            end_date=date(2025, 3, 31),
+            is_open=True,
+        )
+        AccountingPeriod.objects.filter(
+            society=self.society,
+            financial_year=self.financial_year,
+            start_date=date(2024, 8, 1),
+            end_date=date(2024, 8, 31),
+        ).update(is_open=True)
 
         self.structure = Structure.objects.create(
             society=self.society,
@@ -29,7 +45,8 @@ class SameAccountDrCrTest(TestCase):
             unit_type=Unit.UnitType.FLAT,
         )
 
-        self.asset_cat = AccountCategory.objects.create(
+        self.asset_cat, _ = AccountCategory.objects.get_or_create(
+            society=self.society,
             name="Maintenance Receivable",
             account_type="ASSET",
         )
@@ -39,7 +56,8 @@ class SameAccountDrCrTest(TestCase):
             name="Maintenance Receivable",
             category=self.asset_cat,
         )
-        self.income_cat = AccountCategory.objects.create(
+        self.income_cat, _ = AccountCategory.objects.get_or_create(
+            society=self.society,
             name="Maintenance Income",
             account_type="INCOME",
         )
@@ -55,7 +73,7 @@ class SameAccountDrCrTest(TestCase):
         v = Voucher.objects.create(
             society=self.society,
             voucher_type="GENERAL",
-            voucher_date=date.today(),
+            voucher_date=self.voucher_date,
         )
 
         LedgerEntry.objects.create(
@@ -79,7 +97,7 @@ class SameAccountDrCrTest(TestCase):
         v = Voucher.objects.create(
             society=self.society,
             voucher_type="GENERAL",
-            voucher_date=date.today(),
+            voucher_date=self.voucher_date,
         )
 
         LedgerEntry.objects.create(
