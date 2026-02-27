@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Bill Detail" %} #{{ bill.bill_number }} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Bill" %} #{{ bill.bill_number }}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {{ bill.member.full_name }} / {{ bill.unit.identifier }} / {{ bill.society.name }}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'billing:bill-list' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Bills" %}</a>
+    <a href="{% url 'members:member-detail' bill.member_id %}" class="btn btn-outline-primary"><i class="fas fa-user me-1"></i>{% translate "View Member" %}</a>
+    <a href="{% url 'housing:receipt-post' %}" class="btn btn-primary"><i class="fas fa-money-check-alt me-1"></i>{% translate "Post Receipt" %}</a>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Bill Date" %}</p>
+        <h2 class="h6 mb-0">{{ bill.bill_date|date:"M d, Y" }}</h2>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Due Date" %}</p>
+        <h2 class="h6 mb-0">{{ bill.due_date|date:"M d, Y" }}</h2>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Total Amount" %}</p>
+        <h2 class="h6 mb-0">{{ bill.total_amount }}</h2>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Outstanding" %}</p>
+        <h2 class="h6 mb-0">{{ bill.outstanding_amount }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="quick-card mb-3">
+    <h3 class="h6 mb-2">{% translate "Bill Lines" %}</h3>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{% translate "Description" %}</th>
+            <th>{% translate "Template" %}</th>
+            <th>{% translate "Income Account" %}</th>
+            <th class="text-end">{% translate "Amount" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for line in bill_lines %}
+            <tr>
+              <td>{{ line.description }}</td>
+              <td>{{ line.charge_template.name|default:"-" }}</td>
+              <td>
+                <a href="{% url 'accounting:account-ledger' line.income_account_id %}" class="text-decoration-none">
+                  {{ line.income_account.name }}
+                </a>
+              </td>
+              <td class="text-end">{{ line.amount }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="4" class="text-center text-muted py-3">{% translate "No bill lines found." %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="quick-card mb-3">
+    <h3 class="h6 mb-2">{% translate "Receipt Allocations" %}</h3>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{% translate "Receipt" %}</th>
+            <th>{% translate "Receipt Date" %}</th>
+            <th>{% translate "Payment Mode" %}</th>
+            <th>{% translate "Reference" %}</th>
+            <th class="text-end">{% translate "Allocated" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for allocation in allocations %}
+            <tr>
+              <td>
+                <a href="{% url 'receipts:receipt-detail' allocation.receipt_id %}" class="text-decoration-none">
+                  #{{ allocation.receipt_id }}
+                </a>
+              </td>
+              <td>{{ allocation.receipt.receipt_date|date:"M d, Y" }}</td>
+              <td>{{ allocation.receipt.get_payment_mode_display }}</td>
+              <td>{{ allocation.receipt.reference_number|default:"-" }}</td>
+              <td class="text-end">{{ allocation.amount }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5" class="text-center text-muted py-3">{% translate "No receipt allocations yet." %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="quick-card">
+    <h3 class="h6 mb-2">{% translate "Reminder Log" %}</h3>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{% translate "Scheduled For" %}</th>
+            <th>{% translate "Channel" %}</th>
+            <th>{% translate "Status" %}</th>
+            <th>{% translate "Message" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for reminder in reminders %}
+            <tr>
+              <td>{{ reminder.scheduled_for|date:"M d, Y H:i" }}</td>
+              <td>{{ reminder.get_channel_display }}</td>
+              <td>{{ reminder.get_status_display }}</td>
+              <td>{{ reminder.message }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="4" class="text-center text-muted py-3">{% translate "No reminders logged for this bill." %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock content %}

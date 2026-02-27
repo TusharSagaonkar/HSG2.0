@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Bills" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Bills" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "View member bills, status, and outstanding amounts." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'housing:dashboard' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}</a>
+    <a href="{% url 'housing:billing-generate' %}" class="btn btn-primary"><i class="fas fa-cogs me-1"></i>{% translate "Generate Bills" %}</a>
+    <a href="{% url 'receipts:receipt-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Receipts" %}</a>
+    <a href="{% url 'housing:receipt-post' %}" class="btn btn-outline-primary"><i class="fas fa-money-check-alt me-1"></i>{% translate "Post Receipt" %}</a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>{% translate "Bill #" %}</th>
+          <th>{% translate "Member" %}</th>
+          <th>{% translate "Unit" %}</th>
+          <th>{% translate "Bill Date" %}</th>
+          <th>{% translate "Due Date" %}</th>
+          <th>{% translate "Status" %}</th>
+          <th class="text-end">{% translate "Total" %}</th>
+          <th class="text-end">{% translate "Outstanding" %}</th>
+          <th class="text-end">{% translate "Action" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for bill in bills %}
+          <tr>
+            <td>
+              <a href="{% url 'billing:bill-detail' bill.pk %}" class="text-decoration-none">
+                {{ bill.bill_number }}
+              </a>
+            </td>
+            <td>
+              <a href="{% url 'members:member-detail' bill.member_id %}" class="text-decoration-none">
+                {{ bill.member.full_name }}
+              </a>
+            </td>
+            <td>{{ bill.unit.identifier }}</td>
+            <td>{{ bill.bill_date|date:"M d, Y" }}</td>
+            <td>{{ bill.due_date|date:"M d, Y" }}</td>
+            <td>
+              {% if bill.status == "PAID" %}
+                <span class="badge text-bg-success">{{ bill.get_status_display }}</span>
+              {% elif bill.status == "PARTIAL" %}
+                <span class="badge text-bg-warning">{{ bill.get_status_display }}</span>
+              {% elif bill.status == "OVERDUE" %}
+                <span class="badge text-bg-danger">{{ bill.get_status_display }}</span>
+              {% else %}
+                <span class="badge text-bg-secondary">{{ bill.get_status_display }}</span>
+              {% endif %}
+            </td>
+            <td class="text-end">{{ bill.total_amount }}</td>
+            <td class="text-end">{{ bill.outstanding_amount }}</td>
+            <td class="text-end">
+              <a href="{% url 'billing:bill-detail' bill.pk %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-folder-open me-1"></i>{% translate "Open" %}</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="9" class="text-center text-muted py-4">{% translate "No bills found." %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock content %}

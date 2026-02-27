@@ -1,7 +1,9 @@
 from .base import *  # noqa: F403
+from .base import BASE_DIR
 from .base import INSTALLED_APPS
 from .base import MIDDLEWARE
 from .base import env
+from django.core.exceptions import ImproperlyConfigured
 
 # GENERAL
 # ------------------------------------------------------------------------------
@@ -65,13 +67,38 @@ INSTALLED_APPS += ["django_extensions"]
 
 # Your stuff...
 # ------------------------------------------------------------------------------
+local_env_file = BASE_DIR / ".env.local"
+if local_env_file.exists():
+    env.read_env(str(local_env_file))
+
+SUPABASE_DATABASE_URL = env.str("SUPABASE_DATABASE_URL", default="")
+if not SUPABASE_DATABASE_URL:
+    supabase_password = env.str("SUPABASE_DB_PASSWORD", default="")
+    if not supabase_password:
+        message = (
+            "Supabase is configured as primary database. Set SUPABASE_DATABASE_URL "
+            "or SUPABASE_DB_PASSWORD in environment."
+        )
+        raise ImproperlyConfigured(message)
+    SUPABASE_DATABASE_URL = (
+        "postgresql://postgres:"
+        f"{supabase_password}@"
+        "db.wmixkdfdfsoawucdbfsc.supabase.co:5432/postgres?sslmode=require"
+    )
+
 DATABASES = {
-    "default": {
+    "default": env.db_url_config(SUPABASE_DATABASE_URL),
+    "local": {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": "housing_accounting",
         "USER": "tushar",
         "PASSWORD": "tushar",
         "HOST": "localhost",
         "PORT": "5432",
-    }
+        "OPTIONS": {
+            "options": "-c default_transaction_read_only=on",
+        },
+    },
 }
+DATABASES["default"]["ATOMIC_REQUESTS"] = True
+DATABASES["local"]["ATOMIC_REQUESTS"] = True

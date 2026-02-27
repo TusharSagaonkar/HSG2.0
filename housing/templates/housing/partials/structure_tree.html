@@ -9,7 +9,7 @@
       </div>
     </div>
     <a href="{% url 'housing:unit-add' %}?society={{ society.pk }}&structure={{ structure.pk }}"
-       class="btn btn-sm btn-outline-primary">{% translate "Add Unit" %}</a>
+       class="btn btn-sm btn-outline-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Unit" %}</a>
   </div>
 
   {% if structure.tree_units %}
@@ -22,6 +22,11 @@
             {% if unit.area_sqft %}
               <div class="small text-muted">{{ unit.area_sqft }} sq ft</div>
             {% endif %}
+            <div class="small">
+              <a href="{% url 'housing:member-add' %}?society={{ society.pk }}" class="text-decoration-none">
+                {% translate "Add Member" %}
+              </a>
+            </div>
           </div>
           {% if unit.is_active %}
             <span class="badge text-bg-success">{% translate "Active" %}</span>

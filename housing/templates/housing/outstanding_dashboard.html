@@ -14,13 +14,16 @@
 {% endblock dashboard_subtitle %}
 
 {% block content %}
-  <div class="mb-3 d-flex flex-wrap gap-2">
-    <a href="{% url 'housing:receipt-post' %}" class="btn btn-primary">{% translate "Post Receipt" %}</a>
+  <div class="page-actions">
+    <a href="{% url 'housing:dashboard' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}</a>
+    <a href="{% url 'billing:bill-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Bills" %}</a>
+    <a href="{% url 'receipts:receipt-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Receipts" %}</a>
+    <a href="{% url 'notifications:reminder-list' %}" class="btn btn-outline-primary"><i class="fas fa-bell me-1"></i>{% translate "Reminder Log" %}</a>
+    <a href="{% url 'housing:receipt-post' %}" class="btn btn-primary"><i class="fas fa-money-check-alt me-1"></i>{% translate "Post Receipt" %}</a>
     <form method="post" action="{% url 'housing:reminder-schedule' %}">
       {% csrf_token %}
-      <button type="submit" class="btn btn-outline-primary">{% translate "Schedule Reminders" %}</button>
+      <button type="submit" class="btn btn-outline-primary"><i class="fas fa-calendar-plus me-1"></i>{% translate "Schedule Reminders" %}</button>
     </form>
-    <a href="{% url 'housing:dashboard' %}" class="btn btn-outline-secondary">{% translate "Back to Dashboard" %}</a>
   </div>
 
   <form method="get" class="row g-2 align-items-end mb-3">
@@ -29,7 +32,7 @@
       <input id="id_as_of_date" name="as_of_date" type="date" class="form-control" value="{{ as_of_date|date:'Y-m-d' }}">
     </div>
     <div class="col-auto">
-      <button type="submit" class="btn btn-outline-primary">{% translate "Apply" %}</button>
+      <button type="submit" class="btn btn-outline-primary"><i class="fas fa-filter me-1"></i>{% translate "Apply" %}</button>
     </div>
   </form>
 
@@ -51,7 +54,11 @@
         <tbody>
           {% for row in outstanding.rows %}
             <tr>
-              <td>{{ row.member.full_name }}</td>
+              <td>
+                <a href="{% url 'members:member-detail' row.member.pk %}" class="text-decoration-none">
+                  {{ row.member.full_name }}
+                </a>
+              </td>
               <td>{{ row.unit.identifier }}</td>
               <td class="text-end">{{ row.current }}</td>
               <td class="text-end">{{ row.bucket_1_30 }}</td>

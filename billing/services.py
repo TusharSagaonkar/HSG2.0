@@ -1,5 +1,6 @@
 from datetime import timedelta
 from decimal import Decimal
+from decimal import ROUND_HALF_UP
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -11,6 +12,9 @@ from billing.models import Bill
 from billing.models import BillLine
 from billing.models import ChargeTemplate
 from members.models import Member
+
+MONEY_DECIMAL = Decimal("0.01")
+SNAPSHOT_DECIMAL = Decimal("0.0001")
 
 
 def _is_template_due(template, period_start):
@@ -32,6 +36,36 @@ def _next_bill_number(society):
         .first()
     )
     return 1 if latest is None else latest.bill_number + 1
+
+
+def _round_money(value):
+    return value.quantize(MONEY_DECIMAL, rounding=ROUND_HALF_UP)
+
+
+def _calculate_line_item(*, template, member):
+    rate = Decimal(template.rate).quantize(SNAPSHOT_DECIMAL)
+    if template.charge_type == ChargeTemplate.ChargeType.FIXED:
+        quantity = Decimal("1.0000")
+        amount = _round_money(rate * quantity)
+        basis = "Fixed amount"
+    elif template.charge_type == ChargeTemplate.ChargeType.PER_SQFT:
+        area = member.unit.billing_area_sqft if member.unit else None
+        if area is None:
+            raise ValidationError(
+                f"Unit area is required for per-sqft billing. Member: {member.full_name}."
+            )
+        quantity = Decimal(area).quantize(SNAPSHOT_DECIMAL)
+        amount = _round_money(rate * quantity)
+        basis = "Per sqft using unit chargeable area"
+    elif template.charge_type == ChargeTemplate.ChargeType.PER_PERSON:
+        quantity = Decimal("1.0000")
+        amount = _round_money(rate * quantity)
+        basis = "Per active member"
+    else:
+        raise ValidationError(
+            f"Unsupported charge type '{template.charge_type}' for template {template.name}."
+        )
+    return rate, quantity, amount, basis
 
 
 def _post_bill_voucher(bill):
@@ -75,7 +109,12 @@ def generate_bills_for_period(*, society, period_start, period_end, bill_date):
         raise ValidationError("Bill date cannot be before period start.")
 
     templates = list(
-        ChargeTemplate.objects.filter(society=society, is_active=True).select_related(
+        ChargeTemplate.objects.filter(
+            society=society,
+            effective_from__lte=period_start,
+        )
+        .filter(Q(effective_to__isnull=True) | Q(effective_to__gte=period_start))
+        .select_related(
             "income_account",
             "receivable_account",
         )
@@ -128,11 +167,21 @@ def generate_bills_for_period(*, society, period_start, period_end, bill_date):
                 total_amount=Decimal("0.00"),
             )
             for template in due_templates:
+                rate, quantity, amount, basis = _calculate_line_item(
+                    template=template,
+                    member=member,
+                )
                 BillLine.objects.create(
                     bill=bill,
                     charge_template=template,
                     description=template.name,
-                    amount=template.amount,
+                    amount=amount,
+                    charge_type_snapshot=template.charge_type,
+                    rate_snapshot=rate,
+                    quantity_snapshot=quantity,
+                    late_fee_percent_snapshot=template.late_fee_percent,
+                    template_version_snapshot=template.version_no,
+                    calculation_basis=basis,
                     income_account=template.income_account,
                 )
             _post_bill_voucher(bill)
@@ -154,8 +203,11 @@ def apply_late_fees(*, society, as_of_date):
     for bill in bills:
         max_fee_percent = Decimal("0.00")
         for line in bill.lines.all():
-            if line.charge_template and line.charge_template.late_fee_percent > max_fee_percent:
-                max_fee_percent = line.charge_template.late_fee_percent
+            fee_percent = line.late_fee_percent_snapshot
+            if fee_percent <= 0 and line.charge_template:
+                fee_percent = line.charge_template.late_fee_percent
+            if fee_percent > max_fee_percent:
+                max_fee_percent = fee_percent
         if max_fee_percent <= 0:
             bill.refresh_status(as_of_date=as_of_date)
             continue

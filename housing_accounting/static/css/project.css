@@ -222,6 +222,71 @@
   font-weight: 600;
 }
 
+.page-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  justify-content: flex-end;
+  margin-top: 1rem;
+}
+
+.form-shell {
+  padding: 1.1rem;
+}
+
+.form-shell .form-label {
+  color: #5e6d86;
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.32rem;
+  text-transform: uppercase;
+}
+
+.form-shell .form-text {
+  color: #7a879e;
+}
+
+.form-shell .form-check-label {
+  color: #4f5d75;
+  font-weight: 600;
+}
+
+.form-actions-inline {
+  margin-top: 0.4rem;
+}
+
+.member-filter-bar {
+  align-items: flex-end;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.member-filter-item {
+  flex: 1 1 170px;
+  min-width: 170px;
+}
+
+.member-filter-search {
+  flex: 2 1 280px;
+  min-width: 240px;
+}
+
+.member-filter-actions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: auto;
+}
+
 .list-group-item {
   border-color: #eff1f6;
 }
@@ -271,5 +336,19 @@
 
   .table > :not(caption) > * > * {
     padding: 0.65rem 0.7rem;
+  }
+
+  .member-filter-item,
+  .member-filter-search {
+    min-width: 100%;
+  }
+
+  .member-filter-actions {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .member-filter-actions .btn {
+    flex: 1 1 auto;
   }
 }

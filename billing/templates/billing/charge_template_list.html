@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Charge Templates" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Charge Templates" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Recurring billing templates for member charges." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'housing:dashboard' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}</a>
+    <a href="{% url 'housing:charge-template-add' %}" class="btn btn-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Template" %}</a>
+    <a href="{% url 'billing:bill-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Bills" %}</a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>{% translate "Name" %}</th>
+          <th class="text-end">{% translate "Version" %}</th>
+          <th>{% translate "Society" %}</th>
+          <th>{% translate "Charge Type" %}</th>
+          <th class="text-end">{% translate "Rate" %}</th>
+          <th>{% translate "Frequency" %}</th>
+          <th>{% translate "Effective From" %}</th>
+          <th>{% translate "Effective To" %}</th>
+          <th class="text-end">{% translate "Due Days" %}</th>
+          <th class="text-end">{% translate "Late Fee %" %}</th>
+          <th>{% translate "Income Account" %}</th>
+          <th>{% translate "Receivable Account" %}</th>
+          <th>{% translate "Status" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for template in charge_templates %}
+          <tr>
+            <td>{{ template.name }}</td>
+            <td class="text-end">{{ template.version_no }}</td>
+            <td>
+              <a href="{% url 'housing:society-detail' template.society_id %}" class="text-decoration-none">
+                {{ template.society.name }}
+              </a>
+            </td>
+            <td>{{ template.get_charge_type_display }}</td>
+            <td class="text-end">{{ template.rate }}</td>
+            <td>{{ template.get_frequency_display }}</td>
+            <td>{{ template.effective_from }}</td>
+            <td>{{ template.effective_to|default:"-" }}</td>
+            <td class="text-end">{{ template.due_days }}</td>
+            <td class="text-end">{{ template.late_fee_percent }}</td>
+            <td>
+              <a href="{% url 'accounting:account-ledger' template.income_account_id %}" class="text-decoration-none">
+                {{ template.income_account.name }}
+              </a>
+            </td>
+            <td>
+              <a href="{% url 'accounting:account-ledger' template.receivable_account_id %}" class="text-decoration-none">
+                {{ template.receivable_account.name }}
+              </a>
+            </td>
+            <td>
+              <div class="d-flex flex-column gap-2">
+                <form method="post" action="{% url 'billing:charge-template-status' template.id %}" class="d-flex align-items-center gap-2">
+                  {% csrf_token %}
+                  <select
+                    name="status"
+                    class="form-select form-select-sm"
+                    aria-label="{% translate 'Template status' %}"
+                    onchange="this.form.requestSubmit();"
+                  >
+                    <option value="ACTIVE" {% if template.is_active %}selected{% endif %}>{% translate "Active" %}</option>
+                    <option value="INACTIVE" {% if not template.is_active %}selected{% endif %}>{% translate "Inactive" %}</option>
+                  </select>
+                  <button type="submit" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-save"></i>
+                  </button>
+                </form>
+                <form method="post" action="{% url 'billing:charge-template-inactive-and-new' template.id %}">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+                    <i class="fas fa-plus-circle me-1"></i>{% translate "Set Inactive & New" %}
+                  </button>
+                </form>
+              </div>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="13" class="text-center text-muted py-4">{% translate "No charge templates found." %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock content %}

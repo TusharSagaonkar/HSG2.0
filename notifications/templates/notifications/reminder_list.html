@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Reminder Log" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Reminder Log" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Track scheduled reminders and their delivery status." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'housing:dashboard' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}</a>
+    <a href="{% url 'housing:outstanding-dashboard' %}" class="btn btn-primary"><i class="fas fa-exclamation-circle me-1"></i>{% translate "Outstanding Dashboard" %}</a>
+    <a href="{% url 'billing:bill-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Bills" %}</a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>{% translate "Scheduled For" %}</th>
+          <th>{% translate "Member" %}</th>
+          <th>{% translate "Bill #" %}</th>
+          <th>{% translate "Channel" %}</th>
+          <th>{% translate "Status" %}</th>
+          <th>{% translate "Message" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for reminder in reminders %}
+          <tr>
+            <td>{{ reminder.scheduled_for|date:"M d, Y H:i" }}</td>
+            <td>
+              <a href="{% url 'members:member-detail' reminder.member_id %}" class="text-decoration-none">
+                {{ reminder.member.full_name }}
+              </a>
+            </td>
+            <td>
+              <a href="{% url 'billing:bill-detail' reminder.bill_id %}" class="text-decoration-none">
+                {{ reminder.bill.bill_number }}
+              </a>
+            </td>
+            <td>{{ reminder.get_channel_display }}</td>
+            <td>{{ reminder.get_status_display }}</td>
+            <td>{{ reminder.message }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">{% translate "No reminders found." %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock content %}

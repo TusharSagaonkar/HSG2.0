@@ -19,6 +19,13 @@ class Unit(models.Model):
         help_text="Flat number / Shop number / Unit code",
     )
     area_sqft = models.DecimalField(max_digits=8, decimal_places=2, blank=True, null=True)
+    chargeable_area_sqft = models.DecimalField(
+        max_digits=8,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        help_text="Authoritative area used for billing calculations.",
+    )
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -29,3 +36,7 @@ class Unit(models.Model):
 
     def __str__(self):
         return f"{self.structure} -> {self.identifier} ({self.unit_type})"
+
+    @property
+    def billing_area_sqft(self):
+        return self.chargeable_area_sqft if self.chargeable_area_sqft is not None else self.area_sqft

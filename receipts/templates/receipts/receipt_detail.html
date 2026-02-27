@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Receipt Detail" %} #{{ receipt.pk }} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Receipt" %} #{{ receipt.pk }}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {{ receipt.member.full_name }} / {{ receipt.unit.identifier }} / {{ receipt.society.name }}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'receipts:receipt-list' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Receipts" %}</a>
+    <a href="{% url 'members:member-detail' receipt.member_id %}" class="btn btn-outline-primary"><i class="fas fa-user me-1"></i>{% translate "View Member" %}</a>
+    <a href="{% url 'billing:bill-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Bills" %}</a>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Receipt Date" %}</p>
+        <h2 class="h6 mb-0">{{ receipt.receipt_date|date:"M d, Y" }}</h2>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Amount" %}</p>
+        <h2 class="h6 mb-0">{{ receipt.amount }}</h2>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Mode" %}</p>
+        <h2 class="h6 mb-0">{{ receipt.get_payment_mode_display }}</h2>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Reference" %}</p>
+        <h2 class="h6 mb-0">{{ receipt.reference_number|default:"-" }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="quick-card mb-3">
+    <h3 class="h6 mb-2">{% translate "Receipt Allocation" %}</h3>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{% translate "Bill #" %}</th>
+            <th>{% translate "Bill Date" %}</th>
+            <th>{% translate "Due Date" %}</th>
+            <th>{% translate "Status" %}</th>
+            <th class="text-end">{% translate "Allocated Amount" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for allocation in allocations %}
+            <tr>
+              <td>
+                <a href="{% url 'billing:bill-detail' allocation.bill_id %}" class="text-decoration-none">
+                  {{ allocation.bill.bill_number }}
+                </a>
+              </td>
+              <td>{{ allocation.bill.bill_date|date:"M d, Y" }}</td>
+              <td>{{ allocation.bill.due_date|date:"M d, Y" }}</td>
+              <td>{{ allocation.bill.get_status_display }}</td>
+              <td class="text-end">{{ allocation.amount }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5" class="text-center text-muted py-3">{% translate "No allocations found." %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="quick-card">
+    <h3 class="h6 mb-2">{% translate "Accounting" %}</h3>
+    <p class="mb-1"><strong>{% translate "Deposited Account:" %}</strong> {{ receipt.deposited_account.name }}</p>
+    <p class="mb-1">
+      <strong>{% translate "Voucher:" %}</strong>
+      {% if receipt.voucher %}
+        {{ receipt.voucher.display_number }}
+      {% else %}
+        -
+      {% endif %}
+    </p>
+    <p class="mb-0"><strong>{% translate "Status:" %}</strong> {{ receipt.get_status_display }}</p>
+  </div>
+{% endblock content %}

@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Receipts" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Receipts" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Posted member receipts with allocation tracking." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'housing:dashboard' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}</a>
+    <a href="{% url 'housing:receipt-post' %}" class="btn btn-primary"><i class="fas fa-money-check-alt me-1"></i>{% translate "Post Receipt" %}</a>
+    <a href="{% url 'billing:bill-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Bills" %}</a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>{% translate "Receipt #" %}</th>
+          <th>{% translate "Date" %}</th>
+          <th>{% translate "Member" %}</th>
+          <th>{% translate "Payment Mode" %}</th>
+          <th>{% translate "Reference" %}</th>
+          <th class="text-end">{% translate "Amount" %}</th>
+          <th>{% translate "Allocated Bills" %}</th>
+          <th class="text-end">{% translate "Action" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for receipt in receipts %}
+          <tr>
+            <td>
+              <a href="{% url 'receipts:receipt-detail' receipt.pk %}" class="text-decoration-none">
+                {{ receipt.pk }}
+              </a>
+            </td>
+            <td>{{ receipt.receipt_date|date:"M d, Y" }}</td>
+            <td>
+              <a href="{% url 'members:member-detail' receipt.member_id %}" class="text-decoration-none">
+                {{ receipt.member.full_name }}
+              </a>
+            </td>
+            <td>{{ receipt.get_payment_mode_display }}</td>
+            <td>{{ receipt.reference_number|default:"-" }}</td>
+            <td class="text-end">{{ receipt.amount }}</td>
+            <td>
+              {% for allocation in receipt.allocations.all %}
+                <a href="{% url 'billing:bill-detail' allocation.bill_id %}" class="text-decoration-none">
+                  #{{ allocation.bill.bill_number }}
+                </a>{% if not forloop.last %}, {% endif %}
+              {% empty %}
+                -
+              {% endfor %}
+            </td>
+            <td class="text-end">
+              <a href="{% url 'receipts:receipt-detail' receipt.pk %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-folder-open me-1"></i>{% translate "Open" %}</a>
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">{% translate "No receipts found." %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock content %}

@@ -106,20 +106,24 @@ def _create_templates(ctx):
     t1 = ChargeTemplate.objects.create(
         society=ctx["society"],
         name="Maintenance",
-        amount=Decimal("1000.00"),
+        charge_type=ChargeTemplate.ChargeType.FIXED,
+        rate=Decimal("1000.00"),
         frequency=ChargeTemplate.Frequency.MONTHLY,
         due_days=10,
         late_fee_percent=Decimal("10.00"),
+        effective_from=date(2025, 4, 1),
         income_account=ctx["income_main"],
         receivable_account=ctx["receivable"],
     )
     t2 = ChargeTemplate.objects.create(
         society=ctx["society"],
         name="Sinking Fund",
-        amount=Decimal("300.00"),
+        charge_type=ChargeTemplate.ChargeType.FIXED,
+        rate=Decimal("300.00"),
         frequency=ChargeTemplate.Frequency.MONTHLY,
         due_days=15,
         late_fee_percent=Decimal("0.00"),
+        effective_from=date(2025, 4, 1),
         income_account=ctx["income_sinking"],
         receivable_account=ctx["receivable"],
     )
@@ -307,3 +311,135 @@ def test_outstanding_aging_and_reminder_scheduling_is_idempotent():
     assert first == 1
     assert second == 0
     assert ReminderLog.objects.filter(society=ctx["society"]).count() == 1
+
+
+def test_charge_template_versioning_preserves_historical_bills():
+    ctx = _create_society_context()
+    AccountingPeriod.objects.filter(
+        society=ctx["society"],
+        start_date=date(2025, 5, 1),
+        end_date=date(2025, 5, 31),
+    ).update(is_open=True)
+    april_template = ChargeTemplate.objects.create(
+        society=ctx["society"],
+        name="Maintenance",
+        charge_type=ChargeTemplate.ChargeType.FIXED,
+        rate=Decimal("1000.00"),
+        frequency=ChargeTemplate.Frequency.MONTHLY,
+        due_days=10,
+        late_fee_percent=Decimal("10.00"),
+        effective_from=date(2025, 4, 1),
+        effective_to=date(2025, 4, 30),
+        is_active=False,
+        income_account=ctx["income_main"],
+        receivable_account=ctx["receivable"],
+    )
+    ChargeTemplate.objects.create(
+        society=ctx["society"],
+        name="Maintenance",
+        charge_type=ChargeTemplate.ChargeType.FIXED,
+        rate=Decimal("1200.00"),
+        frequency=ChargeTemplate.Frequency.MONTHLY,
+        due_days=10,
+        late_fee_percent=Decimal("10.00"),
+        effective_from=date(2025, 5, 1),
+        previous_version=april_template,
+        income_account=ctx["income_main"],
+        receivable_account=ctx["receivable"],
+    )
+
+    april_bill = generate_bills_for_period(
+        society=ctx["society"],
+        period_start=date(2025, 4, 1),
+        period_end=date(2025, 4, 30),
+        bill_date=date(2025, 4, 5),
+    )[0]
+    may_bill = generate_bills_for_period(
+        society=ctx["society"],
+        period_start=date(2025, 5, 1),
+        period_end=date(2025, 5, 31),
+        bill_date=date(2025, 5, 5),
+    )[0]
+
+    april_line = april_bill.lines.get()
+    may_line = may_bill.lines.get()
+    assert april_line.amount == Decimal("1000.00")
+    assert april_line.rate_snapshot == Decimal("1000.0000")
+    assert may_line.amount == Decimal("1200.00")
+    assert may_line.rate_snapshot == Decimal("1200.0000")
+    assert april_line.template_version_snapshot == 1
+    assert may_line.template_version_snapshot == 2
+
+
+def test_per_sqft_charge_uses_chargeable_area_snapshot():
+    ctx = _create_society_context()
+    unit = ctx["member"].unit
+    unit.chargeable_area_sqft = Decimal("1250.00")
+    unit.save(update_fields=["chargeable_area_sqft"])
+    ChargeTemplate.objects.create(
+        society=ctx["society"],
+        name="Area Maintenance",
+        charge_type=ChargeTemplate.ChargeType.PER_SQFT,
+        rate=Decimal("2.00"),
+        frequency=ChargeTemplate.Frequency.MONTHLY,
+        due_days=10,
+        late_fee_percent=Decimal("0.00"),
+        effective_from=date(2025, 4, 1),
+        income_account=ctx["income_main"],
+        receivable_account=ctx["receivable"],
+    )
+
+    bill = generate_bills_for_period(
+        society=ctx["society"],
+        period_start=date(2025, 4, 1),
+        period_end=date(2025, 4, 30),
+        bill_date=date(2025, 4, 5),
+    )[0]
+    line = bill.lines.get()
+    assert line.amount == Decimal("2500.00")
+    assert line.quantity_snapshot == Decimal("1250.0000")
+    assert line.rate_snapshot == Decimal("2.0000")
+
+
+def test_used_template_cannot_be_mutated():
+    ctx = _create_society_context()
+    template, _ = _create_templates(ctx)
+    generate_bills_for_period(
+        society=ctx["society"],
+        period_start=date(2025, 4, 1),
+        period_end=date(2025, 4, 30),
+        bill_date=date(2025, 4, 5),
+    )
+    template.rate = Decimal("1500.00")
+    with pytest.raises(ValidationError):
+        template.save()
+
+
+def test_overlapping_template_effective_dates_are_rejected():
+    ctx = _create_society_context()
+    ChargeTemplate.objects.create(
+        society=ctx["society"],
+        name="Maintenance",
+        charge_type=ChargeTemplate.ChargeType.FIXED,
+        rate=Decimal("1000.00"),
+        frequency=ChargeTemplate.Frequency.MONTHLY,
+        due_days=10,
+        late_fee_percent=Decimal("0.00"),
+        effective_from=date(2025, 4, 1),
+        effective_to=date(2025, 4, 30),
+        income_account=ctx["income_main"],
+        receivable_account=ctx["receivable"],
+    )
+    with pytest.raises(ValidationError):
+        ChargeTemplate.objects.create(
+            society=ctx["society"],
+            name="Maintenance",
+            charge_type=ChargeTemplate.ChargeType.FIXED,
+            rate=Decimal("1200.00"),
+            frequency=ChargeTemplate.Frequency.MONTHLY,
+            due_days=10,
+            late_fee_percent=Decimal("0.00"),
+            effective_from=date(2025, 4, 15),
+            income_account=ctx["income_main"],
+            receivable_account=ctx["receivable"],
+        )

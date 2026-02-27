@@ -14,17 +14,22 @@
 {% endblock dashboard_subtitle %}
 
 {% block content %}
-  <div class="d-flex flex-wrap gap-2 mb-3">
-    <a href="{% url 'housing:society-add' %}" class="btn btn-primary">{% translate "Add Society" %}</a>
-    <a href="{% url 'housing:structure-add' %}" class="btn btn-outline-primary">{% translate "Add Structure" %}</a>
-    <a href="{% url 'housing:unit-add' %}" class="btn btn-outline-primary">{% translate "Add Unit" %}</a>
-    <a href="{% url 'housing:ownership-add' %}" class="btn btn-outline-primary">{% translate "Add Ownership" %}</a>
-    <a href="{% url 'housing:occupancy-add' %}" class="btn btn-outline-primary">{% translate "Add Occupancy" %}</a>
-    <a href="{% url 'housing:member-list' %}" class="btn btn-outline-primary">{% translate "Members" %}</a>
-    <a href="{% url 'housing:charge-template-add' %}" class="btn btn-outline-primary">{% translate "Add Charge Template" %}</a>
-    <a href="{% url 'housing:billing-generate' %}" class="btn btn-outline-primary">{% translate "Generate Bills" %}</a>
-    <a href="{% url 'housing:receipt-post' %}" class="btn btn-outline-primary">{% translate "Post Receipt" %}</a>
-    <a href="{% url 'housing:outstanding-dashboard' %}" class="btn btn-outline-primary">{% translate "Outstanding" %}</a>
+  <div class="page-actions">
+    <a href="{% url 'housing:society-add' %}" class="btn btn-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Society" %}</a>
+    <a href="{% url 'housing:society-list' %}" class="btn btn-outline-primary"><i class="fas fa-building me-1"></i>{% translate "Societies" %}</a>
+    <a href="{% url 'housing:structure-add' %}" class="btn btn-outline-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Structure" %}</a>
+    <a href="{% url 'housing:unit-add' %}" class="btn btn-outline-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Unit" %}</a>
+    <a href="{% url 'housing:ownership-add' %}" class="btn btn-outline-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Ownership" %}</a>
+    <a href="{% url 'housing:occupancy-add' %}" class="btn btn-outline-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Occupancy" %}</a>
+    <a href="{% url 'housing:member-list' %}" class="btn btn-outline-primary"><i class="fas fa-users me-1"></i>{% translate "Members" %}</a>
+    <a href="{% url 'billing:charge-template-list' %}" class="btn btn-outline-primary"><i class="fas fa-list-alt me-1"></i>{% translate "Charge Templates" %}</a>
+    <a href="{% url 'housing:charge-template-add' %}" class="btn btn-outline-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Charge Template" %}</a>
+    <a href="{% url 'billing:bill-list' %}" class="btn btn-outline-primary"><i class="fas fa-file-invoice me-1"></i>{% translate "Bills" %}</a>
+    <a href="{% url 'housing:billing-generate' %}" class="btn btn-outline-primary"><i class="fas fa-cogs me-1"></i>{% translate "Generate Bills" %}</a>
+    <a href="{% url 'receipts:receipt-list' %}" class="btn btn-outline-primary"><i class="fas fa-receipt me-1"></i>{% translate "Receipts" %}</a>
+    <a href="{% url 'housing:receipt-post' %}" class="btn btn-outline-primary"><i class="fas fa-money-check-alt me-1"></i>{% translate "Post Receipt" %}</a>
+    <a href="{% url 'notifications:reminder-list' %}" class="btn btn-outline-primary"><i class="fas fa-bell me-1"></i>{% translate "Reminders" %}</a>
+    <a href="{% url 'housing:outstanding-dashboard' %}" class="btn btn-outline-primary"><i class="fas fa-exclamation-circle me-1"></i>{% translate "Outstanding" %}</a>
   </div>
 
   <div class="row g-3 mb-4">
@@ -65,7 +70,7 @@
       <div class="quick-card">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <h3 class="h6 mb-0">{% translate "Recent Societies" %}</h3>
-          <a href="{% url 'housing:society-list' %}" class="btn btn-sm btn-outline-primary">{% translate "View all" %}</a>
+          <a href="{% url 'housing:society-list' %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View all" %}</a>
         </div>
         {% if recent_societies %}
           <ul class="list-group list-group-flush">
@@ -90,7 +95,12 @@
               <li class="list-group-item px-0">
                 <strong>{{ unit.identifier }}</strong>
                 <span class="text-muted">({{ unit.get_unit_type_display }})</span>
-                <div class="small text-muted">{{ unit.structure.society.name }} / {{ unit.structure.name }}</div>
+                <div class="small text-muted">
+                  <a href="{% url 'housing:society-detail' unit.structure.society_id %}" class="text-decoration-none">
+                    {{ unit.structure.society.name }}
+                  </a>
+                  / {{ unit.structure.name }}
+                </div>
               </li>
             {% endfor %}
           </ul>

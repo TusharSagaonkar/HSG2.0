@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {{ member.full_name }} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {{ member.full_name }}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {{ member.get_role_display }} / {{ member.unit.identifier }} / {{ member.society.name }}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'housing:member-list' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Members" %}</a>
+    <a href="{% url 'housing:member-edit' member.pk %}" class="btn btn-primary"><i class="fas fa-edit me-1"></i>{% translate "Edit Member" %}</a>
+    <a href="{% url 'billing:bill-list' %}" class="btn btn-outline-primary"><i class="fas fa-file-invoice me-1"></i>{% translate "All Bills" %}</a>
+    <a href="{% url 'receipts:receipt-list' %}" class="btn btn-outline-primary"><i class="fas fa-receipt me-1"></i>{% translate "All Receipts" %}</a>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6">
+      <div class="quick-card">
+        <h3 class="h6 mb-2">{% translate "Member Details" %}</h3>
+        <p class="mb-1"><strong>{% translate "Society:" %}</strong> <a href="{% url 'housing:society-detail' member.society_id %}" class="text-decoration-none">{{ member.society.name }}</a></p>
+        <p class="mb-1"><strong>{% translate "Unit:" %}</strong> {{ member.unit.identifier }}</p>
+        <p class="mb-1"><strong>{% translate "Role:" %}</strong> {{ member.get_role_display }}</p>
+        <p class="mb-1"><strong>{% translate "Status:" %}</strong> {{ member.get_status_display }}</p>
+        <p class="mb-1"><strong>{% translate "Start Date:" %}</strong> {{ member.start_date|date:"M d, Y" }}</p>
+        <p class="mb-1"><strong>{% translate "End Date:" %}</strong> {{ member.end_date|date:"M d, Y"|default:"-" }}</p>
+        <p class="mb-1"><strong>{% translate "Email:" %}</strong> {{ member.email|default:"-" }}</p>
+        <p class="mb-0"><strong>{% translate "Phone:" %}</strong> {{ member.phone|default:"-" }}</p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6">
+      <div class="quick-card">
+        <h3 class="h6 mb-2">{% translate "Outstanding Snapshot" %}</h3>
+        <p class="mb-1"><strong>{% translate "Total Bills:" %}</strong> {{ member_bills|length }}</p>
+        <p class="mb-1"><strong>{% translate "Total Receipts:" %}</strong> {{ member_receipts|length }}</p>
+        <p class="mb-0"><strong>{% translate "Recent Reminders:" %}</strong> {{ member_reminders|length }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="quick-card mb-3">
+    <h3 class="h6 mb-2">{% translate "Bills" %}</h3>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{% translate "Bill #" %}</th>
+            <th>{% translate "Bill Date" %}</th>
+            <th>{% translate "Due Date" %}</th>
+            <th>{% translate "Status" %}</th>
+            <th class="text-end">{% translate "Outstanding" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for bill in member_bills %}
+            <tr>
+              <td><a href="{% url 'billing:bill-detail' bill.pk %}" class="text-decoration-none">{{ bill.bill_number }}</a></td>
+              <td>{{ bill.bill_date|date:"M d, Y" }}</td>
+              <td>{{ bill.due_date|date:"M d, Y" }}</td>
+              <td>{{ bill.get_status_display }}</td>
+              <td class="text-end">{{ bill.outstanding_amount }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5" class="text-center text-muted py-3">{% translate "No bills found for this member." %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="quick-card mb-3">
+    <h3 class="h6 mb-2">{% translate "Receipts" %}</h3>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{% translate "Receipt #" %}</th>
+            <th>{% translate "Date" %}</th>
+            <th>{% translate "Mode" %}</th>
+            <th>{% translate "Reference" %}</th>
+            <th class="text-end">{% translate "Amount" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for receipt in member_receipts %}
+            <tr>
+              <td><a href="{% url 'receipts:receipt-detail' receipt.pk %}" class="text-decoration-none">{{ receipt.pk }}</a></td>
+              <td>{{ receipt.receipt_date|date:"M d, Y" }}</td>
+              <td>{{ receipt.get_payment_mode_display }}</td>
+              <td>{{ receipt.reference_number|default:"-" }}</td>
+              <td class="text-end">{{ receipt.amount }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="5" class="text-center text-muted py-3">{% translate "No receipts found for this member." %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="quick-card">
+    <h3 class="h6 mb-2">{% translate "Recent Reminders" %}</h3>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover align-middle mb-0">
+        <thead>
+          <tr>
+            <th>{% translate "Scheduled For" %}</th>
+            <th>{% translate "Bill #" %}</th>
+            <th>{% translate "Channel" %}</th>
+            <th>{% translate "Status" %}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for reminder in member_reminders %}
+            <tr>
+              <td>{{ reminder.scheduled_for|date:"M d, Y H:i" }}</td>
+              <td><a href="{% url 'billing:bill-detail' reminder.bill_id %}" class="text-decoration-none">{{ reminder.bill.bill_number }}</a></td>
+              <td>{{ reminder.get_channel_display }}</td>
+              <td>{{ reminder.get_status_display }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="4" class="text-center text-muted py-3">{% translate "No reminders found for this member." %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+{% endblock content %}

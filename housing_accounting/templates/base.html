@@ -77,50 +77,217 @@
                   <h4 class="text-section">{% translate "Navigation" %}</h4>
                 </li>
 
-                <li class="nav-item {% if request.resolver_match and request.resolver_match.url_name == 'home' %}active{% endif %}">
-                  <a href="{% url 'home' %}">
-                    <i class="fas fa-home"></i>
-                    <p>{% translate "Home" %}</p>
-                  </a>
-                </li>
-                <li class="nav-item {% if request.resolver_match and request.resolver_match.url_name == 'about' %}active{% endif %}">
-                  <a href="{% url 'about' %}">
-                    <i class="fas fa-info-circle"></i>
-                    <p>{% translate "About" %}</p>
-                  </a>
-                </li>
-                <li class="nav-item {% if request.resolver_match and request.resolver_match.namespace == 'housing' %}active{% endif %}">
-                  <a href="{% url 'housing:dashboard' %}">
-                    <i class="fas fa-layer-group"></i>
-                    <p>{% translate "Housing" %}</p>
-                  </a>
-                </li>
-                <li class="nav-item {% if request.resolver_match and request.resolver_match.namespace == 'accounting' and request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
-                  <a href="{% url 'accounting:dashboard' %}">
-                    <i class="fas fa-chart-line"></i>
-                    <p>{% translate "Accounting" %}</p>
-                  </a>
-                </li>
-                <li class="nav-item {% if request.resolver_match and request.resolver_match.namespace == 'accounting' and request.resolver_match.url_name == 'voucher-entry' %}active{% endif %}">
-                  <a href="{% url 'accounting:voucher-entry' %}">
-                    <i class="fas fa-pen-square"></i>
-                    <p>{% translate "Voucher Entry" %}</p>
-                  </a>
-                </li>
-                <li class="nav-item {% if request.resolver_match and request.resolver_match.namespace == 'accounting' and request.resolver_match.url_name == 'voucher-posting' %}active{% endif %}">
-                  <a href="{% url 'accounting:voucher-posting' %}">
-                    <i class="fas fa-check-circle"></i>
-                    <p>{% translate "Voucher Posting" %}</p>
-                  </a>
-                </li>
-                {% if request.user.is_authenticated %}
-                  <li class="nav-item {% if request.resolver_match and request.resolver_match.namespace == 'users' %}active{% endif %}">
-                    <a href="{% url 'users:detail' request.user.pk %}">
-                      <i class="fas fa-user"></i>
-                      <p>{% translate "My Profile" %}</p>
+                {% with current_namespace=request.resolver_match.namespace current_url_name=request.resolver_match.url_name %}
+                  <li class="nav-item {% if current_url_name == 'home' %}active{% endif %}">
+                    <a href="{% url 'home' %}">
+                      <i class="fas fa-home"></i>
+                      <p>{% translate "Home" %}</p>
                     </a>
                   </li>
-                {% endif %}
+                  <li class="nav-item {% if current_url_name == 'about' %}active{% endif %}">
+                    <a href="{% url 'about' %}">
+                      <i class="fas fa-info-circle"></i>
+                      <p>{% translate "About" %}</p>
+                    </a>
+                  </li>
+
+                  <li class="nav-item {% if current_namespace == 'housing' and current_url_name == 'society-list' or current_namespace == 'housing' and current_url_name == 'society-detail' or current_namespace == 'housing' and current_url_name == 'society-add' %}active{% endif %}">
+                    <a class="submenu-link"
+                       data-toggle="collapse"
+                       data-submenu-target="societyMenu"
+                       href="{% url 'housing:society-list' %}"
+                       aria-expanded="false">
+                      <i class="fas fa-building"></i>
+                      <p>{% translate "Society" %}</p>
+                      <span class="caret submenu-caret"></span>
+                    </a>
+                    <div class="collapse" id="societyMenu">
+                      <ul class="nav nav-collapse">
+                        <li class="{% if current_namespace == 'housing' and current_url_name == 'society-list' or current_namespace == 'housing' and current_url_name == 'society-detail' %}active{% endif %}">
+                          <a href="{% url 'housing:society-list' %}">
+                            <span class="sub-item">{% translate "Society Tab" %}</span>
+                          </a>
+                        </li>
+                        <li class="{% if current_namespace == 'housing' and current_url_name == 'society-add' %}active{% endif %}">
+                          <a href="{% url 'housing:society-add' %}">
+                            <span class="sub-item">{% translate "Add Society" %}</span>
+                          </a>
+                        </li>
+                      </ul>
+                    </div>
+                  </li>
+
+                  <li class="nav-item {% if current_namespace == 'housing' and current_url_name == 'structure-unit-dashboard' or current_namespace == 'housing' and current_url_name == 'structure-add' or current_namespace == 'housing' and current_url_name == 'unit-add' or current_namespace == 'housing' and current_url_name == 'ownership-add' or current_namespace == 'housing' and current_url_name == 'occupancy-add' %}active{% endif %}">
+                    <a class="submenu-link"
+                       data-toggle="collapse"
+                       data-submenu-target="structureMenu"
+                       href="{% url 'housing:structure-unit-dashboard' %}"
+                       aria-expanded="false">
+                      <i class="fas fa-sitemap"></i>
+                      <p>{% translate "Structure & Units" %}</p>
+                      <span class="caret submenu-caret"></span>
+                    </a>
+                    <div class="collapse" id="structureMenu">
+                      <ul class="nav nav-collapse">
+                        <li class="{% if current_namespace == 'housing' and current_url_name == 'structure-unit-dashboard' %}active{% endif %}">
+                          <a href="{% url 'housing:structure-unit-dashboard' %}"><span class="sub-item">{% translate "Dashboard" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'housing' and current_url_name == 'structure-add' %}active{% endif %}">
+                          <a href="{% url 'housing:structure-add' %}"><span class="sub-item">{% translate "Add Structure" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'housing' and current_url_name == 'unit-add' %}active{% endif %}">
+                          <a href="{% url 'housing:unit-add' %}"><span class="sub-item">{% translate "Add Unit" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'housing' and current_url_name == 'ownership-add' %}active{% endif %}">
+                          <a href="{% url 'housing:ownership-add' %}"><span class="sub-item">{% translate "Add Ownership" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'housing' and current_url_name == 'occupancy-add' %}active{% endif %}">
+                          <a href="{% url 'housing:occupancy-add' %}"><span class="sub-item">{% translate "Add Occupancy" %}</span></a>
+                        </li>
+                      </ul>
+                    </div>
+                  </li>
+
+                  <li class="nav-item {% if current_namespace == 'housing' and current_url_name == 'member-list' or current_namespace == 'housing' and current_url_name == 'member-add' or current_namespace == 'housing' and current_url_name == 'member-edit' or current_namespace == 'members' %}active{% endif %}">
+                    <a class="submenu-link"
+                       data-toggle="collapse"
+                       data-submenu-target="memberMenu"
+                       href="{% url 'housing:member-list' %}"
+                       aria-expanded="false">
+                      <i class="fas fa-users"></i>
+                      <p>{% translate "Members" %}</p>
+                      <span class="caret submenu-caret"></span>
+                    </a>
+                    <div class="collapse" id="memberMenu">
+                      <ul class="nav nav-collapse">
+                        <li class="{% if current_namespace == 'housing' and current_url_name == 'member-list' or current_namespace == 'housing' and current_url_name == 'member-edit' or current_namespace == 'members' %}active{% endif %}">
+                          <a href="{% url 'housing:member-list' %}"><span class="sub-item">{% translate "Member List" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'housing' and current_url_name == 'member-add' %}active{% endif %}">
+                          <a href="{% url 'housing:member-add' %}"><span class="sub-item">{% translate "Add Member" %}</span></a>
+                        </li>
+                      </ul>
+                    </div>
+                  </li>
+
+                  <li class="nav-item {% if current_namespace == 'billing' and current_url_name == 'charge-template-list' or current_namespace == 'billing' and current_url_name == 'bill-list' or current_namespace == 'billing' and current_url_name == 'bill-detail' or current_namespace == 'housing' and current_url_name == 'charge-template-add' or current_namespace == 'housing' and current_url_name == 'billing-generate' or current_namespace == 'housing' and current_url_name == 'outstanding-dashboard' %}active{% endif %}">
+                    <a class="submenu-link"
+                       data-toggle="collapse"
+                       data-submenu-target="billingMenu"
+                       href="{% url 'billing:charge-template-list' %}"
+                       aria-expanded="false">
+                      <i class="fas fa-file-invoice-dollar"></i>
+                      <p>{% translate "Billing" %}</p>
+                      <span class="caret submenu-caret"></span>
+                    </a>
+                    <div class="collapse" id="billingMenu">
+                      <ul class="nav nav-collapse">
+                        <li class="{% if current_namespace == 'billing' and current_url_name == 'charge-template-list' %}active{% endif %}">
+                          <a href="{% url 'billing:charge-template-list' %}"><span class="sub-item">{% translate "Charge Templates" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'housing' and current_url_name == 'charge-template-add' %}active{% endif %}">
+                          <a href="{% url 'housing:charge-template-add' %}"><span class="sub-item">{% translate "Add Charge Template" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'billing' and current_url_name == 'bill-list' or current_namespace == 'billing' and current_url_name == 'bill-detail' %}active{% endif %}">
+                          <a href="{% url 'billing:bill-list' %}"><span class="sub-item">{% translate "Bills" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'housing' and current_url_name == 'billing-generate' %}active{% endif %}">
+                          <a href="{% url 'housing:billing-generate' %}"><span class="sub-item">{% translate "Generate Bills" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'housing' and current_url_name == 'outstanding-dashboard' %}active{% endif %}">
+                          <a href="{% url 'housing:outstanding-dashboard' %}"><span class="sub-item">{% translate "Outstanding" %}</span></a>
+                        </li>
+                      </ul>
+                    </div>
+                  </li>
+
+                  <li class="nav-item {% if current_namespace == 'receipts' and current_url_name == 'receipt-list' or current_namespace == 'receipts' and current_url_name == 'receipt-detail' or current_namespace == 'housing' and current_url_name == 'receipt-post' %}active{% endif %}">
+                    <a class="submenu-link"
+                       data-toggle="collapse"
+                       data-submenu-target="receiptsMenu"
+                       href="{% url 'receipts:receipt-list' %}"
+                       aria-expanded="false">
+                      <i class="fas fa-receipt"></i>
+                      <p>{% translate "Receipts" %}</p>
+                      <span class="caret submenu-caret"></span>
+                    </a>
+                    <div class="collapse" id="receiptsMenu">
+                      <ul class="nav nav-collapse">
+                        <li class="{% if current_namespace == 'receipts' and current_url_name == 'receipt-list' or current_namespace == 'receipts' and current_url_name == 'receipt-detail' %}active{% endif %}">
+                          <a href="{% url 'receipts:receipt-list' %}"><span class="sub-item">{% translate "Receipts" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'housing' and current_url_name == 'receipt-post' %}active{% endif %}">
+                          <a href="{% url 'housing:receipt-post' %}"><span class="sub-item">{% translate "Post Receipt" %}</span></a>
+                        </li>
+                      </ul>
+                    </div>
+                  </li>
+
+                  <li class="nav-item {% if current_namespace == 'notifications' and current_url_name == 'reminder-list' or current_namespace == 'housing' and current_url_name == 'reminder-schedule' %}active{% endif %}">
+                    <a class="submenu-link"
+                       data-toggle="collapse"
+                       data-submenu-target="reminderMenu"
+                       href="{% url 'notifications:reminder-list' %}"
+                       aria-expanded="false">
+                      <i class="fas fa-bell"></i>
+                      <p>{% translate "Reminders" %}</p>
+                      <span class="caret submenu-caret"></span>
+                    </a>
+                    <div class="collapse" id="reminderMenu">
+                      <ul class="nav nav-collapse">
+                        <li class="{% if current_namespace == 'notifications' and current_url_name == 'reminder-list' %}active{% endif %}">
+                          <a href="{% url 'notifications:reminder-list' %}"><span class="sub-item">{% translate "Reminder List" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'housing' and current_url_name == 'reminder-schedule' %}active{% endif %}">
+                          <a href="{% url 'housing:reminder-schedule' %}"><span class="sub-item">{% translate "Schedule Reminder" %}</span></a>
+                        </li>
+                      </ul>
+                    </div>
+                  </li>
+
+                  <li class="nav-item {% if current_namespace == 'accounting' %}active{% endif %}">
+                    <a class="submenu-link"
+                       data-toggle="collapse"
+                       data-submenu-target="accountingMenu"
+                       href="{% url 'accounting:dashboard' %}"
+                       aria-expanded="false">
+                      <i class="fas fa-calculator"></i>
+                      <p>{% translate "Accounting" %}</p>
+                      <span class="caret submenu-caret"></span>
+                    </a>
+                    <div class="collapse" id="accountingMenu">
+                      <ul class="nav nav-collapse">
+                        <li class="{% if current_namespace == 'accounting' and current_url_name == 'dashboard' %}active{% endif %}">
+                          <a href="{% url 'accounting:dashboard' %}"><span class="sub-item">{% translate "Dashboard" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'accounting' and current_url_name == 'account-list' or current_namespace == 'accounting' and current_url_name == 'account-ledger' or current_namespace == 'accounting' and current_url_name == 'account-ledger-export-csv' %}active{% endif %}">
+                          <a href="{% url 'accounting:account-list' %}"><span class="sub-item">{% translate "Accounts" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'accounting' and current_url_name == 'voucher-list' or current_namespace == 'accounting' and current_url_name == 'voucher-detail' or current_namespace == 'accounting' and current_url_name == 'voucher-post' or current_namespace == 'accounting' and current_url_name == 'voucher-delete-draft' or current_namespace == 'accounting' and current_url_name == 'voucher-reverse' %}active{% endif %}">
+                          <a href="{% url 'accounting:voucher-list' %}"><span class="sub-item">{% translate "Vouchers" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'accounting' and current_url_name == 'voucher-entry' %}active{% endif %}">
+                          <a href="{% url 'accounting:voucher-entry' %}"><span class="sub-item">{% translate "Voucher Entry" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'accounting' and current_url_name == 'voucher-posting' %}active{% endif %}">
+                          <a href="{% url 'accounting:voucher-posting' %}"><span class="sub-item">{% translate "Voucher Posting" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'accounting' and current_url_name == 'trial-balance' or current_namespace == 'accounting' and current_url_name == 'trial-balance-export-csv' %}active{% endif %}">
+                          <a href="{% url 'accounting:trial-balance' %}"><span class="sub-item">{% translate "Trial Balance" %}</span></a>
+                        </li>
+                      </ul>
+                    </div>
+                  </li>
+
+                  {% if request.user.is_authenticated %}
+                    <li class="nav-item {% if current_namespace == 'users' %}active{% endif %}">
+                      <a href="{% url 'users:detail' request.user.pk %}">
+                        <i class="fas fa-user"></i>
+                        <p>{% translate "My Profile" %}</p>
+                      </a>
+                    </li>
+                  {% endif %}
+                {% endwith %}
 
                 <li class="nav-section">
                   <span class="sidebar-mini-icon"><i class="fa fa-user-circle"></i></span>
@@ -232,12 +399,6 @@
 
           <div class="container">
             <div class="page-inner">
-              <div class="d-flex align-items-left align-items-md-center flex-column flex-md-row pt-2 pb-4">
-                <div>
-                  <h6 class="op-7 mb-0">{% block dashboard_subtitle %}{% translate "Manage housing accounting tasks quickly from one place." %}{% endblock dashboard_subtitle %}</h6>
-                </div>
-              </div>
-
               {% if messages %}
                 {% for message in messages %}
                   <div class="alert alert-dismissible {% if message.tags %}alert-{{ message.tags }}{% endif %}">
@@ -279,6 +440,12 @@
                       </div>
                     {% endblock content %}
                   {% endblock main %}
+                </div>
+              </div>
+
+              <div class="d-flex align-items-left align-items-md-center flex-column flex-md-row pt-3 pb-2">
+                <div>
+                  <h6 class="op-7 mb-0">{% block dashboard_subtitle %}{% translate "Manage housing accounting tasks quickly from one place." %}{% endblock dashboard_subtitle %}</h6>
                 </div>
               </div>
             </div>

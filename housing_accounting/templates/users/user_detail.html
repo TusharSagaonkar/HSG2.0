@@ -23,9 +23,9 @@
     <div class="quick-card">
       <h3 class="h6 mb-3">Actions</h3>
       <div class="d-flex flex-wrap gap-2">
-        <a class="btn btn-primary" href="{% url 'users:update' %}" role="button">My Info</a>
-        <a class="btn btn-outline-primary" href="{% url 'account_email' %}" role="button">E-Mail</a>
-        <a class="btn btn-outline-secondary" href="{% url 'mfa_index' %}" role="button">MFA</a>
+        <a class="btn btn-primary" href="{% url 'users:update' %}" role="button"><i class="fas fa-user-edit me-1"></i>My Info</a>
+        <a class="btn btn-outline-primary" href="{% url 'account_email' %}" role="button"><i class="fas fa-envelope me-1"></i>E-Mail</a>
+        <a class="btn btn-outline-secondary" href="{% url 'mfa_index' %}" role="button"><i class="fas fa-shield-alt me-1"></i>MFA</a>
       </div>
     </div>
   {% endif %}

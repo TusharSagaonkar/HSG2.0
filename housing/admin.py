@@ -68,9 +68,20 @@ class MemberAdmin(admin.ModelAdmin):
 
 @admin.register(ChargeTemplate)
 class ChargeTemplateAdmin(admin.ModelAdmin):
-    list_display = ("name", "society", "frequency", "amount", "due_days", "is_active")
-    list_filter = ("society", "frequency", "is_active")
+    list_display = (
+        "name",
+        "version_no",
+        "society",
+        "charge_type",
+        "rate",
+        "frequency",
+        "effective_from",
+        "effective_to",
+        "is_active",
+    )
+    list_filter = ("society", "charge_type", "frequency", "is_active")
     search_fields = ("name",)
+    readonly_fields = ("version_no",)
 
 
 class BillLineInline(admin.TabularInline):

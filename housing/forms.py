@@ -29,6 +29,22 @@ class BootstrapModelForm(forms.ModelForm):
             widget.attrs["class"] = f"{existing} {css_class}".strip()
 
 
+class BootstrapForm(forms.Form):
+    """Apply bootstrap-friendly widgets for standard forms."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            widget = field.widget
+            css_class = "form-control"
+            if isinstance(widget, forms.CheckboxInput):
+                css_class = "form-check-input"
+            elif isinstance(widget, (forms.Select, forms.SelectMultiple)):
+                css_class = "form-select"
+            existing = widget.attrs.get("class", "")
+            widget.attrs["class"] = f"{existing} {css_class}".strip()
+
+
 class SocietyForm(BootstrapModelForm):
     class Meta:
         model = Society
@@ -55,7 +71,14 @@ class StructureForm(BootstrapModelForm):
 class UnitForm(BootstrapModelForm):
     class Meta:
         model = Unit
-        fields = ["structure", "unit_type", "identifier", "area_sqft", "is_active"]
+        fields = [
+            "structure",
+            "unit_type",
+            "identifier",
+            "area_sqft",
+            "chargeable_area_sqft",
+            "is_active",
+        ]
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -65,6 +88,9 @@ class UnitForm(BootstrapModelForm):
                 society_id=society_id
             )
         self.fields["area_sqft"].help_text = _("Can be greater than 300 sq ft.")
+        self.fields["chargeable_area_sqft"].help_text = _(
+            "Authoritative area used for per-sqft charges."
+        )
 
 
 class UnitOwnershipForm(BootstrapModelForm):
@@ -143,14 +169,21 @@ class ChargeTemplateForm(BootstrapModelForm):
             "society",
             "name",
             "description",
-            "amount",
+            "charge_type",
+            "rate",
             "frequency",
             "due_days",
             "late_fee_percent",
+            "effective_from",
+            "effective_to",
             "income_account",
             "receivable_account",
             "is_active",
         ]
+        widgets = {
+            "effective_from": forms.DateInput(attrs={"type": "date"}),
+            "effective_to": forms.DateInput(attrs={"type": "date"}),
+        }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -164,9 +197,10 @@ class ChargeTemplateForm(BootstrapModelForm):
                 society_id=society_id,
                 category__account_type="ASSET",
             ).order_by("name")
+        self.fields["rate"].help_text = _("Use flat rate or per-sqft rate based on charge type.")
 
 
-class BillingGenerationForm(forms.Form):
+class BillingGenerationForm(BootstrapForm):
     society = forms.ModelChoiceField(queryset=Society.objects.all())
     period_start = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
     period_end = forms.DateField(widget=forms.DateInput(attrs={"type": "date"}))
@@ -184,7 +218,7 @@ class BillingGenerationForm(forms.Form):
         return cleaned
 
 
-class ReceiptPostingForm(forms.Form):
+class ReceiptPostingForm(BootstrapForm):
     society = forms.ModelChoiceField(queryset=Society.objects.all())
     member = forms.ModelChoiceField(queryset=Member.objects.none())
     bill = forms.ModelChoiceField(queryset=Bill.objects.none())

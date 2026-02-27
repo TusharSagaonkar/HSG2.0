@@ -3,6 +3,7 @@ from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ValidationError
 from django.db.models import Count
+from django.db.models import Q
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import CreateView
@@ -84,6 +85,59 @@ class HousingDashboardView(LoginRequiredMixin, TemplateView):
 housing_dashboard_view = HousingDashboardView.as_view()
 
 
+class StructureUnitDashboardView(LoginRequiredMixin, TemplateView):
+    template_name = "housing/structure_unit_dashboard.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        selected_society, _ = get_selected_scope(self.request)
+
+        structures_qs = Structure.objects.select_related("society", "parent")
+        units_qs = Unit.objects.select_related("structure", "structure__society")
+        active_occupancies_qs = UnitOccupancy.objects.filter(end_date__isnull=True)
+
+        if selected_society:
+            structures_qs = structures_qs.filter(society=selected_society)
+            units_qs = units_qs.filter(structure__society=selected_society)
+            active_occupancies_qs = active_occupancies_qs.filter(
+                unit__structure__society=selected_society
+            )
+
+        total_structures = structures_qs.count()
+        root_structures = structures_qs.filter(parent__isnull=True).count()
+        total_units = units_qs.count()
+        active_units = units_qs.filter(is_active=True).count()
+        occupied_units = active_occupancies_qs.exclude(
+            occupancy_type=UnitOccupancy.OccupancyType.VACANT,
+        ).count()
+
+        context["total_structures"] = total_structures
+        context["root_structures"] = root_structures
+        context["total_units"] = total_units
+        context["active_units"] = active_units
+        context["occupied_units"] = occupied_units
+        context["vacant_units"] = max(total_units - occupied_units, 0)
+        context["recent_structures"] = structures_qs.order_by("-created_at")[:6]
+        context["recent_units"] = units_qs.order_by("-created_at")[:8]
+        unit_type_summary = (
+            units_qs.values("unit_type")
+            .annotate(total=Count("id"))
+            .order_by("unit_type")
+        )
+        unit_type_labels = dict(Unit.UnitType.choices)
+        context["unit_type_summary"] = [
+            {
+                "unit_type": unit_type_labels.get(row["unit_type"], row["unit_type"]),
+                "total": row["total"],
+            }
+            for row in unit_type_summary
+        ]
+        return context
+
+
+structure_unit_dashboard_view = StructureUnitDashboardView.as_view()
+
+
 class SocietyListView(LoginRequiredMixin, ListView):
     model = Society
     template_name = "housing/society_list.html"
@@ -148,6 +202,8 @@ class SocietyCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
         context = super().get_context_data(**kwargs)
         context["form_title"] = _("Add Society")
         context["form_subtitle"] = _("Create a new housing society record.")
+        context["cancel_url"] = reverse("housing:society-list")
+        context["cancel_label"] = _("Back to Societies")
         return context
 
     def get_success_url(self):
@@ -178,6 +234,8 @@ class StructureCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
         context = super().get_context_data(**kwargs)
         context["form_title"] = _("Add Structure")
         context["form_subtitle"] = _("Add building/wing/block hierarchy.")
+        context["cancel_url"] = reverse("housing:structure-unit-dashboard")
+        context["cancel_label"] = _("Back to Structure & Units")
         return context
 
     def get_success_url(self):
@@ -211,6 +269,8 @@ class UnitCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
         context = super().get_context_data(**kwargs)
         context["form_title"] = _("Add Unit")
         context["form_subtitle"] = _("Create a flat, shop, office, or other unit.")
+        context["cancel_url"] = reverse("housing:structure-unit-dashboard")
+        context["cancel_label"] = _("Back to Structure & Units")
         return context
 
     def get_success_url(self):
@@ -247,6 +307,8 @@ class UnitOwnershipCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateVie
         context = super().get_context_data(**kwargs)
         context["form_title"] = _("Add Unit Ownership")
         context["form_subtitle"] = _("Assign primary or secondary owner to a unit.")
+        context["cancel_url"] = reverse("housing:structure-unit-dashboard")
+        context["cancel_label"] = _("Back to Structure & Units")
         return context
 
     def get_success_url(self):
@@ -283,6 +345,8 @@ class UnitOccupancyCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateVie
         context = super().get_context_data(**kwargs)
         context["form_title"] = _("Add Unit Occupancy")
         context["form_subtitle"] = _("Set owner/tenant/vacant occupancy details.")
+        context["cancel_url"] = reverse("housing:structure-unit-dashboard")
+        context["cancel_label"] = _("Back to Structure & Units")
         return context
 
     def get_success_url(self):
@@ -302,13 +366,69 @@ class MemberListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         selected_society, _ = get_selected_scope(self.request)
-        queryset = Member.objects.select_related("society", "unit", "receivable_account").order_by(
-            "society__name",
-            "full_name",
+        queryset = Member.objects.select_related(
+            "society",
+            "unit",
+            "unit__structure",
+            "receivable_account",
         )
         if selected_society:
             queryset = queryset.filter(society=selected_society)
-        return queryset
+
+        q = (self.request.GET.get("q") or "").strip()
+        structure = (self.request.GET.get("structure") or "").strip()
+        role = (self.request.GET.get("role") or "").strip()
+        status = (self.request.GET.get("status") or "").strip()
+
+        if q:
+            queryset = queryset.filter(
+                Q(full_name__icontains=q)
+                | Q(email__icontains=q)
+                | Q(phone__icontains=q)
+                | Q(unit__identifier__icontains=q)
+                | Q(unit__structure__name__icontains=q)
+                | Q(society__name__icontains=q)
+            )
+
+        if structure:
+            try:
+                queryset = queryset.filter(unit__structure_id=int(structure))
+            except ValueError:
+                pass
+
+        if role in Member.MemberRole.values:
+            queryset = queryset.filter(role=role)
+
+        if status in Member.MemberStatus.values:
+            queryset = queryset.filter(status=status)
+
+        self.filter_values = {
+            "q": q,
+            "structure": structure,
+            "role": role,
+            "status": status,
+        }
+        return queryset.order_by("society__name", "unit__structure__name", "full_name")
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        selected_society, _ = get_selected_scope(self.request)
+        structures = Structure.objects.select_related("society").order_by(
+            "society__name",
+            "name",
+        )
+        if selected_society:
+            structures = structures.filter(society=selected_society)
+
+        context["structure_options"] = structures
+        context["filter_values"] = getattr(
+            self,
+            "filter_values",
+            {"q": "", "structure": "", "role": "", "status": ""},
+        )
+        context["role_options"] = Member.MemberRole.choices
+        context["status_options"] = Member.MemberStatus.choices
+        return context
 
 
 member_list_view = MemberListView.as_view()
@@ -335,6 +455,8 @@ class MemberCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
         context = super().get_context_data(**kwargs)
         context["form_title"] = _("Add Member")
         context["form_subtitle"] = _("Create owner, tenant, or nominee membership.")
+        context["cancel_url"] = reverse("housing:member-list")
+        context["cancel_label"] = _("Back to Members")
         return context
 
     def get_success_url(self):
@@ -354,6 +476,8 @@ class MemberUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         context["form_title"] = _("Update Member")
         context["form_subtitle"] = _("Update membership details and status.")
+        context["cancel_url"] = reverse("housing:member-list")
+        context["cancel_label"] = _("Back to Members")
         return context
 
     def get_success_url(self):
@@ -369,6 +493,12 @@ class ChargeTemplateCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateVi
     template_name = "housing/form.html"
     success_message = _("Charge template saved successfully.")
 
+    def _get_clone_source(self):
+        clone_from = self.request.GET.get("clone_from")
+        if not clone_from:
+            return None
+        return ChargeTemplate.objects.filter(pk=clone_from).first()
+
     def get_initial(self):
         initial = super().get_initial()
         society_id = self.request.GET.get("society")
@@ -378,12 +508,46 @@ class ChargeTemplateCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateVi
                 society_id = selected_society.pk
         if society_id:
             initial["society"] = society_id
+        clone_source = self._get_clone_source()
+        if clone_source:
+            initial.update(
+                {
+                    "society": clone_source.society_id,
+                    "name": clone_source.name,
+                    "description": clone_source.description,
+                    "charge_type": clone_source.charge_type,
+                    "rate": clone_source.rate,
+                    "frequency": clone_source.frequency,
+                    "due_days": clone_source.due_days,
+                    "late_fee_percent": clone_source.late_fee_percent,
+                    "income_account": clone_source.income_account_id,
+                    "receivable_account": clone_source.receivable_account_id,
+                    "is_active": True,
+                }
+            )
+            initial["effective_from"] = (
+                self.request.GET.get("effective_from")
+                or timezone.localdate().isoformat()
+            )
+            initial["effective_to"] = None
         return initial
+
+    def form_valid(self, form):
+        clone_source = self._get_clone_source()
+        if (
+            clone_source
+            and form.instance.society_id == clone_source.society_id
+            and form.instance.name == clone_source.name
+        ):
+            form.instance.previous_version = clone_source
+        return super().form_valid(form)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["form_title"] = _("Add Charge Template")
         context["form_subtitle"] = _("Configure recurring maintenance or utility charges.")
+        context["cancel_url"] = reverse("billing:charge-template-list")
+        context["cancel_label"] = _("Back to Templates")
         return context
 
     def get_success_url(self):
@@ -399,8 +563,13 @@ class BillingGenerateView(LoginRequiredMixin, FormView):
 
     def get_initial(self):
         initial = super().get_initial()
+        query_society_id = self.request.GET.get("society")
+        if query_society_id:
+            query_society = Society.objects.filter(pk=query_society_id).first()
+            if query_society:
+                initial["society"] = query_society
         selected_society, _ = get_selected_scope(self.request)
-        if selected_society:
+        if selected_society and "society" not in initial:
             initial["society"] = selected_society
         today = timezone.localdate()
         initial.setdefault("bill_date", today)
@@ -412,6 +581,10 @@ class BillingGenerateView(LoginRequiredMixin, FormView):
         context = super().get_context_data(**kwargs)
         context["form_title"] = _("Generate Bills")
         context["form_subtitle"] = _("Generate recurring bills and auto-post accounting vouchers.")
+        context["cancel_url"] = reverse("billing:bill-list")
+        context["cancel_label"] = _("Back to Bills")
+        context["submit_label"] = _("Generate Bills")
+        context["submit_icon"] = "fas fa-cogs"
         return context
 
     def form_valid(self, form):
@@ -442,8 +615,13 @@ class ReceiptPostView(LoginRequiredMixin, FormView):
 
     def get_initial(self):
         initial = super().get_initial()
+        query_society_id = self.request.GET.get("society")
+        if query_society_id:
+            query_society = Society.objects.filter(pk=query_society_id).first()
+            if query_society:
+                initial["society"] = query_society
         selected_society, _ = get_selected_scope(self.request)
-        if selected_society:
+        if selected_society and "society" not in initial:
             initial["society"] = selected_society
         initial.setdefault("receipt_date", timezone.localdate())
         return initial
@@ -452,6 +630,11 @@ class ReceiptPostView(LoginRequiredMixin, FormView):
         context = super().get_context_data(**kwargs)
         context["form_title"] = _("Post Receipt")
         context["form_subtitle"] = _("Post member payment and auto-create receipt voucher.")
+        context["cancel_url"] = reverse("receipts:receipt-list")
+        context["cancel_label"] = _("Back to Receipts")
+        context["submit_label"] = _("Post Receipt")
+        context["submit_icon"] = "fas fa-money-check-alt"
+        context["auto_reload_society"] = True
         return context
 
     def form_valid(self, form):

@@ -14,11 +14,9 @@
 {% endblock dashboard_subtitle %}
 
 {% block content %}
-  <div class="mb-3 d-flex justify-content-between">
-    <div class="d-flex gap-2">
-      <a href="{% url 'accounting:dashboard' %}" class="btn btn-outline-secondary">{% translate "Back to Dashboard" %}</a>
-      <a href="{% url 'accounting:trial-balance' %}" class="btn btn-outline-primary">{% translate "Trial Balance" %}</a>
-    </div>
+  <div class="page-actions">
+    <a href="{% url 'accounting:dashboard' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}</a>
+    <a href="{% url 'accounting:trial-balance' %}" class="btn btn-outline-primary"><i class="fas fa-balance-scale me-1"></i>{% translate "Trial Balance" %}</a>
   </div>
 
   <div class="table-responsive">
@@ -49,7 +47,7 @@
             </td>
             <td class="text-end">
               <a href="{% url 'accounting:account-ledger' account.pk %}" class="btn btn-sm btn-outline-primary">
-                {% translate "View" %}
+                <i class="fas fa-eye me-1"></i>{% translate "View" %}
               </a>
             </td>
           </tr>

@@ -7,6 +7,12 @@ Multi-user housing society accounting and management system
 
 License: MIT
 
+## Project Documentation
+
+For long-term project planning and decision tracking, use the dedicated documentation hub:
+
+- `documentation/README.md`
+
 ## Settings
 
 Moved to [settings](https://cookiecutter-django.readthedocs.io/en/latest/1-getting-started/settings.html).

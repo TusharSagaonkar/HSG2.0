@@ -20,6 +20,10 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("housing/", include("housing.urls", namespace="housing")),
     path("accounting/", include("accounting.urls", namespace="accounting")),
+    path("billing/", include("billing.urls", namespace="billing")),
+    path("receipts/", include("receipts.urls", namespace="receipts")),
+    path("notifications/", include("notifications.urls", namespace="notifications")),
+    path("members/", include("members.urls", namespace="members")),
     # Your stuff: custom urls includes go here
     # ...
     # Media files
