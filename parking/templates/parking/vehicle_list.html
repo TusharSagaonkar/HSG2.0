@@ -28,7 +28,9 @@
           <th>{% translate "Unit" %}</th>
           <th>{% translate "Member" %}</th>
           <th>{% translate "Color" %}</th>
+          <th>{% translate "Valid Until" %}</th>
           <th>{% translate "Status" %}</th>
+          <th>{% translate "Verification" %}</th>
         </tr>
       </thead>
       <tbody>
@@ -47,17 +49,30 @@
               {% endif %}
             </td>
             <td>{{ vehicle.color|default:"-" }}</td>
+            <td>{{ vehicle.valid_until|default:"-" }}</td>
             <td>
-              {% if vehicle.is_active %}
+              {% if vehicle.is_valid %}
                 <span class="badge text-bg-success">{% translate "Active" %}</span>
               {% else %}
-                <span class="badge text-bg-secondary">{% translate "Inactive" %}</span>
+                <span class="badge text-bg-danger">{% translate "Expired" %}</span>
               {% endif %}
+            </td>
+            <td>
+              <div class="d-flex gap-2 flex-wrap">
+                <a href="{% url 'vehicle_verify' vehicle.verification_token %}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
+                  <i class="fas fa-shield-alt me-1"></i>{% translate "Verify" %}
+                </a>
+                {% if vehicle.is_valid %}
+                  <a href="{% url 'parking:vehicle-sticker' vehicle.pk %}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-qrcode me-1"></i>{% translate "QR" %}
+                  </a>
+                {% endif %}
+              </div>
             </td>
           </tr>
         {% empty %}
           <tr>
-            <td colspan="6" class="text-center text-muted py-4">{% translate "No vehicles found." %}</td>
+            <td colspan="8" class="text-center text-muted py-4">{% translate "No vehicles found." %}</td>
           </tr>
         {% endfor %}
       </tbody>

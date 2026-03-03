@@ -176,6 +176,7 @@ dependencies = [
     "pillow==12.1.0",
     "psycopg[c]==3.3.2",
     "python-slugify==8.0.4",
+    "qrcode==8.2",
     "redis==7.1.0",
     "whitenoise==6.11.0",
 ]

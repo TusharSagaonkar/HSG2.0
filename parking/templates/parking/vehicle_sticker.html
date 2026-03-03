@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Parking Sticker</title>
+    <style>
+      body {
+        background: #f3f3f3;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        align-items: center;
+        min-height: 100vh;
+        padding: 24px 12px;
+        box-sizing: border-box;
+        font-family: Arial, Helvetica, sans-serif;
+      }
+
+      .stickers-wrap {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 24px;
+        justify-content: center;
+        align-items: flex-start;
+        width: 100%;
+      }
+
+      .sticker-panel {
+        display: grid;
+        gap: 10px;
+        justify-items: center;
+      }
+
+      .panel-title {
+        margin: 0;
+        font-size: 14px;
+        font-weight: 700;
+        color: #334155;
+      }
+
+      .print-actions {
+        display: flex;
+        justify-content: center;
+      }
+
+      .print-btn {
+        border: 0;
+        background: #1f2937;
+        color: #fff;
+        padding: 10px 16px;
+        border-radius: 8px;
+        font-size: 14px;
+        cursor: pointer;
+      }
+
+      .sticker-card {
+        width: 360px;
+        background: white;
+        border-radius: 20px;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+        border: 4px solid #f4c542;
+      }
+
+      .layout-car {
+        box-shadow: 0 10px 30px rgba(15, 82, 186, 0.22);
+      }
+
+      .layout-bike {
+        box-shadow: 0 10px 30px rgba(147, 104, 20, 0.22);
+      }
+
+      .layout-other {
+        border-style: dashed;
+        box-shadow: 0 10px 30px rgba(75, 85, 99, 0.22);
+      }
+
+      .header {
+        background: #f4c542;
+        padding: 18px;
+        text-align: center;
+        font-weight: bold;
+        font-size: 22px;
+        letter-spacing: 1px;
+        color: #222;
+      }
+
+      .qr-section {
+        padding: 25px 20px 10px;
+        text-align: center;
+      }
+
+      .qr-section img {
+        width: 280px;
+        height: 280px;
+      }
+
+      .owner-name {
+        text-align: center;
+        font-size: 20px;
+        font-weight: 600;
+        margin-top: 10px;
+        letter-spacing: 1px;
+      }
+
+      .member-type {
+        text-align: center;
+        margin-top: 6px;
+        font-size: 14px;
+        color: #555;
+        font-weight: 600;
+      }
+
+      .status-line {
+        text-align: center;
+        margin-top: 6px;
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: 0.6px;
+      }
+
+      .vehicle-row {
+        margin-top: 8px;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        font-size: 24px;
+        font-weight: bold;
+        letter-spacing: 2px;
+        gap: 8px;
+      }
+
+      .mono-car-icon {
+        width: 34px;
+        height: 22px;
+        display: inline-block;
+      }
+
+      .expiry {
+        text-align: center;
+        margin-top: 10px;
+        font-size: 14px;
+        color: #555;
+      }
+
+      .footer {
+        background: #f4c542;
+        padding: 14px;
+        text-align: center;
+        font-weight: 600;
+        margin-top: 20px;
+        font-size: 16px;
+        letter-spacing: 1px;
+      }
+
+      .status-owner {
+        border-color: #28a745;
+      }
+
+      .status-owner .header,
+      .status-owner .footer {
+        background: #28a745;
+        color: white;
+      }
+
+      .status-owner .status-line {
+        color: #1f7a35;
+      }
+
+      .status-tenant {
+        border-color: #f4c542;
+      }
+
+      .status-tenant .header,
+      .status-tenant .footer {
+        background: #f4c542;
+      }
+
+      .status-tenant .status-line {
+        color: #8a6a08;
+      }
+
+      .status-notliving {
+        border-color: #dc3545;
+      }
+
+      .status-notliving .header,
+      .status-notliving .footer {
+        background: #dc3545;
+        color: white;
+      }
+
+      .status-notliving .status-line {
+        color: #b22234;
+      }
+
+      .circle-sticker-container {
+        width: 440px;
+        height: 440px;
+        min-width: 440px;
+        min-height: 440px;
+        max-width: 440px;
+        max-height: 440px;
+        flex: 0 0 440px;
+        aspect-ratio: 1 / 1;
+        overflow: hidden;
+        position: relative;
+        --circle-accent: #f4c542;
+        --ring-text-color: #111111;
+      }
+
+      .circle-sticker-container.status-owner {
+        --circle-accent: #28a745;
+        --ring-text-color: #ffffff;
+      }
+
+      .circle-sticker-container.status-tenant {
+        --circle-accent: #f4c542;
+        --ring-text-color: #111111;
+      }
+
+      .circle-sticker-container.status-notliving {
+        --circle-accent: #dc3545;
+        --ring-text-color: #ffffff;
+      }
+
+      .circle-svg {
+        width: 100%;
+        height: 100%;
+      }
+
+      .ring-text {
+        fill: var(--ring-text-color);
+        font-family: Arial, Helvetica, sans-serif;
+        letter-spacing: 0.8px;
+        dominant-baseline: middle;
+        text-rendering: geometricPrecision;
+      }
+
+      .ring-text.main {
+        font-size: 38px;
+        font-weight: 800;
+      }
+
+      .ring-text.side {
+        font-size: 16px;
+        font-weight: 700;
+      }
+
+      .ring-text.micro {
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.4px;
+        fill: #111111;
+      }
+
+      .qr-center {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 210px;
+        height: 210px;
+        border-radius: 50%;
+        background: #fff;
+        border: 10px solid var(--circle-accent);
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        box-shadow: 0 0 0 4px #ffffff inset;
+      }
+
+      .qr-center img {
+        width: 170px;
+        height: 170px;
+      }
+
+      @media print {
+        @page {
+          size: A4 portrait;
+          margin: 10mm;
+        }
+
+        body {
+          background: #fff;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          margin: 0 !important;
+          padding: 0 !important;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        }
+
+        .print-actions {
+          display: none;
+        }
+
+        .sticker-card,
+        .circle-sticker-container {
+          margin: 0 auto;
+          page-break-inside: avoid;
+          break-inside: avoid;
+        }
+
+        body.print-rect .circle-sticker-container {
+          display: none !important;
+        }
+
+        body.print-circular .sticker-card {
+          display: none !important;
+        }
+
+        body.print-rect .sticker-panel,
+        body.print-circular .sticker-panel {
+          display: block;
+        }
+
+        .panel-title {
+          display: none;
+        }
+      }
+    </style>
+    <script>
+      function printSticker(targetClass) {
+        document.body.classList.remove("print-rect", "print-circular");
+        document.body.classList.add(targetClass);
+        window.print();
+      }
+
+      window.addEventListener("afterprint", function () {
+        document.body.classList.remove("print-rect", "print-circular");
+      });
+    </script>
+  </head>
+  <body>
+    <div class="stickers-wrap">
+      <section class="sticker-panel">
+        <h2 class="panel-title">Rectangular Sticker</h2>
+        <div class="print-actions">
+          <button type="button" class="print-btn" onclick="printSticker('print-rect')">Print Rectangular</button>
+        </div>
+        <div class="sticker-card {{ status_class }} {{ layout_class }}">
+          <div class="header">
+            {{ society_name }}
+          </div>
+
+          <div class="qr-section">
+            <img src="{{ qr_image_url }}" alt="QR Code" />
+          </div>
+
+          <div class="owner-name">
+            {{ owner_name }}
+          </div>
+          <div class="status-line">
+            Status: {{ sticker_status }}
+          </div>
+
+          <div class="vehicle-row">
+            {% if vehicle_type_code == "CAR" %}
+              <svg class="mono-car-icon" viewBox="0 0 64 40" aria-hidden="true" role="img">
+                <rect x="10" y="14" width="44" height="14" rx="3" fill="#ffffff" stroke="#000000" stroke-width="2"></rect>
+                <path d="M18 14 L24 8 H40 L46 14 Z" fill="#ffffff" stroke="#000000" stroke-width="2"></path>
+                <circle cx="20" cy="30" r="5" fill="#000000"></circle>
+                <circle cx="44" cy="30" r="5" fill="#000000"></circle>
+              </svg>
+            {% else %}
+              <span aria-hidden="true">{{ vehicle_symbol }}</span>
+            {% endif %}
+            {{ vehicle_number }}
+          </div>
+          <div class="member-type">
+            Vehicle Type: {{ vehicle_type_label }}
+          </div>
+          <div class="member-type">
+            Member Type: {{ member_type }}
+          </div>
+
+          <div class="expiry">
+            Valid Until: {{ valid_until|default:"Not Set" }}
+          </div>
+
+          <div class="footer">
+            {{ building_name }} | {{ flat_number }}
+          </div>
+        </div>
+      </section>
+
+      <section class="sticker-panel">
+        <h2 class="panel-title">Circular Sticker</h2>
+        <div class="print-actions">
+          <button type="button" class="print-btn" onclick="printSticker('print-circular')">Print Circular</button>
+        </div>
+        <div class="circle-sticker-container {{ status_class }}">
+          <svg class="circle-svg" viewBox="0 0 500 500" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Circular parking sticker">
+            <circle cx="250" cy="250" r="240" fill="var(--circle-accent)" stroke="var(--circle-accent)" stroke-width="12"></circle>
+            <circle cx="250" cy="250" r="170" fill="white"></circle>
+
+            <defs>
+              <path id="topArc" d="M 45,250 A 205,205 0 0,1 455,250"></path>
+              <path id="bottomArc" d="M 45,250 A 205,205 0 0,0 455,250"></path>
+              <path id="leftArc" d="M 250,45 A 205,205 0 0,0 250,455"></path>
+              <path id="rightArc" d="M 250,455 A 205,205 0 0,0 250,45"></path>
+              <path id="innerTopArc" d="M 104,250 A 146,146 0 0,1 396,250"></path>
+              <path id="innerBottomArc" d="M 104,250 A 146,146 0 0,0 396,250"></path>
+            </defs>
+
+            <text class="ring-text main">
+              <textPath href="#topArc" startOffset="50%" text-anchor="middle">
+                {{ society_name|upper }}
+              </textPath>
+            </text>
+            <text class="ring-text main">
+              <textPath href="#bottomArc" startOffset="50%" text-anchor="middle">
+                {{ vehicle_number }}
+              </textPath>
+            </text>
+            <text class="ring-text side">
+              <textPath href="#leftArc" startOffset="50%" text-anchor="middle">
+                {{ owner_name|upper }}
+              </textPath>
+            </text>
+            <text class="ring-text side">
+              <textPath href="#rightArc" startOffset="50%" text-anchor="middle">
+                {{ building_name|upper }} / {{ flat_number }}
+              </textPath>
+            </text>
+            <text class="ring-text micro">
+              <textPath href="#innerTopArc" startOffset="50%" text-anchor="middle">
+                STATUS: {{ sticker_status|upper }} | MEMBER: {{ member_type|upper }}
+              </textPath>
+            </text>
+            <text class="ring-text micro">
+              <textPath href="#innerBottomArc" startOffset="50%" text-anchor="middle">
+                TYPE: {{ vehicle_type_label|upper }} | VALID: {{ valid_until|default:"NOT SET"|upper }}
+              </textPath>
+            </text>
+          </svg>
+
+          <div class="qr-center">
+            <img src="{{ qr_image_url }}" alt="QR Code" />
+          </div>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>

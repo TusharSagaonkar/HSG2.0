@@ -6,6 +6,8 @@ from django.urls import path
 from django.views import defaults as default_views
 from django.views.generic import TemplateView
 
+from parking.views import verify_vehicle
+
 urlpatterns = [
     path("", TemplateView.as_view(template_name="pages/home.html"), name="home"),
     path(
@@ -22,6 +24,7 @@ urlpatterns = [
     path("accounting/", include("accounting.urls", namespace="accounting")),
     path("billing/", include("billing.urls", namespace="billing")),
     path("parking/", include("parking.urls", namespace="parking")),
+    path("vehicle/verify/<uuid:token>/", view=verify_vehicle, name="vehicle_verify"),
     path("receipts/", include("receipts.urls", namespace="receipts")),
     path("notifications/", include("notifications.urls", namespace="notifications")),
     path("members/", include("members.urls", namespace="members")),

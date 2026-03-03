@@ -1,7 +1,12 @@
+import uuid
+
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 from django.db import transaction
 from django.utils import timezone
+
+from parking.utils.qr import generate_vehicle_verification_qr
 
 
 class Vehicle(models.Model):
@@ -44,6 +49,14 @@ class Vehicle(models.Model):
     color = models.CharField(max_length=50, blank=True)
 
     is_active = models.BooleanField(default=True)
+    verification_token = models.UUIDField(
+        default=uuid.uuid4,
+        unique=True,
+        editable=False,
+        db_index=True,
+    )
+    valid_from = models.DateField(default=timezone.localdate)
+    valid_until = models.DateField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     deactivated_at = models.DateTimeField(null=True, blank=True)
@@ -109,6 +122,21 @@ class Vehicle(models.Model):
             is_active=False,
             deactivated_at=timezone.now(),
         )
+
+    def is_valid(self):
+        today = timezone.localdate()
+        if not self.is_active:
+            return False
+        if self.valid_until and self.valid_until < today:
+            return False
+        return True
+
+    def get_verification_url(self):
+        base_url = getattr(settings, "BASE_URL", "").rstrip("/")
+        return f"{base_url}/vehicle/verify/{self.verification_token}/"
+
+    def generate_qr_image(self):
+        return generate_vehicle_verification_qr(self)
 
     def save(self, *args, **kwargs):
         if self.is_active:

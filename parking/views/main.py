@@ -1,6 +1,8 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
+from django.http import HttpResponse
 from django.http import JsonResponse
+from django.shortcuts import get_object_or_404
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from django.views import View
@@ -168,6 +170,83 @@ class VehicleMembersByUnitView(LoginRequiredMixin, View):
 
 
 vehicle_members_by_unit_view = VehicleMembersByUnitView.as_view()
+
+
+class VehicleQRCodeView(LoginRequiredMixin, View):
+    def get(self, request, pk, *args, **kwargs):
+        vehicle = get_object_or_404(Vehicle, pk=pk)
+        qr_image = vehicle.generate_qr_image()
+        response = HttpResponse(qr_image.read(), content_type="image/png")
+        response["Content-Disposition"] = (
+            f'inline; filename="vehicle-verification-{vehicle.verification_token}.png"'
+        )
+        return response
+
+
+vehicle_qr_code_view = VehicleQRCodeView.as_view()
+
+
+class VehicleStickerView(LoginRequiredMixin, TemplateView):
+    template_name = "parking/vehicle_sticker.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        vehicle = get_object_or_404(
+            Vehicle.objects.select_related(
+                "society",
+                "unit",
+                "unit__structure",
+                "member",
+            ),
+            pk=self.kwargs["pk"],
+        )
+        member_role = vehicle.member.role if vehicle.member else None
+
+        if member_role == Member.MemberRole.OWNER:
+            status_class = "status-owner"
+            member_type = "Owner"
+            sticker_status = "Owner Living"
+        elif member_role == Member.MemberRole.TENANT:
+            status_class = "status-tenant"
+            member_type = "Tenant"
+            sticker_status = "Tenant"
+        else:
+            status_class = "status-notliving"
+            member_type = "Unknown"
+            sticker_status = "Not Living"
+
+        if vehicle.vehicle_type == Vehicle.VehicleType.CAR:
+            layout_class = "layout-car"
+            vehicle_symbol = "🚗"
+        elif vehicle.vehicle_type == Vehicle.VehicleType.BIKE:
+            layout_class = "layout-bike"
+            vehicle_symbol = "🏍"
+        else:
+            layout_class = "layout-other"
+            vehicle_symbol = "🚘"
+
+        context.update(
+            {
+                "status_class": status_class,
+                "layout_class": layout_class,
+                "member_type": member_type,
+                "sticker_status": sticker_status,
+                "society_name": vehicle.society.name,
+                "owner_name": vehicle.member.full_name if vehicle.member else "Unassigned",
+                "vehicle_number": vehicle.vehicle_number,
+                "vehicle_type_code": vehicle.vehicle_type,
+                "vehicle_type_label": vehicle.get_vehicle_type_display(),
+                "vehicle_symbol": vehicle_symbol,
+                "valid_until": vehicle.valid_until,
+                "building_name": vehicle.unit.structure.name,
+                "flat_number": vehicle.unit.identifier,
+                "qr_image_url": reverse("parking:vehicle-qr", kwargs={"pk": vehicle.pk}),
+            }
+        )
+        return context
+
+
+vehicle_sticker_view = VehicleStickerView.as_view()
 
 
 class ParkingVehicleLimitListView(LoginRequiredMixin, ListView):

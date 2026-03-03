@@ -613,6 +613,7 @@ dependencies = [
     { name = "pillow" },
     { name = "psycopg", extra = ["c"] },
     { name = "python-slugify" },
+    { name = "qrcode" },
     { name = "redis" },
     { name = "whitenoise" },
 ]
@@ -655,6 +656,7 @@ requires-dist = [
     { name = "pillow", specifier = "==12.1.0" },
     { name = "psycopg", extras = ["c"], specifier = "==3.3.2" },
     { name = "python-slugify", specifier = "==8.0.4" },
+    { name = "qrcode", specifier = "==8.2" },
     { name = "redis", specifier = "==7.1.0" },
     { name = "whitenoise", specifier = "==6.11.0" },
 ]
