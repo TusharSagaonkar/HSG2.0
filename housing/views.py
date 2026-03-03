@@ -162,6 +162,12 @@ class SocietyDetailView(LoginRequiredMixin, DetailView):
     template_name = "housing/society_detail.html"
     context_object_name = "society"
 
+    @staticmethod
+    def _user_display_name(user):
+        if user is None:
+            return ""
+        return user.name or user.email
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         society = self.object
@@ -171,6 +177,47 @@ class SocietyDetailView(LoginRequiredMixin, DetailView):
             .select_related("structure")
             .order_by("structure_id", "id")
         )
+        unit_ids = [unit.id for unit in units]
+
+        active_ownerships = (
+            UnitOwnership.objects.filter(
+                unit_id__in=unit_ids,
+                end_date__isnull=True,
+            )
+            .select_related("owner")
+            .order_by("unit_id", "-start_date", "-id")
+        )
+        current_ownership_by_unit = {}
+        for ownership in active_ownerships:
+            current_ownership_by_unit.setdefault(ownership.unit_id, ownership)
+
+        active_occupancies = (
+            UnitOccupancy.objects.filter(
+                unit_id__in=unit_ids,
+                end_date__isnull=True,
+            )
+            .select_related("occupant")
+            .order_by("unit_id", "-start_date", "-id")
+        )
+        current_occupancy_by_unit = {}
+        for occupancy in active_occupancies:
+            current_occupancy_by_unit.setdefault(occupancy.unit_id, occupancy)
+
+        active_members = (
+            Member.objects.filter(
+                society=society,
+                unit_id__in=unit_ids,
+                status=Member.MemberStatus.ACTIVE,
+            )
+            .order_by("unit_id", "full_name", "id")
+        )
+        owner_members_by_unit = {}
+        tenant_members_by_unit = {}
+        for member in active_members:
+            if member.role == Member.MemberRole.OWNER:
+                owner_members_by_unit.setdefault(member.unit_id, []).append(member)
+            if member.role == Member.MemberRole.TENANT:
+                tenant_members_by_unit.setdefault(member.unit_id, []).append(member)
 
         children_map = {}
         for structure in structures:
@@ -178,6 +225,18 @@ class SocietyDetailView(LoginRequiredMixin, DetailView):
 
         units_map = {}
         for unit in units:
+            ownership = current_ownership_by_unit.get(unit.id)
+            occupancy = current_occupancy_by_unit.get(unit.id)
+            unit.current_owner_record = ownership
+            unit.current_occupancy_record = occupancy
+            unit.current_owner_name = self._user_display_name(
+                ownership.owner if ownership else None,
+            )
+            unit.current_occupant_name = self._user_display_name(
+                occupancy.occupant if occupancy else None,
+            )
+            unit.active_owner_members = owner_members_by_unit.get(unit.id, [])
+            unit.active_tenant_members = tenant_members_by_unit.get(unit.id, [])
             units_map.setdefault(unit.structure_id, []).append(unit)
 
         for structure in structures:

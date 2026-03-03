@@ -1,0 +1,1080 @@
+.
+├── accounting
+│   ├── admin.py
+│   ├── apps.py
+│   ├── forms.py
+│   ├── __init__.py
+│   ├── migrations
+│   │   ├── 0001_initial.py
+│   │   ├── 0002_alter_account_unique_together.py
+│   │   ├── 0003_accountcategory_society.py
+│   │   ├── 0004_alter_account_category.py
+│   │   ├── 0005_account_system_protected.py
+│   │   ├── 0006_alter_accountcategory_options_and_more.py
+│   │   ├── 0007_voucher_reversal_of.py
+│   │   ├── 0008_voucher_uniq_voucher_number_per_society_type.py
+│   │   ├── 0009_voucher_payment_mode_voucher_reference_number.py
+│   │   ├── 0010_alter_voucher_voucher_date_and_more.py
+│   │   ├── 0011_periodstatuslog_yearendcloselog_and_more.py
+│   │   ├── 0012_drop_single_open_period_constraint_if_exists.py
+│   │   ├── __init__.py
+│   │   └── __pycache__
+│   │       ├── 0001_initial.cpython-313.pyc
+│   │       ├── 0001_initial.cpython-314.pyc
+│   │       ├── 0002_account_society_financialyear_society_and_more.cpython-313.pyc
+│   │       ├── 0002_alter_account_unique_together.cpython-313.pyc
+│   │       ├── 0002_alter_account_unique_together.cpython-314.pyc
+│   │       ├── 0003_accountcategory_society.cpython-313.pyc
+│   │       ├── 0003_accountcategory_society.cpython-314.pyc
+│   │       ├── 0003_alter_account_category_alter_voucher_society.cpython-313.pyc
+│   │       ├── 0004_alter_account_category.cpython-313.pyc
+│   │       ├── 0004_alter_account_category.cpython-314.pyc
+│   │       ├── 0004_ledgerentry_unit_alter_financialyear_society.cpython-313.pyc
+│   │       ├── 0005_account_system_protected.cpython-313.pyc
+│   │       ├── 0005_account_system_protected.cpython-314.pyc
+│   │       ├── 0005_voucher_voucher_number_vouchersequence.cpython-313.pyc
+│   │       ├── 0006_accountingperiod.cpython-313.pyc
+│   │       ├── 0006_alter_accountcategory_options_and_more.cpython-313.pyc
+│   │       ├── 0007_voucher_reversal_of.cpython-313.pyc
+│   │       ├── 0008_voucher_uniq_voucher_number_per_society_type.cpython-313.pyc
+│   │       ├── 0009_voucher_payment_mode_voucher_reference_number.cpython-313.pyc
+│   │       ├── 0010_alter_voucher_voucher_date_and_more.cpython-313.pyc
+│   │       ├── 0011_periodstatuslog_yearendcloselog_and_more.cpython-313.pyc
+│   │       ├── 0012_drop_single_open_period_constraint_if_exists.cpython-313.pyc
+│   │       ├── __init__.cpython-313.pyc
+│   │       └── __init__.cpython-314.pyc
+│   ├── models
+│   │   ├── __init__.py
+│   │   ├── model_AccountCategory.py
+│   │   ├── model_AccountingPeriod.py
+│   │   ├── model_Account.py
+│   │   ├── model_FinancialYear.py
+│   │   ├── model_LedgerEntry.py
+│   │   ├── model_PeriodStatusLog.py
+│   │   ├── model_Voucher.py
+│   │   ├── model_voucher_sequence.py
+│   │   ├── model_YearEndCloseLog.py
+│   │   └── __pycache__
+│   │       ├── __init__.cpython-313.pyc
+│   │       ├── __init__.cpython-314.pyc
+│   │       ├── model_AccountCategory.cpython-313.pyc
+│   │       ├── model_AccountCategory.cpython-314.pyc
+│   │       ├── model_Account.cpython-313.pyc
+│   │       ├── model_Account.cpython-314.pyc
+│   │       ├── model_AccountingPeriod.cpython-313.pyc
+│   │       ├── model_AccountingPeriod.cpython-314.pyc
+│   │       ├── model_FinancialYear.cpython-313.pyc
+│   │       ├── model_FinancialYear.cpython-314.pyc
+│   │       ├── model_LedgerEntry.cpython-313.pyc
+│   │       ├── model_LedgerEntry.cpython-314.pyc
+│   │       ├── model_PeriodStatusLog.cpython-313.pyc
+│   │       ├── model_Voucher.cpython-313.pyc
+│   │       ├── model_Voucher.cpython-314.pyc
+│   │       ├── model_voucher_sequence.cpython-313.pyc
+│   │       ├── model_voucher_sequence.cpython-314.pyc
+│   │       └── model_YearEndCloseLog.cpython-313.pyc
+│   ├── models.py
+│   ├── __pycache__
+│   │   ├── admin.cpython-313.pyc
+│   │   ├── admin.cpython-314.pyc
+│   │   ├── apps.cpython-313.pyc
+│   │   ├── apps.cpython-314.pyc
+│   │   ├── forms.cpython-313.pyc
+│   │   ├── forms.cpython-314.pyc
+│   │   ├── __init__.cpython-313.pyc
+│   │   ├── __init__.cpython-314.pyc
+│   │   ├── models.cpython-314.pyc
+│   │   ├── signals.cpython-313.pyc
+│   │   ├── signals.cpython-314.pyc
+│   │   ├── urls.cpython-313.pyc
+│   │   ├── urls.cpython-314.pyc
+│   │   ├── views.cpython-313.pyc
+│   │   └── views.cpython-314.pyc
+│   ├── services
+│   │   ├── __init__.py
+│   │   ├── period_workflow.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-313.pyc
+│   │   │   ├── __init__.cpython-314.pyc
+│   │   │   ├── period_workflow.cpython-313.pyc
+│   │   │   ├── reporting.cpython-313.pyc
+│   │   │   ├── standard_accounts.cpython-313.pyc
+│   │   │   ├── standard_accounts.cpython-314.pyc
+│   │   │   └── year_end.cpython-313.pyc
+│   │   ├── reporting.py
+│   │   ├── standard_accounts.py
+│   │   └── year_end.py
+│   ├── signals.py
+│   ├── templates
+│   │   └── accounting
+│   │       ├── account_ledger.html
+│   │       ├── account_list.html
+│   │       ├── dashboard.html
+│   │       ├── partials
+│   │       │   ├── voucher_detail_body.html
+│   │       │   └── voucher_detail_modal.html
+│   │       ├── trial_balance.html
+│   │       ├── voucher_entry.html
+│   │       ├── voucher_list.html
+│   │       └── voucher_posting.html
+│   ├── tests
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-313.pyc
+│   │   │   ├── __init__.cpython-314.pyc
+│   │   │   ├── test_account_category.cpython-313.pyc
+│   │   │   ├── test_account_category.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_account_category.cpython-314.pyc
+│   │   │   ├── test_account.cpython-313.pyc
+│   │   │   ├── test_account.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_account.cpython-314.pyc
+│   │   │   ├── test_architecture_boundaries.cpython-313.pyc
+│   │   │   ├── test_architecture_boundaries.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_double_entry_rules.cpython-313.pyc
+│   │   │   ├── test_double_entry_rules.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_double_entry_rules.cpython-314.pyc
+│   │   │   ├── test_financial_year.cpython-313.pyc
+│   │   │   ├── test_financial_year.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_financial_year.cpython-314.pyc
+│   │   │   ├── test_immutability.cpython-313.pyc
+│   │   │   ├── test_immutability.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_immutability.cpython-314.pyc
+│   │   │   ├── test_ledger_entry.cpython-313.pyc
+│   │   │   ├── test_ledger_entry.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_ledger_entry.cpython-314.pyc
+│   │   │   ├── test_period_locks.cpython-313.pyc
+│   │   │   ├── test_period_locks.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_period_locks.cpython-314.pyc
+│   │   │   ├── test_reporting_engine.cpython-313.pyc
+│   │   │   ├── test_reporting_engine.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_reporting_exports.cpython-313.pyc
+│   │   │   ├── test_reporting_exports.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_society_account_bootstrap.cpython-313.pyc
+│   │   │   ├── test_society_account_bootstrap.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_society_account_bootstrap.cpython-314.pyc
+│   │   │   ├── test_trial_balance_dataset.cpython-313.pyc
+│   │   │   ├── test_trial_balance_dataset.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_trial_balance_dataset.cpython-314.pyc
+│   │   │   ├── test_voucher.cpython-313.pyc
+│   │   │   ├── test_voucher.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_voucher.cpython-314.pyc
+│   │   │   ├── test_voucher_frontend.cpython-313.pyc
+│   │   │   ├── test_voucher_frontend.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_voucher_frontend.cpython-314.pyc
+│   │   │   ├── test_voucher_posting.cpython-313.pyc
+│   │   │   ├── test_voucher_posting.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_voucher_posting.cpython-314.pyc
+│   │   │   ├── test_voucher_same_account.cpython-313.pyc
+│   │   │   ├── test_voucher_same_account.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_voucher_same_account.cpython-314.pyc
+│   │   │   ├── test_voucher_type_policy.cpython-313.pyc
+│   │   │   ├── test_voucher_type_policy.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_year_end_workflow.cpython-313.pyc
+│   │   │   └── test_year_end_workflow.cpython-313-pytest-9.0.2.pyc
+│   │   ├── test_account_category.py
+│   │   ├── test_account.py
+│   │   ├── test_architecture_boundaries.py
+│   │   ├── test_double_entry_rules.py
+│   │   ├── test_financial_year.py
+│   │   ├── test_immutability.py
+│   │   ├── test_ledger_entry.py
+│   │   ├── test_period_locks.py
+│   │   ├── test_reporting_engine.py
+│   │   ├── test_reporting_exports.py
+│   │   ├── test_society_account_bootstrap.py
+│   │   ├── test_trial_balance_dataset.py
+│   │   ├── test_voucher_frontend.py
+│   │   ├── test_voucher_posting.py
+│   │   ├── test_voucher.py
+│   │   ├── test_voucher_same_account.py
+│   │   ├── test_voucher_type_policy.py
+│   │   └── test_year_end_workflow.py
+│   ├── urls.py
+│   └── views.py
+├── auditlog
+│   ├── apps.py
+│   ├── __init__.py
+│   ├── models.py
+│   └── __pycache__
+│       ├── apps.cpython-313.pyc
+│       ├── __init__.cpython-313.pyc
+│       └── models.cpython-313.pyc
+├── billing
+│   ├── apps.py
+│   ├── __init__.py
+│   ├── models
+│   │   ├── __init__.py
+│   │   ├── model_BillLine.py
+│   │   ├── model_Bill.py
+│   │   ├── model_ChargeTemplate.py
+│   │   └── __pycache__
+│   │       ├── __init__.cpython-313.pyc
+│   │       ├── model_Bill.cpython-313.pyc
+│   │       ├── model_BillLine.cpython-313.pyc
+│   │       └── model_ChargeTemplate.cpython-313.pyc
+│   ├── __pycache__
+│   │   ├── apps.cpython-313.pyc
+│   │   ├── __init__.cpython-313.pyc
+│   │   ├── models.cpython-313.pyc
+│   │   ├── reports.cpython-313.pyc
+│   │   ├── services.cpython-313.pyc
+│   │   ├── urls.cpython-313.pyc
+│   │   └── views.cpython-313.pyc
+│   ├── reports.py
+│   ├── services.py
+│   ├── templates
+│   │   └── billing
+│   │       ├── bill_detail.html
+│   │       ├── bill_list.html
+│   │       └── charge_template_list.html
+│   ├── urls.py
+│   └── views.py
+├── config
+│   ├── __init__.py
+│   ├── __pycache__
+│   │   ├── __init__.cpython-313.pyc
+│   │   ├── __init__.cpython-314.pyc
+│   │   ├── urls.cpython-313.pyc
+│   │   ├── urls.cpython-314.pyc
+│   │   ├── wsgi.cpython-313.pyc
+│   │   └── wsgi.cpython-314.pyc
+│   ├── settings
+│   │   ├── base.py
+│   │   ├── __init__.py
+│   │   ├── local.py
+│   │   ├── production.py
+│   │   ├── __pycache__
+│   │   │   ├── base.cpython-313.pyc
+│   │   │   ├── base.cpython-314.pyc
+│   │   │   ├── __init__.cpython-313.pyc
+│   │   │   ├── __init__.cpython-314.pyc
+│   │   │   ├── local.cpython-313.pyc
+│   │   │   ├── local.cpython-314.pyc
+│   │   │   ├── production.cpython-314.pyc
+│   │   │   ├── test.cpython-313.pyc
+│   │   │   └── test.cpython-314.pyc
+│   │   └── test.py
+│   ├── urls.py
+│   └── wsgi.py
+├── conftest.py
+├── CONTRIBUTORS.txt
+├── docker-compose.docs.yml
+├── docs
+│   ├── architecture
+│   │   └── app_boundaries.md
+│   ├── conf.py
+│   ├── howto.rst
+│   ├── index.rst
+│   ├── __init__.py
+│   ├── make.bat
+│   ├── Makefile
+│   └── users.rst
+├── documentation
+│   ├── CHALLENGES_AND_DECISIONS.md
+│   ├── DATABASE_SWITCHING.md
+│   ├── LOGIC_AND_ARCHITECTURE.md
+│   ├── PROJECT_PHASES.md
+│   ├── README.md
+│   ├── STRATEGY_CHANGELOG.md
+│   └── templates
+│       ├── CHALLENGE_ENTRY_TEMPLATE.md
+│       └── PHASE_UPDATE_TEMPLATE.md
+├── housing
+│   ├── admin.py
+│   ├── apps.py
+│   ├── forms.py
+│   ├── __init__.py
+│   ├── management
+│   │   ├── commands
+│   │   │   ├── __init__.py
+│   │   │   ├── __pycache__
+│   │   │   │   ├── __init__.cpython-313.pyc
+│   │   │   │   └── seed_deepsagar.cpython-313.pyc
+│   │   │   └── seed_deepsagar.py
+│   │   ├── __init__.py
+│   │   └── __pycache__
+│   │       └── __init__.cpython-313.pyc
+│   ├── migrations
+│   │   ├── 0001_initial.py
+│   │   ├── 0002_unitownership.py
+│   │   ├── 0003_unitoccupancy.py
+│   │   ├── 0004_bill_chargetemplate_billline_member_bill_member_and_more.py
+│   │   ├── 0005_charge_template_versioning_and_billline_snapshots.py
+│   │   ├── __init__.py
+│   │   └── __pycache__
+│   │       ├── 0001_initial.cpython-313.pyc
+│   │       ├── 0001_initial.cpython-314.pyc
+│   │       ├── 0002_unitownership.cpython-313.pyc
+│   │       ├── 0002_unitownership.cpython-314.pyc
+│   │       ├── 0003_unitoccupancy.cpython-313.pyc
+│   │       ├── 0003_unitoccupancy.cpython-314.pyc
+│   │       ├── 0004_bill_chargetemplate_billline_member_bill_member_and_more.cpython-313.pyc
+│   │       ├── 0005_charge_template_versioning_and_billline_snapshots.cpython-313.pyc
+│   │       ├── __init__.cpython-313.pyc
+│   │       └── __init__.cpython-314.pyc
+│   ├── models.py
+│   ├── __pycache__
+│   │   ├── admin.cpython-313.pyc
+│   │   ├── admin.cpython-314.pyc
+│   │   ├── apps.cpython-313.pyc
+│   │   ├── apps.cpython-314.pyc
+│   │   ├── forms.cpython-313.pyc
+│   │   ├── forms.cpython-314.pyc
+│   │   ├── __init__.cpython-313.pyc
+│   │   ├── __init__.cpython-314.pyc
+│   │   ├── models.cpython-313.pyc
+│   │   ├── models.cpython-314.pyc
+│   │   ├── tests.cpython-313.pyc
+│   │   ├── urls.cpython-313.pyc
+│   │   ├── urls.cpython-314.pyc
+│   │   ├── views.cpython-313.pyc
+│   │   └── views.cpython-314.pyc
+│   ├── services
+│   │   ├── billing.py
+│   │   ├── __init__.py
+│   │   ├── outstanding.py
+│   │   ├── __pycache__
+│   │   │   ├── billing.cpython-313.pyc
+│   │   │   ├── __init__.cpython-313.pyc
+│   │   │   ├── outstanding.cpython-313.pyc
+│   │   │   ├── receipts.cpython-313.pyc
+│   │   │   └── reminders.cpython-313.pyc
+│   │   ├── receipts.py
+│   │   └── reminders.py
+│   ├── templates
+│   │   └── housing
+│   │       ├── dashboard.html
+│   │       ├── form.html
+│   │       ├── member_list.html
+│   │       ├── outstanding_dashboard.html
+│   │       ├── partials
+│   │       │   └── structure_tree.html
+│   │       ├── society_detail.html
+│   │       ├── society_list.html
+│   │       └── structure_unit_dashboard.html
+│   ├── tests
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-313.pyc
+│   │   │   ├── __init__.cpython-314.pyc
+│   │   │   ├── test_domain_frontend_pages.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_occupency.cpython-313.pyc
+│   │   │   ├── test_occupency.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_occupency.cpython-314.pyc
+│   │   │   ├── test_old.cpython-313.pyc
+│   │   │   ├── test_ownership.cpython-313.pyc
+│   │   │   ├── test_ownership.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_ownership.cpython-314.pyc
+│   │   │   ├── test_phase2_operations.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_society.cpython-313.pyc
+│   │   │   ├── test_society.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_society.cpython-314.pyc
+│   │   │   ├── test_structure.cpython-313.pyc
+│   │   │   ├── test_structure.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_structure.cpython-314.pyc
+│   │   │   ├── test_unit.cpython-313.pyc
+│   │   │   ├── test_unit.cpython-313-pytest-9.0.2.pyc
+│   │   │   ├── test_unit.cpython-314.pyc
+│   │   │   ├── test_views.cpython-313-pytest-9.0.2.pyc
+│   │   │   └── test_views.cpython-314.pyc
+│   │   ├── test_domain_frontend_pages.py
+│   │   ├── test_occupency.py
+│   │   ├── test_ownership.py
+│   │   ├── test_phase2_operations.py
+│   │   ├── test_society.py
+│   │   ├── test_structure.py
+│   │   ├── test_unit.py
+│   │   └── test_views.py
+│   ├── urls.py
+│   └── views.py
+├── housing_accounting
+│   ├── conftest.py
+│   ├── contrib
+│   │   ├── __init__.py
+│   │   ├── __pycache__
+│   │   │   ├── __init__.cpython-313.pyc
+│   │   │   └── __init__.cpython-314.pyc
+│   │   └── sites
+│   │       ├── __init__.py
+│   │       ├── migrations
+│   │       │   ├── 0001_initial.py
+│   │       │   ├── 0002_alter_domain_unique.py
+│   │       │   ├── 0003_set_site_domain_and_name.py
+│   │       │   ├── 0004_alter_options_ordering_domain.py
+│   │       │   ├── __init__.py
+│   │       │   └── __pycache__
+│   │       │       ├── 0001_initial.cpython-313.pyc
+│   │       │       ├── 0001_initial.cpython-314.pyc
+│   │       │       ├── 0002_alter_domain_unique.cpython-313.pyc
+│   │       │       ├── 0002_alter_domain_unique.cpython-314.pyc
+│   │       │       ├── 0003_set_site_domain_and_name.cpython-313.pyc
+│   │       │       ├── 0003_set_site_domain_and_name.cpython-314.pyc
+│   │       │       ├── 0004_alter_options_ordering_domain.cpython-313.pyc
+│   │       │       ├── 0004_alter_options_ordering_domain.cpython-314.pyc
+│   │       │       ├── __init__.cpython-313.pyc
+│   │       │       └── __init__.cpython-314.pyc
+│   │       └── __pycache__
+│   │           ├── __init__.cpython-313.pyc
+│   │           └── __init__.cpython-314.pyc
+│   ├── __init__.py
+│   ├── __pycache__
+│   │   ├── conftest.cpython-313.pyc
+│   │   ├── conftest.cpython-313-pytest-9.0.2.pyc
+│   │   ├── conftest.cpython-314.pyc
+│   │   ├── __init__.cpython-313.pyc
+│   │   ├── __init__.cpython-314.pyc
+│   │   └── selection.cpython-313.pyc
+│   ├── selection.py
+│   ├── static
+│   │   ├── css
+│   │   │   └── project.css
+│   │   ├── fonts
+│   │   ├── images
+│   │   │   └── favicons
+│   │   │       └── favicon.ico
+│   │   ├── js
+│   │   │   └── project.js
+│   │   └── vendor
+│   │       ├── bootstrap-icons
+│   │       │   ├── bootstrap-icons.css
+│   │       │   └── fonts
+│   │       │       ├── bootstrap-icons.woff
+│   │       │       └── bootstrap-icons.woff2
+│   │       └── kaiadmin-lite
+│   │           └── assets
+│   │               ├── css
+│   │               │   ├── bootstrap.min.css
+│   │               │   ├── demo.css
+│   │               │   ├── demo.css.map
+│   │               │   ├── fonts.css
+│   │               │   ├── fonts.min.css
+│   │               │   ├── kaiadmin.css
+│   │               │   ├── kaiadmin.css.map
+│   │               │   ├── kaiadmin.min.css
+│   │               │   ├── plugins.css
+│   │               │   ├── plugins.css.map
+│   │               │   └── plugins.min.css
+│   │               ├── fonts
+│   │               │   ├── fontawesome
+│   │               │   │   ├── fa-brands-400.eot
+│   │               │   │   ├── fa-brands-400.svg
+│   │               │   │   ├── fa-brands-400.ttf
+│   │               │   │   ├── fa-brands-400.woff
+│   │               │   │   ├── fa-brands-400.woff2
+│   │               │   │   ├── fa-regular-400.eot
+│   │               │   │   ├── fa-regular-400.svg
+│   │               │   │   ├── fa-regular-400.ttf
+│   │               │   │   ├── fa-regular-400.woff
+│   │               │   │   ├── fa-regular-400.woff2
+│   │               │   │   ├── fa-solid-900.eot
+│   │               │   │   ├── fa-solid-900.svg
+│   │               │   │   ├── fa-solid-900.ttf
+│   │               │   │   ├── fa-solid-900.woff
+│   │               │   │   └── fa-solid-900.woff2
+│   │               │   ├── simple-line-icons
+│   │               │   │   ├── Simple-Line-Icons.eot
+│   │               │   │   ├── Simple-Line-Icons.svg
+│   │               │   │   ├── Simple-Line-Icons.ttf
+│   │               │   │   ├── Simple-Line-Icons.woff
+│   │               │   │   └── Simple-Line-Icons.woff2
+│   │               │   └── summernote
+│   │               │       ├── summernote.eot
+│   │               │       ├── summernote.ttf
+│   │               │       ├── summernote.woff
+│   │               │       └── summernote.woff2
+│   │               ├── img
+│   │               │   ├── arashmil.jpg
+│   │               │   ├── bg-404.jpeg
+│   │               │   ├── blogpost.jpg
+│   │               │   ├── chadengle.jpg
+│   │               │   ├── examples
+│   │               │   │   ├── example10-300x300.jpg
+│   │               │   │   ├── example10.jpeg
+│   │               │   │   ├── example11-300x300.jpg
+│   │               │   │   ├── example11.jpeg
+│   │               │   │   ├── example12-300x300.jpg
+│   │               │   │   ├── example12.jpeg
+│   │               │   │   ├── example1-300x300.jpg
+│   │               │   │   ├── example1.jpeg
+│   │               │   │   ├── example2-300x300.jpg
+│   │               │   │   ├── example2.jpeg
+│   │               │   │   ├── example3-300x300.jpg
+│   │               │   │   ├── example3.jpeg
+│   │               │   │   ├── example4-300x300.jpg
+│   │               │   │   ├── example4.jpeg
+│   │               │   │   ├── example5-300x300.jpg
+│   │               │   │   ├── example5.jpeg
+│   │               │   │   ├── example6-300x300.jpg
+│   │               │   │   ├── example6.jpeg
+│   │               │   │   ├── example7-300x300.jpg
+│   │               │   │   ├── example7.jpeg
+│   │               │   │   ├── example8-300x300.jpg
+│   │               │   │   ├── example8.jpeg
+│   │               │   │   ├── example9-300x300.jpg
+│   │               │   │   ├── example9.jpeg
+│   │               │   │   ├── logo1.svg
+│   │               │   │   ├── logo2.svg
+│   │               │   │   ├── logoinvoice.svg
+│   │               │   │   ├── logo.svg
+│   │               │   │   ├── product10.jpeg
+│   │               │   │   ├── product11.jpeg
+│   │               │   │   ├── product12.jpeg
+│   │               │   │   ├── product1.jpg
+│   │               │   │   ├── product2.jpg
+│   │               │   │   ├── product3.jpg
+│   │               │   │   ├── product4.jpg
+│   │               │   │   ├── product5.jpg
+│   │               │   │   ├── product6.jpg
+│   │               │   │   ├── product7.jpg
+│   │               │   │   └── product8.jpg
+│   │               │   ├── flags
+│   │               │   │   ├── ad.png
+│   │               │   │   ├── ae.png
+│   │               │   │   ├── af.png
+│   │               │   │   ├── ag.png
+│   │               │   │   ├── ai.png
+│   │               │   │   ├── al.png
+│   │               │   │   ├── am.png
+│   │               │   │   ├── an.png
+│   │               │   │   ├── ao.png
+│   │               │   │   ├── ar.png
+│   │               │   │   ├── as.png
+│   │               │   │   ├── at.png
+│   │               │   │   ├── au.png
+│   │               │   │   ├── aw.png
+│   │               │   │   ├── ax.png
+│   │               │   │   ├── az.png
+│   │               │   │   ├── ba.png
+│   │               │   │   ├── bb.png
+│   │               │   │   ├── bd.png
+│   │               │   │   ├── be.png
+│   │               │   │   ├── bf.png
+│   │               │   │   ├── bg.png
+│   │               │   │   ├── bh.png
+│   │               │   │   ├── bi.png
+│   │               │   │   ├── bj.png
+│   │               │   │   ├── bm.png
+│   │               │   │   ├── bn.png
+│   │               │   │   ├── bo.png
+│   │               │   │   ├── br.png
+│   │               │   │   ├── bs.png
+│   │               │   │   ├── bt.png
+│   │               │   │   ├── bv.png
+│   │               │   │   ├── bw.png
+│   │               │   │   ├── by.png
+│   │               │   │   ├── bz.png
+│   │               │   │   ├── ca.png
+│   │               │   │   ├── catalonia.png
+│   │               │   │   ├── cc.png
+│   │               │   │   ├── cd.png
+│   │               │   │   ├── cf.png
+│   │               │   │   ├── cg.png
+│   │               │   │   ├── ch.png
+│   │               │   │   ├── ci.png
+│   │               │   │   ├── ck.png
+│   │               │   │   ├── cl.png
+│   │               │   │   ├── cm.png
+│   │               │   │   ├── cn.png
+│   │               │   │   ├── co.png
+│   │               │   │   ├── cr.png
+│   │               │   │   ├── cs.png
+│   │               │   │   ├── cu.png
+│   │               │   │   ├── cv.png
+│   │               │   │   ├── cx.png
+│   │               │   │   ├── cy.png
+│   │               │   │   ├── cz.png
+│   │               │   │   ├── de.png
+│   │               │   │   ├── dj.png
+│   │               │   │   ├── dk.png
+│   │               │   │   ├── dm.png
+│   │               │   │   ├── do.png
+│   │               │   │   ├── dz.png
+│   │               │   │   ├── ec.png
+│   │               │   │   ├── ee.png
+│   │               │   │   ├── eg.png
+│   │               │   │   ├── eh.png
+│   │               │   │   ├── england.png
+│   │               │   │   ├── er.png
+│   │               │   │   ├── es.png
+│   │               │   │   ├── et.png
+│   │               │   │   ├── europeanunion.png
+│   │               │   │   ├── fam.png
+│   │               │   │   ├── fi.png
+│   │               │   │   ├── fj.png
+│   │               │   │   ├── fk.png
+│   │               │   │   ├── fm.png
+│   │               │   │   ├── fo.png
+│   │               │   │   ├── fr.png
+│   │               │   │   ├── ga.png
+│   │               │   │   ├── gb.png
+│   │               │   │   ├── gd.png
+│   │               │   │   ├── ge.png
+│   │               │   │   ├── gf.png
+│   │               │   │   ├── gh.png
+│   │               │   │   ├── gi.png
+│   │               │   │   ├── gl.png
+│   │               │   │   ├── gm.png
+│   │               │   │   ├── gn.png
+│   │               │   │   ├── gp.png
+│   │               │   │   ├── gq.png
+│   │               │   │   ├── gr.png
+│   │               │   │   ├── gs.png
+│   │               │   │   ├── gt.png
+│   │               │   │   ├── gu.png
+│   │               │   │   ├── gw.png
+│   │               │   │   ├── gy.png
+│   │               │   │   ├── hk.png
+│   │               │   │   ├── hm.png
+│   │               │   │   ├── hn.png
+│   │               │   │   ├── hr.png
+│   │               │   │   ├── ht.png
+│   │               │   │   ├── hu.png
+│   │               │   │   ├── id.png
+│   │               │   │   ├── ie.png
+│   │               │   │   ├── il.png
+│   │               │   │   ├── in.png
+│   │               │   │   ├── io.png
+│   │               │   │   ├── iq.png
+│   │               │   │   ├── ir.png
+│   │               │   │   ├── is.png
+│   │               │   │   ├── it.png
+│   │               │   │   ├── jm.png
+│   │               │   │   ├── jo.png
+│   │               │   │   ├── jp.png
+│   │               │   │   ├── ke.png
+│   │               │   │   ├── kg.png
+│   │               │   │   ├── kh.png
+│   │               │   │   ├── ki.png
+│   │               │   │   ├── km.png
+│   │               │   │   ├── kn.png
+│   │               │   │   ├── kp.png
+│   │               │   │   ├── kr.png
+│   │               │   │   ├── kw.png
+│   │               │   │   ├── ky.png
+│   │               │   │   ├── kz.png
+│   │               │   │   ├── la.png
+│   │               │   │   ├── lb.png
+│   │               │   │   ├── lc.png
+│   │               │   │   ├── li.png
+│   │               │   │   ├── lk.png
+│   │               │   │   ├── lr.png
+│   │               │   │   ├── ls.png
+│   │               │   │   ├── lt.png
+│   │               │   │   ├── lu.png
+│   │               │   │   ├── lv.png
+│   │               │   │   ├── ly.png
+│   │               │   │   ├── ma.png
+│   │               │   │   ├── mc.png
+│   │               │   │   ├── md.png
+│   │               │   │   ├── me.png
+│   │               │   │   ├── mg.png
+│   │               │   │   ├── mh.png
+│   │               │   │   ├── mk.png
+│   │               │   │   ├── ml.png
+│   │               │   │   ├── mm.png
+│   │               │   │   ├── mn.png
+│   │               │   │   ├── mo.png
+│   │               │   │   ├── mp.png
+│   │               │   │   ├── mq.png
+│   │               │   │   ├── mr.png
+│   │               │   │   ├── ms.png
+│   │               │   │   ├── mt.png
+│   │               │   │   ├── mu.png
+│   │               │   │   ├── mv.png
+│   │               │   │   ├── mw.png
+│   │               │   │   ├── mx.png
+│   │               │   │   ├── my.png
+│   │               │   │   ├── mz.png
+│   │               │   │   ├── na.png
+│   │               │   │   ├── nc.png
+│   │               │   │   ├── ne.png
+│   │               │   │   ├── nf.png
+│   │               │   │   ├── ng.png
+│   │               │   │   ├── ni.png
+│   │               │   │   ├── nl.png
+│   │               │   │   ├── no.png
+│   │               │   │   ├── np.png
+│   │               │   │   ├── nr.png
+│   │               │   │   ├── nu.png
+│   │               │   │   ├── nz.png
+│   │               │   │   ├── om.png
+│   │               │   │   ├── pa.png
+│   │               │   │   ├── pe.png
+│   │               │   │   ├── pf.png
+│   │               │   │   ├── pg.png
+│   │               │   │   ├── ph.png
+│   │               │   │   ├── pk.png
+│   │               │   │   ├── pl.png
+│   │               │   │   ├── pm.png
+│   │               │   │   ├── pn.png
+│   │               │   │   ├── pr.png
+│   │               │   │   ├── ps.png
+│   │               │   │   ├── pt.png
+│   │               │   │   ├── pw.png
+│   │               │   │   ├── py.png
+│   │               │   │   ├── qa.png
+│   │               │   │   ├── readme.txt
+│   │               │   │   ├── re.png
+│   │               │   │   ├── ro.png
+│   │               │   │   ├── rs.png
+│   │               │   │   ├── ru.png
+│   │               │   │   ├── rw.png
+│   │               │   │   ├── sa.png
+│   │               │   │   ├── sb.png
+│   │               │   │   ├── scotland.png
+│   │               │   │   ├── sc.png
+│   │               │   │   ├── sd.png
+│   │               │   │   ├── se.png
+│   │               │   │   ├── sg.png
+│   │               │   │   ├── sh.png
+│   │               │   │   ├── si.png
+│   │               │   │   ├── sj.png
+│   │               │   │   ├── sk.png
+│   │               │   │   ├── sl.png
+│   │               │   │   ├── sm.png
+│   │               │   │   ├── sn.png
+│   │               │   │   ├── so.png
+│   │               │   │   ├── sr.png
+│   │               │   │   ├── st.png
+│   │               │   │   ├── sv.png
+│   │               │   │   ├── sy.png
+│   │               │   │   ├── sz.png
+│   │               │   │   ├── tc.png
+│   │               │   │   ├── td.png
+│   │               │   │   ├── tf.png
+│   │               │   │   ├── tg.png
+│   │               │   │   ├── th.png
+│   │               │   │   ├── tj.png
+│   │               │   │   ├── tk.png
+│   │               │   │   ├── tl.png
+│   │               │   │   ├── tm.png
+│   │               │   │   ├── tn.png
+│   │               │   │   ├── to.png
+│   │               │   │   ├── tr.png
+│   │               │   │   ├── tt.png
+│   │               │   │   ├── tv.png
+│   │               │   │   ├── tw.png
+│   │               │   │   ├── tz.png
+│   │               │   │   ├── ua.png
+│   │               │   │   ├── ug.png
+│   │               │   │   ├── um.png
+│   │               │   │   ├── us.png
+│   │               │   │   ├── uy.png
+│   │               │   │   ├── uz.png
+│   │               │   │   ├── va.png
+│   │               │   │   ├── vc.png
+│   │               │   │   ├── ve.png
+│   │               │   │   ├── vg.png
+│   │               │   │   ├── vi.png
+│   │               │   │   ├── vn.png
+│   │               │   │   ├── vu.png
+│   │               │   │   ├── wales.png
+│   │               │   │   ├── wf.png
+│   │               │   │   ├── ws.png
+│   │               │   │   ├── ye.png
+│   │               │   │   ├── yt.png
+│   │               │   │   ├── za.png
+│   │               │   │   ├── zm.png
+│   │               │   │   └── zw.png
+│   │               │   ├── img-shadow.png
+│   │               │   ├── jm_denis.jpg
+│   │               │   ├── kaiadmin
+│   │               │   │   ├── demo1.png
+│   │               │   │   ├── demo2.png
+│   │               │   │   ├── demo3.png
+│   │               │   │   ├── demo4.png
+│   │               │   │   ├── demo5.png
+│   │               │   │   ├── demo6.png
+│   │               │   │   ├── demo7.png
+│   │               │   │   ├── demo8.png
+│   │               │   │   ├── demo9.png
+│   │               │   │   ├── favicon.ico
+│   │               │   │   ├── favicon.png
+│   │               │   │   ├── favicon.svg
+│   │               │   │   ├── icon.png
+│   │               │   │   ├── icon.svg
+│   │               │   │   ├── logo_dark.png
+│   │               │   │   ├── logo_dark.svg
+│   │               │   │   ├── logo_light.png
+│   │               │   │   └── logo_light.svg
+│   │               │   ├── logoproduct2.svg
+│   │               │   ├── logoproduct3.svg
+│   │               │   ├── logoproduct.svg
+│   │               │   ├── mlane.jpg
+│   │               │   ├── profile2.jpg
+│   │               │   ├── profile.jpg
+│   │               │   ├── sauro.jpg
+│   │               │   ├── talha.jpg
+│   │               │   ├── undraw
+│   │               │   │   ├── undraw_blank_canvas_3rbb.svg
+│   │               │   │   ├── undraw_creative_team_r90h.svg
+│   │               │   │   ├── undraw_empty_xct9.svg
+│   │               │   │   ├── undraw_Hello_qnas.svg
+│   │               │   │   ├── undraw_no_data_qbuo.svg
+│   │               │   │   ├── undraw_not_found_60pq.svg
+│   │               │   │   ├── undraw_page_not_found_su7k.svg
+│   │               │   │   ├── undraw_sign_in_e6hj.svg
+│   │               │   │   ├── undraw_tabs_jf82.svg
+│   │               │   │   ├── undraw_Taken_if77.svg
+│   │               │   │   ├── undraw_update_uxn2.svg
+│   │               │   │   └── undraw_upgrade_06a0.svg
+│   │               │   └── visa.svg
+│   │               └── js
+│   │                   ├── core
+│   │                   │   ├── bootstrap.min.js
+│   │                   │   ├── jquery-3.7.1.min.js
+│   │                   │   └── popper.min.js
+│   │                   ├── kaiadmin.js
+│   │                   ├── kaiadmin.min.js
+│   │                   └── plugin
+│   │                       ├── bootstrap-notify
+│   │                       │   └── bootstrap-notify.min.js
+│   │                       ├── bootstrap-toggle
+│   │                       │   └── bootstrap-toggle.min.js
+│   │                       ├── chart-circle
+│   │                       │   └── circles.min.js
+│   │                       ├── chart.js
+│   │                       │   └── chart.min.js
+│   │                       ├── datatables
+│   │                       │   └── datatables.min.js
+│   │                       ├── gmaps
+│   │                       │   └── gmaps.js
+│   │                       ├── jquery-scrollbar
+│   │                       │   └── jquery.scrollbar.min.js
+│   │                       ├── jquery.sparkline
+│   │                       │   └── jquery.sparkline.min.js
+│   │                       ├── jsvectormap
+│   │                       │   ├── jsvectormap.min.js
+│   │                       │   └── world.js
+│   │                       ├── sortable
+│   │                       │   └── sortable.min.js
+│   │                       ├── sticky-sidebar
+│   │                       │   └── sticky-sidebar.min.js
+│   │                       ├── sweetalert
+│   │                       │   └── sweetalert.min.js
+│   │                       └── webfont
+│   │                           └── webfont.min.js
+│   ├── templates
+│   │   ├── 403_csrf.html
+│   │   ├── 403.html
+│   │   ├── 404.html
+│   │   ├── 500.html
+│   │   ├── account
+│   │   │   └── base_manage_password.html
+│   │   ├── allauth
+│   │   │   ├── elements
+│   │   │   │   ├── alert.html
+│   │   │   │   ├── badge.html
+│   │   │   │   ├── button.html
+│   │   │   │   ├── field.html
+│   │   │   │   ├── fields.html
+│   │   │   │   ├── panel.html
+│   │   │   │   └── table.html
+│   │   │   └── layouts
+│   │   │       ├── entrance.html
+│   │   │       └── manage.html
+│   │   ├── base.html
+│   │   ├── pages
+│   │   │   ├── about.html
+│   │   │   └── home.html
+│   │   └── users
+│   │       ├── user_detail.html
+│   │       └── user_form.html
+│   └── users
+│       ├── adapters.py
+│       ├── admin.py
+│       ├── apps.py
+│       ├── context_processors.py
+│       ├── forms.py
+│       ├── __init__.py
+│       ├── managers.py
+│       ├── migrations
+│       │   ├── 0001_initial.py
+│       │   ├── __init__.py
+│       │   └── __pycache__
+│       │       ├── 0001_initial.cpython-313.pyc
+│       │       ├── 0001_initial.cpython-314.pyc
+│       │       ├── __init__.cpython-313.pyc
+│       │       └── __init__.cpython-314.pyc
+│       ├── models.py
+│       ├── __pycache__
+│       │   ├── adapters.cpython-313.pyc
+│       │   ├── adapters.cpython-314.pyc
+│       │   ├── admin.cpython-313.pyc
+│       │   ├── admin.cpython-314.pyc
+│       │   ├── apps.cpython-313.pyc
+│       │   ├── apps.cpython-314.pyc
+│       │   ├── context_processors.cpython-313.pyc
+│       │   ├── context_processors.cpython-314.pyc
+│       │   ├── forms.cpython-313.pyc
+│       │   ├── forms.cpython-314.pyc
+│       │   ├── __init__.cpython-313.pyc
+│       │   ├── __init__.cpython-314.pyc
+│       │   ├── managers.cpython-313.pyc
+│       │   ├── managers.cpython-314.pyc
+│       │   ├── models.cpython-313.pyc
+│       │   ├── models.cpython-314.pyc
+│       │   ├── urls.cpython-313.pyc
+│       │   ├── urls.cpython-314.pyc
+│       │   ├── views.cpython-313.pyc
+│       │   └── views.cpython-314.pyc
+│       ├── tests
+│       │   ├── factories.py
+│       │   ├── __init__.py
+│       │   ├── __pycache__
+│       │   │   ├── factories.cpython-313.pyc
+│       │   │   ├── factories.cpython-314.pyc
+│       │   │   ├── __init__.cpython-313.pyc
+│       │   │   ├── __init__.cpython-314.pyc
+│       │   │   ├── test_admin.cpython-313-pytest-9.0.2.pyc
+│       │   │   ├── test_admin.cpython-314.pyc
+│       │   │   ├── test_forms.cpython-313-pytest-9.0.2.pyc
+│       │   │   ├── test_forms.cpython-314.pyc
+│       │   │   ├── test_managers.cpython-313-pytest-9.0.2.pyc
+│       │   │   ├── test_managers.cpython-314.pyc
+│       │   │   ├── test_models.cpython-313-pytest-9.0.2.pyc
+│       │   │   ├── test_models.cpython-314.pyc
+│       │   │   ├── test_urls.cpython-313-pytest-9.0.2.pyc
+│       │   │   ├── test_urls.cpython-314.pyc
+│       │   │   ├── test_views.cpython-313-pytest-9.0.2.pyc
+│       │   │   └── test_views.cpython-314.pyc
+│       │   ├── test_admin.py
+│       │   ├── test_forms.py
+│       │   ├── test_managers.py
+│       │   ├── test_models.py
+│       │   ├── test_urls.py
+│       │   └── test_views.py
+│       ├── urls.py
+│       └── views.py
+├── LICENSE
+├── locale
+│   ├── en_US
+│   │   └── LC_MESSAGES
+│   │       └── django.po
+│   ├── fr_FR
+│   │   └── LC_MESSAGES
+│   │       └── django.po
+│   ├── pt_BR
+│   │   └── LC_MESSAGES
+│   │       └── django.po
+│   └── README.md
+├── manage.py
+├── members
+│   ├── apps.py
+│   ├── __init__.py
+│   ├── models
+│   │   ├── __init__.py
+│   │   ├── model_Member.py
+│   │   ├── model_Structure.py
+│   │   ├── model_UnitOccupancy.py
+│   │   ├── model_UnitOwnership.py
+│   │   ├── model_Unit.py
+│   │   └── __pycache__
+│   │       ├── __init__.cpython-313.pyc
+│   │       ├── model_Member.cpython-313.pyc
+│   │       ├── model_Structure.cpython-313.pyc
+│   │       ├── model_Unit.cpython-313.pyc
+│   │       ├── model_UnitOccupancy.cpython-313.pyc
+│   │       └── model_UnitOwnership.cpython-313.pyc
+│   ├── __pycache__
+│   │   ├── apps.cpython-313.pyc
+│   │   ├── __init__.cpython-313.pyc
+│   │   ├── models.cpython-313.pyc
+│   │   ├── urls.cpython-313.pyc
+│   │   └── views.cpython-313.pyc
+│   ├── templates
+│   │   └── members
+│   │       └── member_detail.html
+│   ├── urls.py
+│   └── views.py
+├── notifications
+│   ├── apps.py
+│   ├── __init__.py
+│   ├── models
+│   │   ├── __init__.py
+│   │   ├── model_ReminderLog.py
+│   │   └── __pycache__
+│   │       ├── __init__.cpython-313.pyc
+│   │       └── model_ReminderLog.cpython-313.pyc
+│   ├── __pycache__
+│   │   ├── apps.cpython-313.pyc
+│   │   ├── __init__.cpython-313.pyc
+│   │   ├── models.cpython-313.pyc
+│   │   ├── services.cpython-313.pyc
+│   │   ├── urls.cpython-313.pyc
+│   │   └── views.cpython-313.pyc
+│   ├── services.py
+│   ├── templates
+│   │   └── notifications
+│   │       └── reminder_list.html
+│   ├── urls.py
+│   └── views.py
+├── __pycache__
+│   └── conftest.cpython-313-pytest-9.0.2.pyc
+├── pyproject.toml
+├── README.md
+├── receipts
+│   ├── apps.py
+│   ├── __init__.py
+│   ├── models
+│   │   ├── __init__.py
+│   │   ├── model_PaymentReceipt.py
+│   │   ├── model_ReceiptAllocation.py
+│   │   └── __pycache__
+│   │       ├── __init__.cpython-313.pyc
+│   │       ├── model_PaymentReceipt.cpython-313.pyc
+│   │       └── model_ReceiptAllocation.cpython-313.pyc
+│   ├── __pycache__
+│   │   ├── apps.cpython-313.pyc
+│   │   ├── __init__.cpython-313.pyc
+│   │   ├── models.cpython-313.pyc
+│   │   ├── services.cpython-313.pyc
+│   │   ├── urls.cpython-313.pyc
+│   │   └── views.cpython-313.pyc
+│   ├── services.py
+│   ├── templates
+│   │   └── receipts
+│   │       ├── receipt_detail.html
+│   │       └── receipt_list.html
+│   ├── urls.py
+│   └── views.py
+├── reconciliation
+│   ├── apps.py
+│   ├── __init__.py
+│   ├── models.py
+│   └── __pycache__
+│       ├── apps.cpython-313.pyc
+│       ├── __init__.cpython-313.pyc
+│       └── models.cpython-313.pyc
+├── requirement.txt
+├── societies
+│   ├── apps.py
+│   ├── __init__.py
+│   ├── models
+│   │   ├── __init__.py
+│   │   ├── model_Society.py
+│   │   └── __pycache__
+│   │       ├── __init__.cpython-313.pyc
+│   │       └── model_Society.cpython-313.pyc
+│   └── __pycache__
+│       ├── apps.cpython-313.pyc
+│       ├── __init__.cpython-313.pyc
+│       └── models.cpython-313.pyc
+├── tree_structure.txt
+├── utility
+│   ├── install_os_dependencies.sh
+│   ├── install_python_dependencies.sh
+│   ├── requirements-bionic.apt
+│   ├── requirements-bookworm.apt
+│   ├── requirements-bullseye.apt
+│   ├── requirements-buster.apt
+│   ├── requirements-focal.apt
+│   ├── requirements-jammy.apt
+│   ├── requirements-jessie.apt
+│   ├── requirements-noble.apt
+│   ├── requirements-stretch.apt
+│   ├── requirements-trusty.apt
+│   └── requirements-xenial.apt
+└── uv.lock
+
+136 directories, 942 files

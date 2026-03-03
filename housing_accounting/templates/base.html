@@ -42,7 +42,7 @@
       <script defer src="{% static 'vendor/kaiadmin-lite/assets/js/core/bootstrap.min.js' %}"></script>
       <script defer src="{% static 'vendor/kaiadmin-lite/assets/js/plugin/jquery-scrollbar/jquery.scrollbar.min.js' %}"></script>
       <script defer src="{% static 'vendor/kaiadmin-lite/assets/js/kaiadmin.min.js' %}"></script>
-      <script defer src="{% static 'js/project.js' %}"></script>
+      <script defer src="{% static 'js/project.js' %}?v=20260303b"></script>
     {% endblock javascript %}
   </head>
   <body class="ka-body {% block bodyclass %}{% endblock bodyclass %}">
@@ -143,6 +143,43 @@
                         </li>
                         <li class="{% if current_namespace == 'housing' and current_url_name == 'occupancy-add' %}active{% endif %}">
                           <a href="{% url 'housing:occupancy-add' %}"><span class="sub-item">{% translate "Add Occupancy" %}</span></a>
+                        </li>
+                      </ul>
+                    </div>
+                  </li>
+
+                  <li class="nav-item {% if current_namespace == 'parking' %}active{% endif %}">
+                    <a class="submenu-link"
+                       data-toggle="collapse"
+                       data-submenu-target="parkingMenu"
+                       href="{% url 'parking:dashboard' %}"
+                       aria-expanded="false">
+                      <i class="fas fa-parking"></i>
+                      <p>{% translate "Parking" %}</p>
+                      <span class="caret submenu-caret"></span>
+                    </a>
+                    <div class="collapse" id="parkingMenu">
+                      <ul class="nav nav-collapse">
+                        <li class="{% if current_namespace == 'parking' and current_url_name == 'dashboard' %}active{% endif %}">
+                          <a href="{% url 'parking:dashboard' %}"><span class="sub-item">{% translate "Dashboard" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'parking' and current_url_name == 'slot-list' %}active{% endif %}">
+                          <a href="{% url 'parking:slot-list' %}"><span class="sub-item">{% translate "Slots" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'parking' and current_url_name == 'slot-add' %}active{% endif %}">
+                          <a href="{% url 'parking:slot-add' %}"><span class="sub-item">{% translate "Add Slot" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'parking' and current_url_name == 'vehicle-list' %}active{% endif %}">
+                          <a href="{% url 'parking:vehicle-list' %}"><span class="sub-item">{% translate "Vehicles" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'parking' and current_url_name == 'vehicle-add' %}active{% endif %}">
+                          <a href="{% url 'parking:vehicle-add' %}"><span class="sub-item">{% translate "Add Vehicle" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'parking' and current_url_name == 'limit-list' %}active{% endif %}">
+                          <a href="{% url 'parking:limit-list' %}"><span class="sub-item">{% translate "Vehicle Limits" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'parking' and current_url_name == 'limit-add' %}active{% endif %}">
+                          <a href="{% url 'parking:limit-add' %}"><span class="sub-item">{% translate "Add Limit" %}</span></a>
                         </li>
                       </ul>
                     </div>

@@ -19,9 +19,36 @@ ALLOWED_HOSTS = env.list(
 
 # DATABASES
 # ------------------------------------------------------------------------------
-DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=60)
+use_supabase_db = env.bool("USE_SUPABASE_DB", default=False)
+if not use_supabase_db:
+    DATABASES["default"] = {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": env.str("LOCAL_DB_NAME", default="housing_accounting"),
+        "USER": env.str("LOCAL_DB_USER", default="tushar"),
+        "PASSWORD": env.str("LOCAL_DB_PASSWORD", default="tushar"),
+        "HOST": env.str("LOCAL_DB_HOST", default="localhost"),
+        "PORT": env.str("LOCAL_DB_PORT", default="5432"),
+    }
+else:
+    supabase_pooler_url = env.str("SUPABASE_POOLER_URL", default="")
+    if supabase_pooler_url:
+        DATABASES["default"] = env.db_url_config(supabase_pooler_url)
+
+DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=120)
+DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
+DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = env.bool(
+    "DB_DISABLE_SERVER_SIDE_CURSORS",
+    default=True,
+)
 DATABASES["default"].setdefault("OPTIONS", {})
-DATABASES["default"]["OPTIONS"]["sslmode"] = "require"
+if use_supabase_db:
+    DATABASES["default"]["OPTIONS"]["sslmode"] = "require"
+else:
+    DATABASES["default"]["OPTIONS"].pop("sslmode", None)
+DATABASES["default"]["OPTIONS"]["connect_timeout"] = env.int(
+    "DB_CONNECT_TIMEOUT",
+    default=5,
+)
 
 # CACHES
 # ------------------------------------------------------------------------------

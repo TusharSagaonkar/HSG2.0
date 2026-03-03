@@ -11,6 +11,7 @@ class ReceiptListView(LoginRequiredMixin, ListView):
     model = PaymentReceipt
     template_name = "receipts/receipt_list.html"
     context_object_name = "receipts"
+    paginate_by = 50
 
     def get_queryset(self):
         selected_society, _ = get_selected_scope(self.request)

@@ -9,6 +9,7 @@ class ReminderLogListView(LoginRequiredMixin, ListView):
     model = ReminderLog
     template_name = "notifications/reminder_list.html"
     context_object_name = "reminders"
+    paginate_by = 50
 
     def get_queryset(self):
         selected_society, _ = get_selected_scope(self.request)

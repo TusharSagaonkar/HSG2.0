@@ -1,8 +1,14 @@
 from datetime import timedelta
 
 from django.contrib import messages
-from django.core.exceptions import ValidationError
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import ValidationError
+from django.db.models import DecimalField
+from django.db.models import ExpressionWrapper
+from django.db.models import F
+from django.db.models import Sum
+from django.db.models import Value
+from django.db.models.functions import Coalesce
 from django.http import Http404
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
@@ -53,7 +59,8 @@ class ChargeTemplateStatusUpdateView(LoginRequiredMixin, View):
         was_active = template.is_active
         target_is_active = status == "ACTIVE"
         if target_is_active == was_active:
-            messages.info(request, f"{template.name} status is already {status.title()}.")
+            message = f"{template.name} status is already {status.title()}."
+            messages.info(request, message)
             return redirect("billing:charge-template-list")
 
         template.is_active = target_is_active
@@ -70,7 +77,10 @@ class ChargeTemplateStatusUpdateView(LoginRequiredMixin, View):
         else:
             messages.success(
                 request,
-                f"{template.name} marked inactive with effective-to date {template.effective_to}.",
+                (
+                    f"{template.name} marked inactive with effective-to date "
+                    f"{template.effective_to}."
+                ),
             )
         return redirect("billing:charge-template-list")
 
@@ -105,22 +115,35 @@ class ChargeTemplateDeactivateAndCreateView(LoginRequiredMixin, View):
         return redirect(redirect_url)
 
 
-charge_template_deactivate_and_create_view = ChargeTemplateDeactivateAndCreateView.as_view()
+charge_template_deactivate_and_create_view = (
+    ChargeTemplateDeactivateAndCreateView.as_view()
+)
 
 
 class BillListView(LoginRequiredMixin, ListView):
     model = Bill
     template_name = "billing/bill_list.html"
     context_object_name = "bills"
+    paginate_by = 50
 
     def get_queryset(self):
         selected_society, _ = get_selected_scope(self.request)
+        money_field = DecimalField(max_digits=12, decimal_places=2)
+        zero = Value(0, output_field=money_field)
+        allocated_amount = Coalesce(Sum("receipt_allocations__amount"), zero)
+        outstanding_amount = ExpressionWrapper(
+            F("total_amount") - allocated_amount,
+            output_field=money_field,
+        )
         queryset = Bill.objects.select_related(
             "society",
             "member",
             "unit",
             "voucher",
             "receivable_account",
+        ).annotate(
+            allocated_amount_value=allocated_amount,
+            outstanding_amount_value=outstanding_amount,
         ).order_by("-bill_date", "-id")
         if selected_society:
             queryset = queryset.filter(society=selected_society)

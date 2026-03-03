@@ -237,8 +237,96 @@ const initAutoReloadSocietyForms = () => {
   });
 };
 
+const initAutoReloadUnitForms = () => {
+  const forms = Array.from(
+    document.querySelectorAll("form[data-auto-reload-unit=\"1\"]"),
+  );
+  if (!forms.length) {
+    return;
+  }
+
+  forms.forEach((form) => {
+    const societyField = form.querySelector("#id_society");
+    const unitField = form.querySelector("#id_unit");
+    const memberField = form.querySelector("#id_member");
+    const memberLookupUrl = form.getAttribute("data-member-lookup-url");
+    if (!unitField) {
+      return;
+    }
+
+    const applyMemberOptions = (members) => {
+      if (!memberField) {
+        return;
+      }
+      const existing = memberField.value;
+      memberField.innerHTML = "";
+      const placeholder = document.createElement("option");
+      placeholder.value = "";
+      placeholder.textContent = "---------";
+      memberField.appendChild(placeholder);
+
+      members.forEach((member) => {
+        const option = document.createElement("option");
+        option.value = String(member.id);
+        option.textContent = member.full_name;
+        if (String(member.id) === String(existing)) {
+          option.selected = true;
+        }
+        memberField.appendChild(option);
+      });
+    };
+
+    const loadMembersForUnit = async () => {
+      if (!memberLookupUrl || !memberField) {
+        return false;
+      }
+      const societyValue = societyField ? societyField.value : "";
+      const unitValue = unitField.value;
+      if (!societyValue || !unitValue) {
+        applyMemberOptions([]);
+        return true;
+      }
+      const lookupUrl = new URL(memberLookupUrl, window.location.origin);
+      lookupUrl.searchParams.set("society", societyValue);
+      lookupUrl.searchParams.set("unit", unitValue);
+      const controller = new AbortController();
+      const timer = window.setTimeout(() => controller.abort(), 5000);
+      try {
+        memberField.disabled = true;
+        const response = await fetch(lookupUrl.toString(), {
+          headers: {
+            "X-Requested-With": "XMLHttpRequest",
+          },
+          signal: controller.signal,
+        });
+        if (!response.ok) {
+          throw new Error("Unable to fetch members");
+        }
+        const payload = await response.json();
+        applyMemberOptions(payload.members || []);
+        return true;
+      } catch (error) {
+        applyMemberOptions([]);
+        return false;
+      } finally {
+        window.clearTimeout(timer);
+        memberField.disabled = false;
+      }
+    };
+
+    unitField.addEventListener("change", async () => {
+      await loadMembersForUnit();
+    });
+
+    if (unitField.value) {
+      loadMembersForUnit();
+    }
+  });
+};
+
 window.addEventListener("DOMContentLoaded", () => {
   initLayoutToggles();
   initVoucherDetailModal();
   initAutoReloadSocietyForms();
+  initAutoReloadUnitForms();
 });

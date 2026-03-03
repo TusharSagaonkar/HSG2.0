@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Vehicles" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Vehicles" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Registered resident vehicles by unit/member." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'parking:dashboard' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Parking" %}</a>
+    <a href="{% url 'parking:vehicle-add' %}" class="btn btn-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Vehicle" %}</a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>{% translate "Vehicle No." %}</th>
+          <th>{% translate "Type" %}</th>
+          <th>{% translate "Unit" %}</th>
+          <th>{% translate "Member" %}</th>
+          <th>{% translate "Color" %}</th>
+          <th>{% translate "Status" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for vehicle in vehicles %}
+          <tr>
+            <td><strong>{{ vehicle.vehicle_number }}</strong></td>
+            <td>{{ vehicle.get_vehicle_type_display }}</td>
+            <td>{{ vehicle.unit.identifier }}</td>
+            <td>
+              {% if vehicle.member %}
+                <a href="{% url 'members:member-detail' vehicle.member_id %}" class="text-decoration-none">
+                  {{ vehicle.member.full_name }}
+                </a>
+              {% else %}
+                <span class="text-muted">{% translate "Not linked" %}</span>
+              {% endif %}
+            </td>
+            <td>{{ vehicle.color|default:"-" }}</td>
+            <td>
+              {% if vehicle.is_active %}
+                <span class="badge text-bg-success">{% translate "Active" %}</span>
+              {% else %}
+                <span class="badge text-bg-secondary">{% translate "Inactive" %}</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">{% translate "No vehicles found." %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if is_paginated %}
+    <nav class="mt-3" aria-label="{% translate 'Vehicles pagination' %}">
+      <ul class="pagination pagination-sm mb-0">
+        {% if page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">{% translate "Previous" %}</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">{% translate "Previous" %}</span></li>
+        {% endif %}
+        <li class="page-item disabled">
+          <span class="page-link">{% blocktranslate with current=page_obj.number total=paginator.num_pages %}Page {{ current }} of {{ total }}{% endblocktranslate %}</span>
+        </li>
+        {% if page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">{% translate "Next" %}</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">{% translate "Next" %}</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+  {% endif %}
+{% endblock content %}

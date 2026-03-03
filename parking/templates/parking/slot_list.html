@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Parking Slots" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Parking Slots" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Slot master with type and status." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'parking:dashboard' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Parking" %}</a>
+    <a href="{% url 'parking:slot-add' %}" class="btn btn-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Slot" %}</a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>{% translate "Slot" %}</th>
+          <th>{% translate "Type" %}</th>
+          <th>{% translate "Rotational" %}</th>
+          <th>{% translate "Transferable" %}</th>
+          <th>{% translate "Status" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for slot in parking_slots %}
+          <tr>
+            <td><strong>{{ slot.slot_number }}</strong></td>
+            <td>{{ slot.get_slot_type_display }}</td>
+            <td>{% if slot.is_rotational %}{% translate "Yes" %}{% else %}{% translate "No" %}{% endif %}</td>
+            <td>{% if slot.is_transferable %}{% translate "Yes" %}{% else %}{% translate "No" %}{% endif %}</td>
+            <td>
+              {% if slot.is_active %}
+                <span class="badge text-bg-success">{% translate "Active" %}</span>
+              {% else %}
+                <span class="badge text-bg-secondary">{% translate "Inactive" %}</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="5" class="text-center text-muted py-4">{% translate "No parking slots found." %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if is_paginated %}
+    <nav class="mt-3" aria-label="{% translate 'Slots pagination' %}">
+      <ul class="pagination pagination-sm mb-0">
+        {% if page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">{% translate "Previous" %}</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">{% translate "Previous" %}</span></li>
+        {% endif %}
+        <li class="page-item disabled">
+          <span class="page-link">{% blocktranslate with current=page_obj.number total=paginator.num_pages %}Page {{ current }} of {{ total }}{% endblocktranslate %}</span>
+        </li>
+        {% if page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">{% translate "Next" %}</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">{% translate "Next" %}</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+  {% endif %}
+{% endblock content %}

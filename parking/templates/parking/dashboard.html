@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Parking Dashboard" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Parking Dashboard" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Manage parking slots, vehicles, and policy limits." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'parking:slot-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Slots" %}</a>
+    <a href="{% url 'parking:vehicle-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Vehicles" %}</a>
+    <a href="{% url 'parking:limit-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Limits" %}</a>
+    <a href="{% url 'parking:slot-add' %}" class="btn btn-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Slot" %}</a>
+    <a href="{% url 'parking:vehicle-add' %}" class="btn btn-outline-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Vehicle" %}</a>
+    <a href="{% url 'parking:limit-add' %}" class="btn btn-outline-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Limit" %}</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-2">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Total Slots" %}</p>
+        <h2 class="h3 mb-0">{{ total_slots }}</h2>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-2">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Active Slots" %}</p>
+        <h2 class="h3 mb-0">{{ active_slots }}</h2>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-2">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Vehicles" %}</p>
+        <h2 class="h3 mb-0">{{ total_vehicles }}</h2>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-2">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Active Vehicles" %}</p>
+        <h2 class="h3 mb-0">{{ active_vehicles }}</h2>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-2">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Policy Limits" %}</p>
+        <h2 class="h3 mb-0">{{ total_limits }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-6">
+      <div class="quick-card">
+        <h3 class="h6 mb-2">{% translate "Recent Slots" %}</h3>
+        {% if recent_slots %}
+          <ul class="list-group list-group-flush">
+            {% for slot in recent_slots %}
+              <li class="list-group-item px-0 d-flex justify-content-between">
+                <div>
+                  <strong>{{ slot.slot_number }}</strong>
+                  <span class="text-muted">({{ slot.get_slot_type_display }})</span>
+                </div>
+                {% if slot.is_active %}
+                  <span class="badge text-bg-success">{% translate "Active" %}</span>
+                {% else %}
+                  <span class="badge text-bg-secondary">{% translate "Inactive" %}</span>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted mb-0">{% translate "No parking slots yet." %}</p>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-12 col-lg-6">
+      <div class="quick-card">
+        <h3 class="h6 mb-2">{% translate "Recent Vehicles" %}</h3>
+        {% if recent_vehicles %}
+          <ul class="list-group list-group-flush">
+            {% for vehicle in recent_vehicles %}
+              <li class="list-group-item px-0">
+                <strong>{{ vehicle.vehicle_number }}</strong>
+                <span class="text-muted">({{ vehicle.get_vehicle_type_display }})</span>
+                <div class="small text-muted">
+                  {{ vehicle.unit.identifier }}{% if vehicle.member %} / {{ vehicle.member.full_name }}{% endif %}
+                </div>
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted mb-0">{% translate "No vehicles yet." %}</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+{% endblock content %}

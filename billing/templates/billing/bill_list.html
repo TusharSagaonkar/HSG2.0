@@ -64,7 +64,7 @@
               {% endif %}
             </td>
             <td class="text-end">{{ bill.total_amount }}</td>
-            <td class="text-end">{{ bill.outstanding_amount }}</td>
+            <td class="text-end">{{ bill.outstanding_amount_value }}</td>
             <td class="text-end">
               <a href="{% url 'billing:bill-detail' bill.pk %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-folder-open me-1"></i>{% translate "Open" %}</a>
             </td>
@@ -77,4 +77,30 @@
       </tbody>
     </table>
   </div>
+
+  {% if is_paginated %}
+    <nav class="mt-3" aria-label="{% translate 'Bills pagination' %}">
+      <ul class="pagination pagination-sm mb-0">
+        {% if page_obj.has_previous %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">{% translate "Previous" %}</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">{% translate "Previous" %}</span></li>
+        {% endif %}
+        <li class="page-item disabled">
+          <span class="page-link">
+            {% blocktranslate with current=page_obj.number total=paginator.num_pages %}Page {{ current }} of {{ total }}{% endblocktranslate %}
+          </span>
+        </li>
+        {% if page_obj.has_next %}
+          <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}">{% translate "Next" %}</a>
+          </li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">{% translate "Next" %}</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+  {% endif %}
 {% endblock content %}

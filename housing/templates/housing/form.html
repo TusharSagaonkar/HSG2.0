@@ -20,7 +20,11 @@
   </div>
 
   <div class="quick-card form-shell">
-    <form method="post" novalidate {% if auto_reload_society %}data-auto-reload-society="1"{% endif %}>
+    <form method="post"
+          novalidate
+          {% if auto_reload_society %}data-auto-reload-society="1"{% endif %}
+          {% if auto_reload_unit %}data-auto-reload-unit="1"{% endif %}
+          {% if member_lookup_url %}data-member-lookup-url="{{ member_lookup_url }}"{% endif %}>
       {% csrf_token %}
       <div class="row g-3">
         {% if form.non_field_errors %}

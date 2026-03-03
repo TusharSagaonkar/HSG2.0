@@ -22,6 +22,53 @@
             {% if unit.area_sqft %}
               <div class="small text-muted">{{ unit.area_sqft }} sq ft</div>
             {% endif %}
+            <div class="small mt-1">
+              <strong>{% translate "Current owner:" %}</strong>
+              {% if unit.current_owner_name %}
+                {{ unit.current_owner_name }}
+              {% else %}
+                <span class="text-muted">{% translate "Not assigned" %}</span>
+              {% endif %}
+            </div>
+            <div class="small">
+              <strong>{% translate "Currently occupied by:" %}</strong>
+              {% if unit.current_occupancy_record %}
+                {% if unit.current_occupant_name %}
+                  {{ unit.current_occupant_name }}
+                {% else %}
+                  <span class="text-muted">{% translate "N/A" %}</span>
+                {% endif %}
+                <span class="text-muted">
+                  ({{ unit.current_occupancy_record.get_occupancy_type_display }})
+                </span>
+              {% else %}
+                <span class="text-muted">{% translate "No active occupancy" %}</span>
+              {% endif %}
+            </div>
+            <div class="small">
+              <strong>{% translate "Active owner members:" %}</strong>
+              {% if unit.active_owner_members %}
+                {% for member in unit.active_owner_members %}
+                  <a href="{% url 'members:member-detail' member.pk %}" class="text-decoration-none">
+                    {{ member.full_name }}
+                  </a>{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+              {% else %}
+                <span class="text-muted">{% translate "None" %}</span>
+              {% endif %}
+            </div>
+            <div class="small">
+              <strong>{% translate "Active tenant members:" %}</strong>
+              {% if unit.active_tenant_members %}
+                {% for member in unit.active_tenant_members %}
+                  <a href="{% url 'members:member-detail' member.pk %}" class="text-decoration-none">
+                    {{ member.full_name }}
+                  </a>{% if not forloop.last %}, {% endif %}
+                {% endfor %}
+              {% else %}
+                <span class="text-muted">{% translate "None" %}</span>
+              {% endif %}
+            </div>
             <div class="small">
               <a href="{% url 'housing:member-add' %}?society={{ society.pk }}" class="text-decoration-none">
                 {% translate "Add Member" %}
