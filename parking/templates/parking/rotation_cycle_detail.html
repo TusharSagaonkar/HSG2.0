@@ -1,0 +1,152 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Rotation Cycle" %} #{{ cycle.cycle_number }} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Rotation Cycle" %} #{{ cycle.cycle_number }}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {{ cycle.society.name }} | {{ cycle.policy.policy_name }}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'parking:rotation-cycle-list' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Cycles" %}</a>
+    <form action="{% url 'parking:rotation-cycle-allocate' cycle.pk %}" method="post" class="d-inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary"><i class="fas fa-tasks me-1"></i>{% translate "Run Allocation" %}</button>
+    </form>
+    <form action="{% url 'parking:rotation-cycle-complete' cycle.pk %}" method="post" class="d-inline">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-outline-danger"><i class="fas fa-check-circle me-1"></i>{% translate "Complete Cycle" %}</button>
+    </form>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-3">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Status" %}</p>
+        <h2 class="h5 mb-0">{{ cycle.get_allocation_status_display }}</h2>
+      </div>
+    </div>
+    <div class="col-12 col-md-3">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Window" %}</p>
+        <h2 class="h6 mb-0">{{ cycle.cycle_start_date|date:"Y-m-d" }} - {{ cycle.cycle_end_date|date:"Y-m-d" }}</h2>
+      </div>
+    </div>
+    <div class="col-12 col-md-3">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Approved Applications" %}</p>
+        <h2 class="h4 mb-0">{{ approved_count }}</h2>
+      </div>
+    </div>
+    <div class="col-12 col-md-3">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Allocations" %}</p>
+        <h2 class="h4 mb-0">{{ allocations|length }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="quick-card mb-3">
+    <h3 class="h6 mb-3">{% translate "Add Application" %}</h3>
+    <form action="{% url 'parking:rotation-application-add' cycle.pk %}" method="post">
+      {% csrf_token %}
+      <div class="row g-2">
+        <div class="col-12 col-md-4">
+          <label for="id_unit" class="form-label">{% translate "Unit" %}</label>
+          <select class="form-select form-select-sm" id="id_unit" name="unit" required>
+            <option value="">{% translate "Select Unit" %}</option>
+            {% for unit in units %}
+              <option value="{{ unit.id }}">{{ unit.identifier }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-4">
+          <label for="id_vehicle" class="form-label">{% translate "Vehicle (Optional)" %}</label>
+          <select class="form-select form-select-sm" id="id_vehicle" name="vehicle">
+            <option value="">{% translate "No Vehicle" %}</option>
+            {% for vehicle in vehicles %}
+              <option value="{{ vehicle.id }}">{{ vehicle.vehicle_number }} ({{ vehicle.unit.identifier }})</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-4 d-flex align-items-end">
+          <button type="submit" class="btn btn-outline-primary w-100">
+            <i class="fas fa-paper-plane me-1"></i>{% translate "Submit Application" %}
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-6">
+      <div class="quick-card">
+        <h3 class="h6 mb-2">{% translate "Applications" %}</h3>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th>{% translate "Unit" %}</th>
+                <th>{% translate "Vehicle" %}</th>
+                <th>{% translate "Status" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for app in applications %}
+                <tr>
+                  <td>{{ app.unit.identifier }}</td>
+                  <td>{{ app.vehicle.vehicle_number|default:"-" }}</td>
+                  <td>
+                    {% if app.application_status == "APPROVED" %}
+                      <span class="badge text-bg-success">{% translate "Approved" %}</span>
+                    {% elif app.application_status == "REJECTED" %}
+                      <span class="badge text-bg-danger" title="{{ app.rejection_reason }}">{% translate "Rejected" %}</span>
+                    {% else %}
+                      <span class="badge text-bg-warning">{% translate "Pending" %}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="3" class="text-muted">{% translate "No applications yet." %}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-6">
+      <div class="quick-card">
+        <h3 class="h6 mb-2">{% translate "Allocations" %}</h3>
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead>
+              <tr>
+                <th>{% translate "Unit" %}</th>
+                <th>{% translate "Spot" %}</th>
+                <th>{% translate "Method" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for allocation in allocations %}
+                <tr>
+                  <td>{{ allocation.unit.identifier }}</td>
+                  <td>{{ allocation.parking_spot.slot_number }}</td>
+                  <td>{{ allocation.get_allocation_method_display }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="3" class="text-muted">{% translate "No allocations yet." %}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

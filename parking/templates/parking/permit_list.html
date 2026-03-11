@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Parking Permits" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Parking Permits" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Sold parking permit status by slot and vehicle." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'parking:dashboard' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Parking" %}</a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>{% translate "Issued" %}</th>
+          <th>{% translate "Vehicle" %}</th>
+          <th>{% translate "Unit" %}</th>
+          <th>{% translate "Slot" %}</th>
+          <th>{% translate "Type" %}</th>
+          <th>{% translate "Status" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for permit in permits %}
+          <tr>
+            <td>{{ permit.issued_at|date:"Y-m-d H:i" }}</td>
+            <td><strong>{{ permit.vehicle.vehicle_number }}</strong></td>
+            <td>{{ permit.unit.identifier }}</td>
+            <td>{{ permit.slot.slot_number }}</td>
+            <td>{{ permit.get_permit_type_display }}</td>
+            <td>
+              {% if permit.status == "ACTIVE" %}
+                <span class="badge text-bg-success">{% translate "Active" %}</span>
+              {% elif permit.status == "STANDBY" %}
+                <span class="badge text-bg-warning">{% translate "Standby" %}</span>
+              {% elif permit.status == "REVOKED" %}
+                <span class="badge text-bg-secondary">{% translate "Revoked" %}</span>
+              {% else %}
+                <span class="badge text-bg-danger">{% translate "Expired" %}</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">{% translate "No parking permits found." %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if is_paginated %}
+    <nav class="mt-3" aria-label="{% translate 'Permits pagination' %}">
+      <ul class="pagination pagination-sm mb-0">
+        {% if page_obj.has_previous %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.previous_page_number }}">{% translate "Previous" %}</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">{% translate "Previous" %}</span></li>
+        {% endif %}
+        <li class="page-item disabled">
+          <span class="page-link">{% blocktranslate with current=page_obj.number total=paginator.num_pages %}Page {{ current }} of {{ total }}{% endblocktranslate %}</span>
+        </li>
+        {% if page_obj.has_next %}
+          <li class="page-item"><a class="page-link" href="?page={{ page_obj.next_page_number }}">{% translate "Next" %}</a></li>
+        {% else %}
+          <li class="page-item disabled"><span class="page-link">{% translate "Next" %}</span></li>
+        {% endif %}
+      </ul>
+    </nav>
+  {% endif %}
+{% endblock content %}

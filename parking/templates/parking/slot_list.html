@@ -10,7 +10,7 @@
 {% endblock dashboard_title %}
 
 {% block dashboard_subtitle %}
-  {% translate "Slot master with type and status." %}
+  {% translate "Slot master with parking model, ownership, and status." %}
 {% endblock dashboard_subtitle %}
 
 {% block content %}
@@ -24,6 +24,8 @@
       <thead>
         <tr>
           <th>{% translate "Slot" %}</th>
+          <th>{% translate "Model" %}</th>
+          <th>{% translate "Owned Unit" %}</th>
           <th>{% translate "Type" %}</th>
           <th>{% translate "Rotational" %}</th>
           <th>{% translate "Transferable" %}</th>
@@ -34,6 +36,8 @@
         {% for slot in parking_slots %}
           <tr>
             <td><strong>{{ slot.slot_number }}</strong></td>
+            <td>{{ slot.get_parking_model_display }}</td>
+            <td>{{ slot.owned_unit.identifier|default:"-" }}</td>
             <td>{{ slot.get_slot_type_display }}</td>
             <td>{% if slot.is_rotational %}{% translate "Yes" %}{% else %}{% translate "No" %}{% endif %}</td>
             <td>{% if slot.is_transferable %}{% translate "Yes" %}{% else %}{% translate "No" %}{% endif %}</td>
@@ -47,7 +51,7 @@
           </tr>
         {% empty %}
           <tr>
-            <td colspan="5" class="text-center text-muted py-4">{% translate "No parking slots found." %}</td>
+            <td colspan="7" class="text-center text-muted py-4">{% translate "No parking slots found." %}</td>
           </tr>
         {% endfor %}
       </tbody>

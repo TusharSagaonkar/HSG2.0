@@ -1,0 +1,86 @@
+<div>
+  <div class="d-flex justify-content-between align-items-center mb-2">
+    <div>
+      <h5 class="mb-0">{{ unit.structure.name }} / {{ unit.identifier }}</h5>
+      <div class="small text-muted">{{ unit.structure.society.name }}</div>
+    </div>
+    <a href="{% url 'parking:flat-dashboard-detail' unit.pk %}" class="btn btn-sm btn-outline-primary">Open Full Dashboard</a>
+  </div>
+
+  <div class="row g-2 mb-3">
+    <div class="col-4">
+      <div class="border rounded p-2">
+        <div class="small text-muted">Total Vehicles</div>
+        <div class="fw-bold">{{ vehicles|length }}</div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="border rounded p-2">
+        <div class="small text-muted">Active Vehicles</div>
+        <div class="fw-bold">{{ active_vehicles }}</div>
+      </div>
+    </div>
+    <div class="col-4">
+      <div class="border rounded p-2">
+        <div class="small text-muted">Active Sold Permits</div>
+        <div class="fw-bold">{{ active_sold_permits }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-sm align-middle mb-0">
+      <thead>
+        <tr>
+          <th>Vehicle</th>
+          <th>Member</th>
+          <th>Vehicle Status</th>
+          <th>Sold Permit</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for vehicle in vehicles %}
+          <tr>
+            <td><strong>{{ vehicle.vehicle_number }}</strong></td>
+            <td>{{ vehicle.member.full_name|default:"-" }}</td>
+            <td>
+              {% if vehicle.effective_is_active %}
+                <span class="badge text-bg-success">Active</span>
+              {% else %}
+                <span class="badge text-bg-secondary">Inactive</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if vehicle.current_sold_permit %}
+                {{ vehicle.current_sold_permit.get_status_display }} ({{ vehicle.current_sold_permit.slot.slot_number }})
+              {% else %}
+                <span class="text-muted">Not issued</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if flat_has_owned_sold_slot %}
+                {% if vehicle.current_sold_permit and vehicle.effective_is_active and vehicle.current_sold_permit.status == "ACTIVE" %}
+                  <button type="button" class="btn btn-sm btn-secondary" disabled>
+                    Permitted{% if vehicle.current_sold_permit.slot %} ({{ vehicle.current_sold_permit.slot.slot_number }}){% endif %}
+                  </button>
+                {% else %}
+                  <form action="{% url 'parking:vehicle-create-sold-permit' vehicle.pk %}" method="post" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-success">Create Sold Permit</button>
+                  </form>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">No sold slot attached</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="5" class="text-center text-muted py-3">No vehicles for this flat.</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>

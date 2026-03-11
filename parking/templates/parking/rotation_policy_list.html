@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Rotation Policies" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Rotation Policies" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Versioned rotational parking rules per society." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'parking:dashboard' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Parking" %}</a>
+    <a href="{% url 'parking:rotation-policy-add' %}" class="btn btn-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Policy Version" %}</a>
+    <a href="{% url 'parking:rotation-cycle-list' %}" class="btn btn-outline-primary"><i class="fas fa-sync-alt me-1"></i>{% translate "View Cycles" %}</a>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>{% translate "Society" %}</th>
+          <th>{% translate "Policy" %}</th>
+          <th>{% translate "Method" %}</th>
+          <th class="text-end">{% translate "Period (Months)" %}</th>
+          <th>{% translate "Effective From" %}</th>
+          <th>{% translate "Effective To" %}</th>
+          <th>{% translate "Status" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for policy in policies %}
+          <tr{% if policy.is_active %} class="table-success"{% endif %}>
+            <td>{{ policy.society.name }}</td>
+            <td>{{ policy.policy_name }}</td>
+            <td>{{ policy.get_rotation_method_display }}</td>
+            <td class="text-end">{{ policy.rotation_period_months }}</td>
+            <td>{{ policy.effective_from|date:"Y-m-d" }}</td>
+            <td>{{ policy.effective_to|date:"Y-m-d"|default:"-" }}</td>
+            <td>
+              {% if policy.is_active %}
+                <span class="badge text-bg-success">{% translate "Active" %}</span>
+              {% else %}
+                <span class="badge text-bg-secondary">{% translate "Inactive" %}</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-4">{% translate "No rotation policies configured yet." %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock content %}

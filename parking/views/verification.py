@@ -3,7 +3,9 @@ from django.shortcuts import render
 
 from housing.models import Member
 from housing.models import UnitOccupancy
+from parking.models import ParkingPermit
 from parking.models import Vehicle
+from parking.services.parking_access import has_any_parking_access
 
 
 def verify_vehicle(request, token):
@@ -40,7 +42,7 @@ def verify_vehicle(request, token):
     else:
         occupancy_status = "Not valid / not living"
 
-    is_vehicle_valid = vehicle.is_valid()
+    is_vehicle_valid = vehicle.is_valid() or has_any_parking_access(vehicle)
     status_color = "GREEN" if is_vehicle_valid else "RED"
     activity_status = "Active" if is_vehicle_valid else "Inactive"
     status_icon = "✅" if is_vehicle_valid else "⛔"
@@ -119,5 +121,88 @@ def verify_vehicle(request, token):
         "member_total_count": len(member_vehicles),
         "same_category_active_flat_vehicles": same_category_active_flat_vehicles,
         "same_category_active_flat_count": len(same_category_active_flat_vehicles),
+    }
+    return render(request, "parking/vehicle_verify.html", context)
+
+
+def verify_parking_permit(request, qr_token):
+    permit = get_object_or_404(
+        ParkingPermit.objects.select_related(
+            "society",
+            "unit",
+            "unit__structure",
+            "slot",
+            "vehicle",
+            "vehicle__member",
+        ),
+        qr_token=qr_token,
+    )
+
+    is_permit_valid = (
+        permit.status == ParkingPermit.Status.ACTIVE
+        and permit.vehicle.is_active
+        and permit.slot.owned_unit_id == permit.unit_id
+    )
+    member_role = permit.vehicle.member.role if permit.vehicle.member else None
+    if member_role == Member.MemberRole.OWNER:
+        status_class = "status-owner"
+        member_type = "Owner"
+    elif member_role == Member.MemberRole.TENANT:
+        status_class = "status-tenant"
+        member_type = "Tenant"
+    else:
+        status_class = "status-notliving"
+        member_type = "Unknown"
+
+    if permit.vehicle.vehicle_type == Vehicle.VehicleType.CAR:
+        layout_class = "layout-car"
+        vehicle_symbol = "🚗"
+    elif permit.vehicle.vehicle_type == Vehicle.VehicleType.BIKE:
+        layout_class = "layout-bike"
+        vehicle_symbol = "🏍"
+    else:
+        layout_class = "layout-other"
+        vehicle_symbol = "🚘"
+
+    status_label = "Active" if is_permit_valid else "Inactive"
+    status_icon = "✅" if is_permit_valid else "⛔"
+    activity_class = "activity-active" if is_permit_valid else "activity-inactive"
+
+    if is_permit_valid:
+        occupancy_status = f"Permit {permit.get_status_display()}"
+    elif permit.status != ParkingPermit.Status.ACTIVE:
+        occupancy_status = f"Permit {permit.get_status_display()}"
+    elif not permit.vehicle.is_active:
+        occupancy_status = "Vehicle Inactive"
+    else:
+        occupancy_status = "Slot Ownership Mismatch"
+
+    context = {
+        "society_name": permit.society.name,
+        "building_name": permit.unit.structure.name,
+        "flat_number": permit.unit.identifier,
+        "owner_name": permit.vehicle.member.full_name if permit.vehicle.member else "Unassigned",
+        "vehicle_number": permit.vehicle.vehicle_number,
+        "valid_until": permit.expires_at.date() if permit.expires_at else permit.vehicle.valid_until,
+        "vehicle_type_label": permit.vehicle.get_vehicle_type_display(),
+        "vehicle_symbol": vehicle_symbol,
+        "member_type": member_type,
+        "layout_class": layout_class,
+        "status_class": status_class,
+        "status_color": "GREEN" if is_permit_valid else "RED",
+        "status_label": status_label,
+        "activity_class": activity_class,
+        "occupancy_status": occupancy_status,
+        "status_icon": status_icon,
+        "is_active": is_permit_valid,
+        "show_related_vehicles": False,
+        "flat_vehicles": [],
+        "member_vehicles": [],
+        "flat_active_count": 0,
+        "member_active_count": 0,
+        "flat_total_count": 0,
+        "member_total_count": 0,
+        "same_category_active_flat_vehicles": [],
+        "same_category_active_flat_count": 0,
     }
     return render(request, "parking/vehicle_verify.html", context)

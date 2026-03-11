@@ -5,22 +5,72 @@
   {% translate "Parking Dashboard" %} | Housing Accounting System
 {% endblock title %}
 
+{% block css %}
+  {{ block.super }}
+  <style>
+    .parking-action-group .btn {
+      font-weight: 600;
+    }
+    .parking-action-group .btn-main {
+      background: #ffffff;
+      color: var(--bs-primary);
+      border-color: var(--bs-primary);
+    }
+    .parking-action-group .btn-main:hover,
+    .parking-action-group .btn-main:focus {
+      background: #ffffff;
+      color: var(--bs-primary);
+      border-color: var(--bs-primary);
+    }
+    .parking-action-group .btn-plus {
+      background: var(--bs-primary);
+      color: #ffffff;
+      border-color: var(--bs-primary);
+      min-width: 34px;
+      padding-left: 10px;
+      padding-right: 10px;
+      font-size: 1.2rem;
+      font-weight: 800;
+      line-height: 1;
+    }
+    .parking-action-group .btn-plus:hover,
+    .parking-action-group .btn-plus:focus {
+      background: var(--bs-primary);
+      color: #ffffff;
+      border-color: var(--bs-primary);
+    }
+  </style>
+{% endblock css %}
+
 {% block dashboard_title %}
   {% translate "Parking Dashboard" %}
 {% endblock dashboard_title %}
 
 {% block dashboard_subtitle %}
-  {% translate "Manage parking slots, vehicles, and policy limits." %}
+  {% translate "Manage parking slots, sold permits, vehicles, and open parking limits." %}
 {% endblock dashboard_subtitle %}
 
 {% block content %}
   <div class="page-actions">
-    <a href="{% url 'parking:slot-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Slots" %}</a>
-    <a href="{% url 'parking:vehicle-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Vehicles" %}</a>
-    <a href="{% url 'parking:limit-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Limits" %}</a>
-    <a href="{% url 'parking:slot-add' %}" class="btn btn-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Slot" %}</a>
-    <a href="{% url 'parking:vehicle-add' %}" class="btn btn-outline-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Vehicle" %}</a>
-    <a href="{% url 'parking:limit-add' %}" class="btn btn-outline-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Limit" %}</a>
+    <div class="btn-group parking-action-group" role="group" aria-label="{% translate 'Slots actions' %}">
+      <a href="{% url 'parking:slot-list' %}" class="btn btn-main"><i class="fas fa-parking me-1"></i>{% translate "Slots" %}</a>
+      <a href="{% url 'parking:slot-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Slot' %}">+</a>
+    </div>
+    <a href="{% url 'parking:flat-dashboard-list' %}" class="btn btn-outline-primary"><i class="fas fa-building me-1"></i>{% translate "Flat Dashboard" %}</a>
+    <div class="btn-group parking-action-group" role="group" aria-label="{% translate 'Vehicles actions' %}">
+      <a href="{% url 'parking:vehicle-list' %}" class="btn btn-main"><i class="fas fa-car me-1"></i>{% translate "Vehicles" %}</a>
+      <a href="{% url 'parking:vehicle-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Vehicle' %}">+</a>
+    </div>
+    <a href="{% url 'parking:permit-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Permits" %}</a>
+    <div class="btn-group parking-action-group" role="group" aria-label="{% translate 'Open parking limits actions' %}">
+      <a href="{% url 'parking:limit-list' %}" class="btn btn-main"><i class="fas fa-sliders-h me-1"></i>{% translate "Open Parking Limits" %}</a>
+      <a href="{% url 'parking:limit-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Open Parking Limit' %}">+</a>
+    </div>
+    <div class="btn-group parking-action-group" role="group" aria-label="{% translate 'Rotation policy actions' %}">
+      <a href="{% url 'parking:rotation-policy-list' %}" class="btn btn-main"><i class="fas fa-random me-1"></i>{% translate "Rotation Policies" %}</a>
+      <a href="{% url 'parking:rotation-policy-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Rotation Policy' %}">+</a>
+    </div>
+    <a href="{% url 'parking:rotation-cycle-list' %}" class="btn btn-outline-primary"><i class="fas fa-sync-alt me-1"></i>{% translate "Rotation Cycles" %}</a>
   </div>
 
   <div class="row g-3 mb-4">
@@ -50,8 +100,14 @@
     </div>
     <div class="col-12 col-sm-6 col-xl-2">
       <div class="quick-card">
-        <p class="small text-muted mb-1">{% translate "Policy Limits" %}</p>
+        <p class="small text-muted mb-1">{% translate "Open Parking Limits" %}</p>
         <h2 class="h3 mb-0">{{ total_limits }}</h2>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-2">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Active Permits" %}</p>
+        <h2 class="h3 mb-0">{{ active_permits }} / {{ total_permits }}</h2>
       </div>
     </div>
   </div>
@@ -98,6 +154,34 @@
           </ul>
         {% else %}
           <p class="text-muted mb-0">{% translate "No vehicles yet." %}</p>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-12 col-lg-6">
+      <div class="quick-card">
+        <h3 class="h6 mb-2">{% translate "Recent Sold Permits" %}</h3>
+        {% if recent_permits %}
+          <ul class="list-group list-group-flush">
+            {% for permit in recent_permits %}
+              <li class="list-group-item px-0 d-flex justify-content-between">
+                <div>
+                  <strong>{{ permit.vehicle.vehicle_number }}</strong>
+                  <span class="text-muted">({{ permit.slot.slot_number }} / {{ permit.unit.identifier }})</span>
+                </div>
+                {% if permit.status == "ACTIVE" %}
+                  <span class="badge text-bg-success">{% translate "Active" %}</span>
+                {% elif permit.status == "STANDBY" %}
+                  <span class="badge text-bg-warning">{% translate "Standby" %}</span>
+                {% elif permit.status == "REVOKED" %}
+                  <span class="badge text-bg-secondary">{% translate "Revoked" %}</span>
+                {% else %}
+                  <span class="badge text-bg-danger">{% translate "Expired" %}</span>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <p class="text-muted mb-0">{% translate "No parking permits yet." %}</p>
         {% endif %}
       </div>
     </div>

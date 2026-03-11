@@ -2,6 +2,7 @@ from housing.forms import BootstrapModelForm
 from members.models import Member
 from members.models import Unit
 from parking.models import ParkingSlot
+from parking.models import ParkingRotationPolicy
 from parking.models import ParkingVehicleLimit
 from parking.models import Vehicle
 
@@ -12,11 +13,29 @@ class ParkingSlotForm(BootstrapModelForm):
         fields = [
             "society",
             "slot_number",
+            "parking_model",
             "slot_type",
+            "owned_unit",
             "is_active",
             "is_rotational",
             "is_transferable",
         ]
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["owned_unit"].queryset = Unit.objects.none()
+
+        society = None
+        if self.is_bound:
+            society = self.data.get("society")
+        else:
+            initial_society = self.initial.get("society")
+            society = getattr(initial_society, "id", initial_society)
+
+        if society:
+            self.fields["owned_unit"].queryset = Unit.objects.filter(
+                structure__society_id=society,
+            ).order_by("identifier")
 
 
 class VehicleForm(BootstrapModelForm):
@@ -93,4 +112,27 @@ class ParkingVehicleLimitForm(BootstrapModelForm):
             "member_role",
             "vehicle_type",
             "max_allowed",
+            "changed_reason",
+        ]
+
+
+class ParkingRotationPolicyForm(BootstrapModelForm):
+    class Meta:
+        model = ParkingRotationPolicy
+        fields = [
+            "society",
+            "policy_name",
+            "rotation_period_months",
+            "rotation_method",
+            "vehicle_required_before_apply",
+            "allow_sold_parking_owner",
+            "allow_tenant_application",
+            "max_rotational_slots_per_unit",
+            "max_total_parking_per_unit",
+            "skip_units_with_outstanding_dues",
+            "skip_units_with_parking_violation",
+            "unused_parking_reassignment_days",
+            "application_window_days",
+            "priority_rule",
+            "effective_from",
         ]

@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Parking Permit Sticker</title>
+    <style>
+      body { font-family: Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 24px; }
+      .sticker { max-width: 420px; margin: 0 auto; background: #fff; border: 2px solid #1b5e20; border-radius: 12px; padding: 20px; }
+      .title { font-weight: 800; font-size: 22px; margin-bottom: 10px; color: #1b5e20; }
+      .line { font-size: 18px; margin: 6px 0; font-weight: 700; }
+      .vehicle { font-size: 28px; letter-spacing: 1px; margin: 16px 0; font-weight: 900; }
+      .expiry { margin-top: 12px; font-size: 16px; }
+      .qr { margin-top: 16px; }
+    </style>
+  </head>
+  <body>
+    <section class="sticker">
+      <div class="title">{{ society_name|upper }}</div>
+      <div class="line">UNIT {{ unit_number }}</div>
+      <div class="line">SLOT {{ slot_number }}</div>
+      <div class="vehicle">{{ vehicle_number }}</div>
+      <div class="expiry">
+        VALID UNTIL
+        {% if valid_until %}
+          {{ valid_until|date:"d-m-Y" }}
+        {% else %}
+          N/A
+        {% endif %}
+      </div>
+      <div class="qr">
+        <img src="{{ qr_image_url }}" width="140" height="140" alt="Parking permit QR code">
+      </div>
+    </section>
+  </body>
+</html>

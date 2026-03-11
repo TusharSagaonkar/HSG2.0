@@ -176,10 +176,10 @@
                           <a href="{% url 'parking:vehicle-add' %}"><span class="sub-item">{% translate "Add Vehicle" %}</span></a>
                         </li>
                         <li class="{% if current_namespace == 'parking' and current_url_name == 'limit-list' %}active{% endif %}">
-                          <a href="{% url 'parking:limit-list' %}"><span class="sub-item">{% translate "Vehicle Limits" %}</span></a>
+                          <a href="{% url 'parking:limit-list' %}"><span class="sub-item">{% translate "Open Parking Vehicle Limits" %}</span></a>
                         </li>
                         <li class="{% if current_namespace == 'parking' and current_url_name == 'limit-add' %}active{% endif %}">
-                          <a href="{% url 'parking:limit-add' %}"><span class="sub-item">{% translate "Add Limit" %}</span></a>
+                          <a href="{% url 'parking:limit-add' %}"><span class="sub-item">{% translate "Add Open Parking Limit" %}</span></a>
                         </li>
                       </ul>
                     </div>

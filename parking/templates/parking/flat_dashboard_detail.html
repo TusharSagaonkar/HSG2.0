@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% blocktranslate with building=building_name flat=flat_number %}Flat Parking Dashboard - {{ building }} {{ flat }}{% endblocktranslate %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% blocktranslate with building=building_name flat=flat_number %}{{ building }} / Flat {{ flat }}{% endblocktranslate %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "All registered vehicles and parking pass usage for this flat." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'parking:flat-dashboard-list' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Flat Dashboard" %}</a>
+  </div>
+
+  {% if rotation_cycle %}
+    <div class="quick-card mb-3">
+      <div class="d-flex justify-content-between align-items-start flex-wrap gap-2">
+        <div>
+          <h3 class="h6 mb-1">{% translate "Rotational Parking Application" %}</h3>
+          <p class="small text-muted mb-0">
+            {% blocktranslate with cycle=rotation_cycle.cycle_number end_date=rotation_window_end|date:"Y-m-d" %}
+              Cycle #{{ cycle }} application window closes on {{ end_date }}.
+            {% endblocktranslate %}
+          </p>
+        </div>
+        {% if rotation_existing_application %}
+          <span class="badge text-bg-info">{{ rotation_existing_application.get_application_status_display }}</span>
+        {% endif %}
+      </div>
+      <hr>
+      {% if rotation_can_apply %}
+        <form method="post" action="{% url 'parking:flat-rotation-apply' unit.pk %}">
+          {% csrf_token %}
+          {% if rotation_cycle.policy.vehicle_required_before_apply %}
+            <div class="row g-2 align-items-end">
+              <div class="col-12 col-md-8">
+                <label for="id_vehicle_id" class="form-label">{% translate "Vehicle" %}</label>
+                <select id="id_vehicle_id" name="vehicle_id" class="form-select form-select-sm" required>
+                  <option value="">{% translate "Select vehicle" %}</option>
+                  {% for vehicle in rotation_vehicle_options %}
+                    <option value="{{ vehicle.id }}">{{ vehicle.vehicle_number }} ({{ vehicle.get_vehicle_type_display }})</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="col-12 col-md-4">
+                <button type="submit" class="btn btn-primary w-100">
+                  <i class="fas fa-paper-plane me-1"></i>{% translate "Apply Now" %}
+                </button>
+              </div>
+            </div>
+          {% else %}
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-paper-plane me-1"></i>{% translate "Apply for Rotational Parking" %}
+            </button>
+          {% endif %}
+        </form>
+      {% else %}
+        <p class="text-muted mb-0">
+          {% if rotation_apply_reason %}
+            {{ rotation_apply_reason }}
+          {% else %}
+            {% translate "Not applicable for this flat in current cycle." %}
+          {% endif %}
+        </p>
+      {% endif %}
+    </div>
+  {% endif %}
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-sm-4">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Total Vehicles" %}</p>
+        <h2 class="h4 mb-0">{{ total_vehicles }}</h2>
+      </div>
+    </div>
+    <div class="col-12 col-sm-4">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Active Vehicles" %}</p>
+        <h2 class="h4 mb-0">{{ active_vehicles }}</h2>
+      </div>
+    </div>
+    <div class="col-12 col-sm-4">
+      <div class="quick-card">
+        <p class="small text-muted mb-1">{% translate "Active Sold Passes" %}</p>
+        <h2 class="h4 mb-0">{{ active_permits }}</h2>
+      </div>
+    </div>
+  </div>
+
+  <div class="table-responsive mb-4">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>{% translate "Vehicle" %}</th>
+          <th>{% translate "Type" %}</th>
+          <th>{% translate "Member" %}</th>
+          <th>{% translate "Vehicle Status" %}</th>
+          <th>{% translate "Current Sold Pass" %}</th>
+          <th>{% translate "Pass History Count" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for vehicle in vehicles %}
+          <tr>
+            <td><strong>{{ vehicle.vehicle_number }}</strong></td>
+            <td>{{ vehicle.get_vehicle_type_display }}</td>
+            <td>{{ vehicle.member.full_name|default:"-" }}</td>
+            <td>
+              {% if vehicle.effective_is_active %}
+                <span class="badge text-bg-success">{% translate "Active" %}</span>
+              {% else %}
+                <span class="badge text-bg-secondary">{% translate "Inactive" %}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% if vehicle.current_sold_permit %}
+                {{ vehicle.current_sold_permit.get_status_display }} ({{ vehicle.current_sold_permit.slot.slot_number }})
+              {% else %}
+                <span class="text-muted">{% translate "Not issued" %}</span>
+              {% endif %}
+            </td>
+            <td>{{ vehicle.sold_permit_history|length }}</td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">{% translate "No vehicles found for this flat." %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <h3 class="h6 mb-2">{% translate "Parking Pass Usage History" %}</h3>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover align-middle mb-0">
+      <thead>
+        <tr>
+          <th>{% translate "Issued At" %}</th>
+          <th>{% translate "Vehicle" %}</th>
+          <th>{% translate "Slot" %}</th>
+          <th>{% translate "Status" %}</th>
+          <th>{% translate "QR Token" %}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for permit in permits %}
+          <tr>
+            <td>{{ permit.issued_at|date:"Y-m-d H:i" }}</td>
+            <td>{{ permit.vehicle.vehicle_number }}</td>
+            <td>{{ permit.slot.slot_number }}</td>
+            <td>{{ permit.get_status_display }}</td>
+            <td><code>{{ permit.qr_token }}</code></td>
+          </tr>
+        {% empty %}
+          <tr>
+            <td colspan="5" class="text-center text-muted py-4">{% translate "No parking pass history found for this flat." %}</td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+{% endblock content %}

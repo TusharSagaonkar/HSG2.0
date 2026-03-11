@@ -2,11 +2,11 @@
 {% load i18n %}
 
 {% block title %}
-  {% translate "Parking Vehicle Limits" %} | Housing Accounting System
+  {% translate "Open Parking Vehicle Limits" %} | Housing Accounting System
 {% endblock title %}
 
 {% block dashboard_title %}
-  {% translate "Parking Vehicle Limits" %}
+  {% translate "Open Parking Vehicle Limits" %}
 {% endblock dashboard_title %}
 
 {% block dashboard_subtitle %}
@@ -16,28 +16,42 @@
 {% block content %}
   <div class="page-actions">
     <a href="{% url 'parking:dashboard' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Parking" %}</a>
-    <a href="{% url 'parking:limit-add' %}" class="btn btn-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Limit" %}</a>
+    <a href="{% url 'parking:limit-add' %}" class="btn btn-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Open Parking Limit" %}</a>
   </div>
 
   <div class="table-responsive">
     <table class="table table-sm table-hover align-middle mb-0">
       <thead>
         <tr>
+          <th>{% translate "Society" %}</th>
           <th>{% translate "Member Role" %}</th>
           <th>{% translate "Vehicle Type" %}</th>
           <th class="text-end">{% translate "Max Allowed" %}</th>
+          <th>{% translate "Start Date" %}</th>
+          <th>{% translate "End Date" %}</th>
+          <th>{% translate "Status" %}</th>
         </tr>
       </thead>
       <tbody>
         {% for limit in vehicle_limits %}
-          <tr>
+          <tr{% if limit.status == "ACTIVE" %} class="table-success"{% endif %}>
+            <td>{{ limit.society.name }}</td>
             <td>{{ limit.get_member_role_display }}</td>
             <td>{{ limit.get_vehicle_type_display }}</td>
             <td class="text-end"><strong>{{ limit.max_allowed }}</strong></td>
+            <td>{{ limit.start_date|date:"Y-m-d" }}</td>
+            <td>{{ limit.end_date|date:"Y-m-d"|default:"-" }}</td>
+            <td>
+              {% if limit.status == "ACTIVE" %}
+                <span class="badge text-bg-success">{% translate "Active" %}</span>
+              {% else %}
+                <span class="badge text-bg-secondary">{% translate "Inactive" %}</span>
+              {% endif %}
+            </td>
           </tr>
         {% empty %}
           <tr>
-            <td colspan="3" class="text-center text-muted py-4">{% translate "No limits configured yet." %}</td>
+            <td colspan="7" class="text-center text-muted py-4">{% translate "No limits configured yet." %}</td>
           </tr>
         {% endfor %}
       </tbody>

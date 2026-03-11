@@ -10,7 +10,7 @@
 {% endblock dashboard_title %}
 
 {% block dashboard_subtitle %}
-  {% translate "Registered resident vehicles by unit/member." %}
+  {% translate "Registered vehicles with sold-parking permit actions." %}
 {% endblock dashboard_subtitle %}
 
 {% block content %}
@@ -27,9 +27,12 @@
           <th>{% translate "Type" %}</th>
           <th>{% translate "Unit" %}</th>
           <th>{% translate "Member" %}</th>
+          <th>{% translate "Member Type" %}</th>
           <th>{% translate "Color" %}</th>
           <th>{% translate "Valid Until" %}</th>
           <th>{% translate "Status" %}</th>
+          <th>{% translate "Rule Status" %}</th>
+          <th>{% translate "Sold Permit" %}</th>
           <th>{% translate "Verification" %}</th>
         </tr>
       </thead>
@@ -38,7 +41,17 @@
           <tr>
             <td><strong>{{ vehicle.vehicle_number }}</strong></td>
             <td>{{ vehicle.get_vehicle_type_display }}</td>
-            <td>{{ vehicle.unit.identifier }}</td>
+            <td>
+              <button
+                type="button"
+                class="btn btn-sm btn-link p-0 text-decoration-none flat-summary-trigger"
+                data-bs-toggle="modal"
+                data-bs-target="#flatSummaryModal"
+                data-url="{% url 'parking:flat-summary-modal' vehicle.unit_id %}"
+              >
+                {{ vehicle.unit.identifier }}
+              </button>
+            </td>
             <td>
               {% if vehicle.member %}
                 <a href="{% url 'members:member-detail' vehicle.member_id %}" class="text-decoration-none">
@@ -48,31 +61,91 @@
                 <span class="text-muted">{% translate "Not linked" %}</span>
               {% endif %}
             </td>
+            <td>
+              {% if vehicle.member %}
+                {{ vehicle.member.get_role_display }}
+              {% else %}
+                <span class="text-muted">-</span>
+              {% endif %}
+            </td>
             <td>{{ vehicle.color|default:"-" }}</td>
             <td>{{ vehicle.valid_until|default:"-" }}</td>
             <td>
-              {% if vehicle.is_valid %}
+              {% if vehicle.effective_is_valid %}
                 <span class="badge text-bg-success">{% translate "Active" %}</span>
               {% else %}
                 <span class="badge text-bg-danger">{% translate "Expired" %}</span>
               {% endif %}
             </td>
             <td>
+              {% if vehicle.effective_rule_status == "ACTIVE" %}
+                <span class="badge text-bg-success">{% translate "Active" %}</span>
+              {% elif vehicle.effective_rule_status == "RULE_VIOLATION" %}
+                <span class="badge text-bg-warning">{% translate "Rule Violation" %}</span>
+              {% elif vehicle.effective_rule_status == "RESIDENT_MISMATCH" %}
+                <span class="badge text-bg-danger">{% translate "Resident Mismatch" %}</span>
+              {% elif vehicle.effective_rule_status == "UNIT_VACANT" %}
+                <span class="badge text-bg-danger">{% translate "Unit Vacant" %}</span>
+              {% elif vehicle.effective_rule_status == "PERMIT_EXPIRED" %}
+                <span class="badge text-bg-danger">{% translate "Permit Expired" %}</span>
+              {% elif vehicle.effective_rule_status == "ADMIN_BLOCKED" %}
+                <span class="badge text-bg-dark">{% translate "Admin Blocked" %}</span>
+              {% elif vehicle.effective_rule_status == "DATA_INCONSISTENT" %}
+                <span class="badge text-bg-secondary">{% translate "Data Inconsistent" %}</span>
+              {% else %}
+                <span class="badge text-bg-secondary">{% translate "Vehicle Inactive" %}</span>
+              {% endif %}
+            </td>
+            <td>
+              {% with permit=vehicle.current_sold_permit %}
+                {% if permit %}
+                    {% if permit.status == "ACTIVE" %}
+                      <span class="badge text-bg-success">{% translate "Active" %} ({{ permit.slot.slot_number }})</span>
+                    {% elif permit.status == "STANDBY" %}
+                      <span class="badge text-bg-warning">{% translate "Standby" %}</span>
+                    {% elif permit.status == "REVOKED" %}
+                      <span class="badge text-bg-secondary">{% translate "Revoked" %}</span>
+                    {% else %}
+                      <span class="badge text-bg-danger">{% translate "Expired" %}</span>
+                    {% endif %}
+                {% else %}
+                  <span class="text-muted">{% translate "Not issued" %}</span>
+                {% endif %}
+              {% endwith %}
+            </td>
+            <td>
               <div class="d-flex gap-2 flex-wrap">
                 <a href="{% url 'vehicle_verify' vehicle.verification_token %}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-primary">
                   <i class="fas fa-shield-alt me-1"></i>{% translate "Verify" %}
                 </a>
-                {% if vehicle.is_valid %}
+                {% if vehicle.effective_is_valid %}
                   <a href="{% url 'parking:vehicle-sticker' vehicle.pk %}" target="_blank" rel="noopener" class="btn btn-sm btn-outline-secondary">
                     <i class="fas fa-qrcode me-1"></i>{% translate "QR" %}
                   </a>
+                {% endif %}
+                {% if vehicle.has_owned_sold_slot %}
+                  {% if vehicle.current_sold_permit and vehicle.effective_is_valid and vehicle.current_sold_permit.status == "ACTIVE" %}
+                    <button type="button" class="btn btn-sm btn-secondary" disabled>
+                      <i class="fas fa-ticket-alt me-1"></i>{% translate "Permitted" %}
+                      {% if vehicle.current_sold_permit.slot %}({{ vehicle.current_sold_permit.slot.slot_number }}){% endif %}
+                    </button>
+                  {% else %}
+                    <form action="{% url 'parking:vehicle-create-sold-permit' vehicle.pk %}" method="post" class="d-inline">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-outline-success">
+                        <i class="fas fa-ticket-alt me-1"></i>{% translate "Create Sold Permit" %}
+                      </button>
+                    </form>
+                  {% endif %}
+                {% else %}
+                  <span class="small text-muted">{% translate "No sold slot attached" %}</span>
                 {% endif %}
               </div>
             </td>
           </tr>
         {% empty %}
           <tr>
-            <td colspan="8" class="text-center text-muted py-4">{% translate "No vehicles found." %}</td>
+            <td colspan="11" class="text-center text-muted py-4">{% translate "No vehicles found." %}</td>
           </tr>
         {% endfor %}
       </tbody>
@@ -99,3 +172,50 @@
     </nav>
   {% endif %}
 {% endblock content %}
+
+{% block modal %}
+  <div class="modal fade" id="flatSummaryModal" tabindex="-1" aria-labelledby="flatSummaryModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="flatSummaryModalLabel">{% translate "Flat Parking Summary" %}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% translate 'Close' %}"></button>
+        </div>
+        <div class="modal-body" id="flatSummaryModalBody">
+          <div class="text-muted">{% translate "Loading..." %}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock modal %}
+
+{% block inline_javascript %}
+  {{ block.super }}
+  <script>
+    (function () {
+      const modalEl = document.getElementById("flatSummaryModal");
+      if (!modalEl) return;
+      const modalBody = document.getElementById("flatSummaryModalBody");
+
+      modalEl.addEventListener("show.bs.modal", function (event) {
+        const trigger = event.relatedTarget;
+        if (!trigger) return;
+        const url = trigger.getAttribute("data-url");
+        if (!url) return;
+
+        modalBody.innerHTML = '<div class="text-muted">Loading...</div>';
+        fetch(url, { headers: { "X-Requested-With": "XMLHttpRequest" } })
+          .then(function (response) {
+            if (!response.ok) throw new Error("Failed to load flat summary");
+            return response.text();
+          })
+          .then(function (html) {
+            modalBody.innerHTML = html;
+          })
+          .catch(function () {
+            modalBody.innerHTML = '<div class="text-danger">Unable to load flat summary.</div>';
+          });
+      });
+    })();
+  </script>
+{% endblock inline_javascript %}

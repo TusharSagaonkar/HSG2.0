@@ -15,6 +15,16 @@ class Vehicle(models.Model):
         BIKE = "BIKE", "Bike (2 Wheeler)"
         OTHER = "OTHER", "Other"
 
+    class RuleStatus(models.TextChoices):
+        ACTIVE = "ACTIVE", "Active"
+        RULE_VIOLATION = "RULE_VIOLATION", "Rule Violation"
+        RESIDENT_MISMATCH = "RESIDENT_MISMATCH", "Resident Mismatch"
+        UNIT_VACANT = "UNIT_VACANT", "Unit Vacant"
+        PERMIT_EXPIRED = "PERMIT_EXPIRED", "Permit Expired"
+        VEHICLE_INACTIVE = "VEHICLE_INACTIVE", "Vehicle Inactive"
+        ADMIN_BLOCKED = "ADMIN_BLOCKED", "Admin Blocked"
+        DATA_INCONSISTENT = "DATA_INCONSISTENT", "Data Inconsistent"
+
     society = models.ForeignKey(
         "housing.Society",
         on_delete=models.CASCADE,
@@ -49,6 +59,11 @@ class Vehicle(models.Model):
     color = models.CharField(max_length=50, blank=True)
 
     is_active = models.BooleanField(default=True)
+    rule_status = models.CharField(
+        max_length=20,
+        choices=RuleStatus.choices,
+        default=RuleStatus.ACTIVE,
+    )
     verification_token = models.UUIDField(
         default=uuid.uuid4,
         unique=True,
@@ -75,54 +90,6 @@ class Vehicle(models.Model):
         if self.member and self.member.society_id != self.society_id:
             raise ValidationError("Vehicle member must belong to selected society.")
 
-    def _member_role_for_limit(self):
-        if not self.member_id:
-            return None
-        role = self.member.role
-        if role in {"OWNER", "TENANT"}:
-            return role
-        return None
-
-    def _enforce_unit_role_vehicle_limit(self):
-        if not self.is_active:
-            return
-
-        member_role = self._member_role_for_limit()
-        if not member_role:
-            return
-
-        from parking.models.model_ParkingVehicleLimit import ParkingVehicleLimit
-
-        limit = ParkingVehicleLimit.objects.filter(
-            society_id=self.society_id,
-            member_role=member_role,
-            vehicle_type=self.vehicle_type,
-        ).first()
-        if not limit:
-            return
-
-        active_vehicles_qs = (
-            Vehicle.objects.select_for_update()
-            .filter(
-                society_id=self.society_id,
-                unit_id=self.unit_id,
-                vehicle_type=self.vehicle_type,
-                is_active=True,
-                member__role=member_role,
-            )
-            .order_by("created_at", "id")
-        )
-
-        overflow = active_vehicles_qs.count() - limit.max_allowed
-        if overflow <= 0:
-            return
-
-        deactivate_ids = list(active_vehicles_qs.values_list("id", flat=True)[:overflow])
-        Vehicle.objects.filter(id__in=deactivate_ids, is_active=True).update(
-            is_active=False,
-            deactivated_at=timezone.now(),
-        )
-
     def is_valid(self):
         today = timezone.localdate()
         if not self.is_active:
@@ -146,9 +113,12 @@ class Vehicle(models.Model):
 
         with transaction.atomic():
             super().save(*args, **kwargs)
-            self._enforce_unit_role_vehicle_limit()
-            if self.pk:
-                self.refresh_from_db(fields=["is_active", "deactivated_at"])
+
+            from parking.services.recalculate_vehicle_rule_status import (
+                recalculate_vehicle_rule_status,
+            )
+
+            recalculate_vehicle_rule_status(self.society_id)
 
     def __str__(self):
         return f"{self.vehicle_number} ({self.vehicle_type})"
