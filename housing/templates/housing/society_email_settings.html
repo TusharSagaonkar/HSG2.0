@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {{ society.name }} · {% translate "Email Settings" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {{ society.name }}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Society-level email delivery settings with automatic fallback to global SMTP." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'housing:society-detail' society.pk %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Society" %}</a>
+    <a href="{% url 'notifications:reminder-list' %}" class="btn btn-outline-primary"><i class="fas fa-bell me-1"></i>{% translate "Reminder Queue" %}</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-lg-4">
+      <div class="quick-card h-100">
+        <p class="small text-muted mb-1">{% translate "Effective Route" %}</p>
+        <h2 class="h4 mb-2">
+          {% if society_email_settings and society_email_settings.is_active %}
+            {% translate "Society Override" %}
+          {% else %}
+            {% translate "Global Fallback" %}
+          {% endif %}
+        </h2>
+        <p class="mb-0 text-muted">
+          {% if society_email_settings and society_email_settings.is_active %}
+            {% translate "Operational emails for this society will use the SMTP values below." %}
+          {% else %}
+            {% translate "Operational emails for this society currently inherit platform email settings." %}
+          {% endif %}
+        </p>
+      </div>
+    </div>
+    <div class="col-12 col-lg-4">
+      <div class="quick-card h-100">
+        <p class="small text-muted mb-1">{% translate "Global Default" %}</p>
+        {% if global_email_settings %}
+          <h3 class="h6 mb-1">{{ global_email_settings.smtp_host }}:{{ global_email_settings.smtp_port }}</h3>
+          <p class="mb-1"><strong>{% translate "From:" %}</strong> {{ global_email_settings.default_from_email }}</p>
+          <p class="mb-0 text-muted">{% translate "Used automatically whenever society override is disabled." %}</p>
+        {% else %}
+          <h3 class="h6 mb-1 text-danger">{% translate "Not Configured" %}</h3>
+          <p class="mb-0 text-muted">{% translate "No active global email settings exist yet." %}</p>
+        {% endif %}
+      </div>
+    </div>
+    <div class="col-12 col-lg-4">
+      <div class="quick-card h-100">
+        <p class="small text-muted mb-1">{% translate "Security Rule" %}</p>
+        <h3 class="h6 mb-1">{% translate "Authentication stays global" %}</h3>
+        <p class="mb-0 text-muted">{% translate "OTP and account verification emails are never routed through society SMTP." %}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-8">
+      <div class="quick-card form-shell">
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <div class="row g-3">
+            {% if form.non_field_errors %}
+              <div class="col-12">
+                <div class="alert alert-danger mb-0" role="alert">
+                  {% for error in form.non_field_errors %}
+                    <div>{{ error }}</div>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+
+            {% for field in form %}
+              {% if field.field.widget.input_type == "checkbox" %}
+                <div class="col-12">
+                  <div class="form-check mt-2">
+                    {{ field }}
+                    <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                  </div>
+                  {% if field.help_text %}
+                    <div class="form-text">{{ field.help_text }}</div>
+                  {% endif %}
+                  {% for error in field.errors %}
+                    <div class="text-danger small">{{ error }}</div>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="col-12 col-md-6">
+                  <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                  {{ field }}
+                  {% if field.help_text %}
+                    <div class="form-text">{{ field.help_text }}</div>
+                  {% endif %}
+                  {% for error in field.errors %}
+                    <div class="text-danger small">{{ error }}</div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            {% endfor %}
+
+            <div class="col-12 form-actions form-actions-inline">
+              <a href="{% url 'housing:society-detail' society.pk %}" class="btn btn-outline-secondary"><i class="fas fa-times me-1"></i>{% translate "Cancel" %}</a>
+              <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>{% translate "Save Email Settings" %}</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+    <div class="col-12 col-xl-4">
+      <div class="quick-card h-100">
+        <h3 class="h6 mb-2">{% translate "How It Works" %}</h3>
+        <p class="small text-muted mb-2">{% translate "Keep override disabled to inherit the platform SMTP configuration." %}</p>
+        <p class="small text-muted mb-2">{% translate "Enable override only when this society must send billing, receipts, and notices from its own email identity." %}</p>
+        <p class="small text-muted mb-0">{% translate "Leave SMTP password empty when editing if you want to preserve the stored encrypted secret." %}</p>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

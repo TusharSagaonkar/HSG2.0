@@ -5,6 +5,7 @@ from housing.models import Member
 from housing.models import UnitOccupancy
 from parking.models import ParkingPermit
 from parking.models import Vehicle
+from parking.services import auto_complete_due_rotation_cycles
 from parking.services.parking_access import has_any_parking_access
 
 
@@ -18,6 +19,7 @@ def verify_vehicle(request, token):
         ),
         verification_token=token,
     )
+    auto_complete_due_rotation_cycles(society_id=vehicle.society_id)
 
     active_occupancy = (
         UnitOccupancy.objects.filter(unit_id=vehicle.unit_id, end_date__isnull=True)

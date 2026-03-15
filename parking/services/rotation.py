@@ -363,6 +363,11 @@ def allocate_rotation_cycle(*, cycle, assigned_by=None, seed=None):
 
     cycle.allocation_status = ParkingRotationCycle.AllocationStatus.ACTIVE
     cycle.save(update_fields=["allocation_status"])
+    from parking.services.recalculate_vehicle_rule_status import (
+        recalculate_vehicle_rule_status,
+    )
+
+    recalculate_vehicle_rule_status(cycle.society_id)
     return allocations
 
 
@@ -375,9 +380,46 @@ def complete_rotation_cycle(*, cycle, generate_next=True):
         cycle=cycle,
         expires_at__gt=now,
     ).update(expires_at=now)
+    from parking.services.recalculate_vehicle_rule_status import (
+        recalculate_vehicle_rule_status,
+    )
+
+    recalculate_vehicle_rule_status(cycle.society_id)
     if not generate_next:
         return None
     return generate_next_rotation_cycle(
         society_id=cycle.society_id,
         as_of_date=cycle.cycle_end_date + timedelta(days=1),
     )
+
+
+@transaction.atomic
+def auto_complete_due_rotation_cycles(*, society_id, as_of_date=None):
+    as_of_date = as_of_date or timezone.localdate()
+    now = timezone.now()
+    due_cycles = list(
+        ParkingRotationCycle.objects.select_for_update()
+        .filter(
+            society_id=society_id,
+            allocation_status=ParkingRotationCycle.AllocationStatus.ACTIVE,
+            cycle_end_date__lt=as_of_date,
+        )
+        .order_by("cycle_end_date", "id")
+    )
+    if not due_cycles:
+        return 0
+
+    for cycle in due_cycles:
+        cycle.allocation_status = ParkingRotationCycle.AllocationStatus.COMPLETED
+        cycle.save(update_fields=["allocation_status"])
+        ParkingRotationAllocation.objects.filter(
+            cycle=cycle,
+            expires_at__gt=now,
+        ).update(expires_at=now)
+
+    from parking.services.recalculate_vehicle_rule_status import (
+        recalculate_vehicle_rule_status,
+    )
+
+    recalculate_vehicle_rule_status(society_id)
+    return len(due_cycles)

@@ -4,6 +4,7 @@ from django.db.models import Q
 from parking.models import ParkingPermit
 from parking.models import ParkingRotationAllocation
 from parking.models import ParkingRotationCycle
+from parking.models import Vehicle
 
 
 def has_active_sold_parking(vehicle, *, as_of_date=None):
@@ -26,6 +27,15 @@ def has_active_open_parking(vehicle, *, as_of_date=None):
     ).filter(
         Q(expires_at__isnull=True) | Q(expires_at__gte=now),
     ).exists()
+
+
+def has_open_parking_rule_access(vehicle, *, as_of_date=None):
+    as_of_date = as_of_date or timezone.localdate()
+    if not vehicle.is_active:
+        return False
+    if vehicle.valid_until and vehicle.valid_until < as_of_date:
+        return False
+    return vehicle.rule_status == Vehicle.RuleStatus.ACTIVE
 
 
 def has_active_rotational_parking(vehicle, *, as_of_date=None):
@@ -51,6 +61,8 @@ def has_active_rotational_parking(vehicle, *, as_of_date=None):
 
 def has_any_parking_access(vehicle, *, as_of_date=None):
     return (
+        has_open_parking_rule_access(vehicle, as_of_date=as_of_date)
+        or
         has_active_sold_parking(vehicle, as_of_date=as_of_date)
         or has_active_rotational_parking(vehicle, as_of_date=as_of_date)
         or has_active_open_parking(vehicle, as_of_date=as_of_date)

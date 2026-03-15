@@ -21,6 +21,26 @@ from parking.services.recalculate_vehicle_rule_status import (
 @receiver(post_save, sender=Member)
 def recalculate_vehicle_status_on_member_change(sender, instance, **kwargs):
     del sender, kwargs
+    today = timezone.localdate()
+    if instance.status == Member.MemberStatus.ACTIVE:
+        Vehicle.objects.filter(
+            society_id=instance.society_id,
+            member_id=instance.id,
+            rule_status__in=[
+                Vehicle.RuleStatus.RESIDENT_MISMATCH,
+                Vehicle.RuleStatus.VEHICLE_INACTIVE,
+            ],
+        ).update(
+            is_active=True,
+            rule_status=Vehicle.RuleStatus.ACTIVE,
+            deactivated_at=None,
+        )
+    if (
+        instance.status == Member.MemberStatus.ACTIVE
+        and instance.end_date is not None
+        and instance.end_date < today
+    ):
+        Member.objects.filter(pk=instance.pk).update(end_date=None)
     recalculate_vehicle_rule_status(instance.society_id)
 
 

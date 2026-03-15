@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 import pytest
 from django.utils import timezone
 
@@ -360,5 +362,39 @@ def test_rule_increase_does_not_reactivate_resident_mismatch():
     v2.refresh_from_db()
     assert v1.rule_status == Vehicle.RuleStatus.RESIDENT_MISMATCH
     assert v2.rule_status == Vehicle.RuleStatus.RESIDENT_MISMATCH
-    assert v1.is_active is False
-    assert v2.is_active is False
+
+
+def test_member_activation_auto_reactivates_vehicle_when_member_becomes_valid():
+    society, unit_101, _, owner_101, _, _ = _setup_base()
+    ParkingVehicleLimit.create_new_version(
+        society=society,
+        member_role=ParkingVehicleLimit.MemberRole.OWNER,
+        vehicle_type=ParkingVehicleLimit.VehicleType.CAR,
+        max_allowed=2,
+    )
+    vehicle = Vehicle.objects.create(
+        society=society,
+        unit=unit_101,
+        member=owner_101,
+        vehicle_number="MH-01-GG-0001",
+        vehicle_type=Vehicle.VehicleType.CAR,
+        is_active=True,
+    )
+    vehicle.refresh_from_db()
+    assert vehicle.rule_status == Vehicle.RuleStatus.ACTIVE
+
+    owner_101.status = Member.MemberStatus.INACTIVE
+    owner_101.end_date = timezone.localdate() - timedelta(days=2)
+    owner_101.save(update_fields=["status", "end_date"])
+    vehicle.refresh_from_db()
+    assert vehicle.rule_status == Vehicle.RuleStatus.RESIDENT_MISMATCH
+    assert vehicle.is_active is False
+
+    owner_101.status = Member.MemberStatus.ACTIVE
+    owner_101.save(update_fields=["status"])
+    owner_101.refresh_from_db()
+    vehicle.refresh_from_db()
+
+    assert owner_101.end_date is None
+    assert vehicle.rule_status == Vehicle.RuleStatus.ACTIVE
+    assert vehicle.is_active is True

@@ -11,6 +11,7 @@ from housing.views import receipt_post_view
 from housing.views import reminder_schedule_view
 from housing.views import society_create_view
 from housing.views import society_detail_view
+from housing.views import society_email_settings_view
 from housing.views import society_list_view
 from housing.views import structure_create_view
 from housing.views import structure_unit_dashboard_view
@@ -25,6 +26,11 @@ urlpatterns = [
     path("societies/add/", view=society_create_view, name="society-add"),
     path("societies/", view=society_list_view, name="society-list"),
     path("societies/<int:pk>/", view=society_detail_view, name="society-detail"),
+    path(
+        "societies/<int:pk>/email-settings/",
+        view=society_email_settings_view,
+        name="society-email-settings",
+    ),
     path(
         "structures-units/",
         view=structure_unit_dashboard_view,

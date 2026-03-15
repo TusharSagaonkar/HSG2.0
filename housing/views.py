@@ -17,6 +17,7 @@ from django.shortcuts import redirect
 from django.utils import timezone
 
 from housing.forms import SocietyForm
+from housing.forms import SocietyEmailSettingsForm
 from housing.forms import StructureForm
 from housing.forms import UnitForm
 from housing.forms import UnitOccupancyForm
@@ -36,6 +37,8 @@ from billing.services import generate_bills_for_period
 from billing.reports import build_member_outstanding
 from receipts.services import post_receipt_for_bill
 from notifications.services import schedule_payment_reminders
+from notifications.models import GlobalEmailSettings
+from notifications.models import SocietyEmailSettings
 from housing_accounting.selection import get_selected_scope
 
 
@@ -249,6 +252,66 @@ class SocietyDetailView(LoginRequiredMixin, DetailView):
 
 
 society_detail_view = SocietyDetailView.as_view()
+
+
+class SocietyEmailSettingsView(LoginRequiredMixin, FormView):
+    form_class = SocietyEmailSettingsForm
+    template_name = "housing/society_email_settings.html"
+
+    def get_society(self):
+        return Society.objects.get(pk=self.kwargs["pk"])
+
+    def get_email_settings(self):
+        return SocietyEmailSettings.objects.filter(
+            society=self.get_society(),
+        ).first()
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        existing_settings = self.get_email_settings()
+        kwargs["instance"] = existing_settings or SocietyEmailSettings(
+            society=self.get_society(),
+            smtp_port=587,
+            use_tls=True,
+            provider_type="SMTP",
+        )
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        society = self.get_society()
+        context["society"] = society
+        context["form_title"] = _("Society Email Settings")
+        context["form_subtitle"] = _(
+            "Configure whether this society uses its own SMTP credentials or inherits the platform default."
+        )
+        context["cancel_url"] = reverse("housing:society-detail", kwargs={"pk": society.pk})
+        context["cancel_label"] = _("Back to Society")
+        context["global_email_settings"] = GlobalEmailSettings.objects.filter(active=True).first()
+        context["society_email_settings"] = self.get_email_settings()
+        return context
+
+    def form_valid(self, form):
+        society = self.get_society()
+        existing_settings = self.get_email_settings()
+        if existing_settings is None and not form.cleaned_data.get("is_active") and not form.has_override_data():
+            messages.success(
+                self.request,
+                _("Society email override remains disabled. Global email settings will be used."),
+            )
+            return redirect(self.get_success_url())
+
+        settings_record = form.save(commit=False)
+        settings_record.society = society
+        settings_record.save()
+        messages.success(self.request, _("Society email settings saved successfully."))
+        return redirect(self.get_success_url())
+
+    def get_success_url(self):
+        return reverse("housing:society-email-settings", kwargs={"pk": self.get_society().pk})
+
+
+society_email_settings_view = SocietyEmailSettingsView.as_view()
 
 
 class SocietyCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):

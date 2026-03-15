@@ -42,6 +42,7 @@
             <td class="text-center">{{ society.unit_count }}</td>
             <td class="text-end">
               <a href="{% url 'housing:society-detail' society.pk %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-folder-open me-1"></i>{% translate "Open" %}</a>
+              <a href="{% url 'housing:society-email-settings' society.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-envelope me-1"></i>{% translate "Email Settings" %}</a>
             </td>
           </tr>
         {% empty %}

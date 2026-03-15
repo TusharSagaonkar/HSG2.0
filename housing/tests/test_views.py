@@ -10,6 +10,7 @@ from housing.models import Society
 from housing.models import Structure
 from housing.models import Unit
 from housing.models import Member
+from housing.models import SocietyEmailSettings
 
 pytestmark = pytest.mark.django_db
 
@@ -78,6 +79,46 @@ class TestSocietyViews:
         assert response.status_code == HTTPStatus.OK
         assert "housing/society_detail.html" in [t.name for t in response.templates]
         assert response.context["society"] == society
+
+    def test_society_email_settings_view(self, client, user):
+        society = Society.objects.create(name="Green Heights")
+        client.force_login(user)
+
+        response = client.get(
+            reverse("housing:society-email-settings", kwargs={"pk": society.pk})
+        )
+
+        assert response.status_code == HTTPStatus.OK
+        assert "housing/society_email_settings.html" in [
+            t.name for t in response.templates
+        ]
+        assert response.context["society"] == society
+
+    def test_society_email_settings_post_creates_override(self, client, user):
+        society = Society.objects.create(name="Green Heights")
+        client.force_login(user)
+
+        response = client.post(
+            reverse("housing:society-email-settings", kwargs={"pk": society.pk}),
+            data={
+                "is_active": "on",
+                "provider_type": "SMTP",
+                "smtp_host": "smtp.society.test",
+                "smtp_port": "587",
+                "smtp_username": "accounts@society.test",
+                "smtp_password": "override-secret",
+                "use_tls": "on",
+                "default_from_email": "Society <accounts@society.test>",
+                "default_reply_to": "accounts@society.test",
+                "daily_limit": "100",
+            },
+        )
+
+        assert response.status_code == HTTPStatus.FOUND
+        settings_record = SocietyEmailSettings.objects.get(society=society)
+        assert settings_record.is_active is True
+        assert settings_record.smtp_host == "smtp.society.test"
+        assert settings_record.smtp_password == "override-secret"  # noqa: S105
 
 
 class TestMemberListFilters:

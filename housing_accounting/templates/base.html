@@ -84,12 +84,6 @@
                       <p>{% translate "Home" %}</p>
                     </a>
                   </li>
-                  <li class="nav-item {% if current_url_name == 'about' %}active{% endif %}">
-                    <a href="{% url 'about' %}">
-                      <i class="fas fa-info-circle"></i>
-                      <p>{% translate "About" %}</p>
-                    </a>
-                  </li>
 
                   <li class="nav-item {% if current_namespace == 'housing' and current_url_name == 'society-list' or current_namespace == 'housing' and current_url_name == 'society-detail' or current_namespace == 'housing' and current_url_name == 'society-add' %}active{% endif %}">
                     <a class="submenu-link"

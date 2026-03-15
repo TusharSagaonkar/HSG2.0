@@ -39,6 +39,7 @@ from parking.models import ParkingVehicleLimit
 from parking.models import Vehicle
 from parking.services import create_sold_parking_permit
 from parking.services import allocate_rotation_cycle
+from parking.services import auto_complete_due_rotation_cycles
 from parking.services import complete_rotation_cycle
 from parking.services import generate_next_rotation_cycle
 from parking.services import submit_rotation_application
@@ -169,6 +170,7 @@ class FlatParkingDashboardDetailView(LoginRequiredMixin, TemplateView):
             Unit.objects.select_related("structure", "structure__society"),
             pk=self.kwargs["pk"],
         )
+        auto_complete_due_rotation_cycles(society_id=unit.structure.society_id)
         vehicles = list(
             Vehicle.objects.select_related("member").filter(unit=unit).prefetch_related(
                 Prefetch(
@@ -398,6 +400,8 @@ class VehicleListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         selected_society, _ = get_selected_scope(self.request)
+        if selected_society:
+            auto_complete_due_rotation_cycles(society_id=selected_society.id)
         sold_slot_exists = ParkingSlot.objects.filter(
             society_id=OuterRef("society_id"),
             parking_model=ParkingSlot.ParkingModel.SOLD,
@@ -411,7 +415,7 @@ class VehicleListView(LoginRequiredMixin, ListView):
             "member",
         ).annotate(
             has_owned_sold_slot=Exists(sold_slot_exists),
-        ).order_by("vehicle_number")
+        ).order_by("-created_at", "-id")
         if selected_society:
             queryset = queryset.filter(society=selected_society)
         return queryset.prefetch_related(
@@ -851,6 +855,8 @@ class ParkingRotationCycleListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         selected_society, _ = get_selected_scope(self.request)
+        if selected_society:
+            auto_complete_due_rotation_cycles(society_id=selected_society.id)
         queryset = ParkingRotationCycle.objects.select_related("society", "policy").order_by(
             "-cycle_number",
             "-id",
@@ -905,8 +911,17 @@ class ParkingRotationCycleDetailView(LoginRequiredMixin, TemplateView):
         units = Unit.objects.none()
         vehicles = Vehicle.objects.none()
         if selected_society and selected_society.id == cycle.society_id:
-            units = Unit.objects.filter(structure__society=selected_society).order_by("identifier")
-            vehicles = Vehicle.objects.filter(society=selected_society).order_by("vehicle_number")
+            units = (
+                Unit.objects.filter(structure__society=selected_society)
+                .select_related("structure")
+                .prefetch_related("members")
+                .order_by("structure__name", "identifier")
+            )
+            vehicles = (
+                Vehicle.objects.filter(society=selected_society)
+                .select_related("unit", "member")
+                .order_by("vehicle_number")
+            )
 
         context.update(
             {
@@ -915,6 +930,7 @@ class ParkingRotationCycleDetailView(LoginRequiredMixin, TemplateView):
                 "allocations": allocations,
                 "units": units,
                 "vehicles": vehicles,
+                "members_lookup_url": reverse("parking:vehicle-members"),
                 "approved_count": sum(
                     1
                     for app in applications

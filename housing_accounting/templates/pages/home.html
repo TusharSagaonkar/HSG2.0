@@ -1,3 +1,232 @@
 {% extends "base.html" %}
+{% load i18n %}
 
+{% block title %}
+  {% translate "Admin Dashboard" %} | Housing Accounting System
+{% endblock title %}
 
+{% block dashboard_title %}
+  {% translate "Admin Dashboard" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% if selected_society %}
+    {% translate "Operational snapshot for" %} {{ selected_society.name }}{% if selected_financial_year %} · {{ selected_financial_year.name }}{% endif %}
+  {% else %}
+    {% translate "Operational snapshot across all configured societies." %}
+  {% endif %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="quick-card h-100">
+        <h2 class="h6 mb-1">{% translate "Societies & Structure" %}</h2>
+        <p class="small text-muted mb-2">{{ total_societies }} {% translate "societies" %} · {{ total_structures }} {% translate "structures" %}</p>
+        <div class="small">{{ total_units }} {% translate "units" %} · {{ active_units }} {% translate "active" %}</div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="quick-card h-100">
+        <h2 class="h6 mb-1">{% translate "Residents" %}</h2>
+        <p class="small text-muted mb-2">{{ active_members }} {% translate "active members" %} / {{ total_members }}</p>
+        <div class="small">{% translate "Owners" %}: {{ owner_members }} · {% translate "Tenants" %}: {{ tenant_members }}</div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="quick-card h-100">
+        <h2 class="h6 mb-1">{% translate "Occupancy" %}</h2>
+        <p class="small text-muted mb-2">{% translate "Occupied" %}: {{ occupied_units }}</p>
+        <div class="small">{% translate "Vacant" %}: {{ vacant_units }} / {{ total_units }}</div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="quick-card h-100">
+        <h2 class="h6 mb-1">{% translate "Collections" %}</h2>
+        <p class="small text-muted mb-2">{% translate "Billed" %}: {{ total_billed }}</p>
+        <div class="small">{% translate "Collected" %}: {{ total_collected }} ({{ collection_rate }}%)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-lg-6">
+      <div class="card card-round h-100">
+        <div class="card-header pb-2">
+          <h4 class="card-title mb-0">{% translate "Priority Checks" %}</h4>
+        </div>
+        <div class="card-body pt-2">
+          <div class="row g-2">
+            <div class="col-6">
+              <div class="small text-muted">{% translate "Overdue Bills" %}</div>
+              <div class="fw-semibold">{{ overdue_bills }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">{% translate "Due Today" %}</div>
+              <div class="fw-semibold">{{ due_today_bills }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">{% translate "Draft Vouchers" %}</div>
+              <div class="fw-semibold">{{ draft_vouchers }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">{% translate "Failed Reminders" %}</div>
+              <div class="fw-semibold">{{ failed_reminders }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">{% translate "Parking Rule Violations" %}</div>
+              <div class="fw-semibold">{{ vehicle_rule_violations }}</div>
+            </div>
+            <div class="col-6">
+              <div class="small text-muted">{% translate "Pending Rotation Requests" %}</div>
+              <div class="fw-semibold">{{ pending_rotation_applications }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-6">
+      <div class="card card-round h-100">
+        <div class="card-header pb-2">
+          <h4 class="card-title mb-0">{% translate "Quick Actions" %}</h4>
+        </div>
+        <div class="card-body pt-2">
+          <div class="d-flex flex-wrap gap-2">
+            <a href="{% url 'housing:society-add' %}" class="btn btn-sm btn-outline-primary">{% translate "Add Society" %}</a>
+            <a href="{% url 'housing:unit-add' %}" class="btn btn-sm btn-outline-primary">{% translate "Add Unit" %}</a>
+            <a href="{% url 'housing:member-add' %}" class="btn btn-sm btn-outline-primary">{% translate "Add Member" %}</a>
+            <a href="{% url 'housing:billing-generate' %}" class="btn btn-sm btn-outline-primary">{% translate "Generate Bills" %}</a>
+            <a href="{% url 'housing:receipt-post' %}" class="btn btn-sm btn-outline-primary">{% translate "Post Receipt" %}</a>
+            <a href="{% url 'accounting:voucher-entry' %}" class="btn btn-sm btn-outline-primary">{% translate "Voucher Entry" %}</a>
+            <a href="{% url 'parking:vehicle-add' %}" class="btn btn-sm btn-outline-primary">{% translate "Add Vehicle" %}</a>
+            <a href="{% url 'notifications:reminder-list' %}" class="btn btn-sm btn-outline-primary">{% translate "Reminder Queue" %}</a>
+          </div>
+          <hr />
+          <div class="row g-2 small">
+            <div class="col-6">{% translate "Open Bills" %}: <span class="fw-semibold">{{ open_bills }}</span></div>
+            <div class="col-6">{% translate "Partial Bills" %}: <span class="fw-semibold">{{ partial_bills }}</span></div>
+            <div class="col-6">{% translate "Posted Receipts" %}: <span class="fw-semibold">{{ posted_receipts }}</span></div>
+            <div class="col-6">{% translate "Void Receipts" %}: <span class="fw-semibold">{{ void_receipts }}</span></div>
+            <div class="col-6">{% translate "Open Periods" %}: <span class="fw-semibold">{{ open_periods }}</span></div>
+            <div class="col-6">{% translate "Closed Periods" %}: <span class="fw-semibold">{{ closed_periods }}</span></div>
+            <div class="col-6">{% translate "Active Vehicles" %}: <span class="fw-semibold">{{ active_vehicles }}</span></div>
+            <div class="col-6">{% translate "Active Permits" %}: <span class="fw-semibold">{{ active_permits }}</span></div>
+            <div class="col-6">{% translate "Queued Reminders" %}: <span class="fw-semibold">{{ queued_reminders }}</span></div>
+            <div class="col-6">{% translate "Active Charge Templates" %}: <span class="fw-semibold">{{ active_charge_templates }}</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-4">
+      <div class="card card-round h-100">
+        <div class="card-header pb-2">
+          <h4 class="card-title mb-0">{% translate "Recent Bills" %}</h4>
+        </div>
+        <div class="card-body pt-2">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>{% translate "Bill" %}</th>
+                  <th>{% translate "Member" %}</th>
+                  <th class="text-end">{% translate "Amount" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for bill in recent_bills %}
+                  <tr>
+                    <td>
+                      <a href="{% url 'billing:bill-detail' bill.pk %}">#{{ bill.bill_number }}</a>
+                      <div class="small text-muted">{{ bill.bill_date|date:"M d" }} · {{ bill.status }}</div>
+                    </td>
+                    <td>{{ bill.member.full_name }}</td>
+                    <td class="text-end">{{ bill.total_amount }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="3" class="text-muted small">{% translate "No bills found." %}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-xl-4">
+      <div class="card card-round h-100">
+        <div class="card-header pb-2">
+          <h4 class="card-title mb-0">{% translate "Recent Receipts" %}</h4>
+        </div>
+        <div class="card-body pt-2">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>{% translate "Receipt" %}</th>
+                  <th>{% translate "Member" %}</th>
+                  <th class="text-end">{% translate "Amount" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for receipt in recent_receipts %}
+                  <tr>
+                    <td>
+                      <a href="{% url 'receipts:receipt-detail' receipt.pk %}">#{{ receipt.id }}</a>
+                      <div class="small text-muted">{{ receipt.receipt_date|date:"M d" }} · {{ receipt.status }}</div>
+                    </td>
+                    <td>{{ receipt.member.full_name }}</td>
+                    <td class="text-end">{{ receipt.amount }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="3" class="text-muted small">{% translate "No receipts found." %}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-xl-4">
+      <div class="card card-round h-100">
+        <div class="card-header pb-2">
+          <h4 class="card-title mb-0">{% translate "Recent Vouchers" %}</h4>
+        </div>
+        <div class="card-body pt-2">
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead>
+                <tr>
+                  <th>{% translate "Voucher" %}</th>
+                  <th>{% translate "Type" %}</th>
+                  <th>{% translate "Status" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for voucher in recent_vouchers %}
+                  <tr>
+                    <td>
+                      <a href="{% url 'accounting:voucher-detail' voucher.pk %}">{{ voucher.display_number }}</a>
+                      <div class="small text-muted">{{ voucher.voucher_date|date:"M d" }}</div>
+                    </td>
+                    <td>{{ voucher.voucher_type }}</td>
+                    <td>
+                      {% if voucher.posted_at %}
+                        <span class="badge badge-success">{% translate "Posted" %}</span>
+                      {% else %}
+                        <span class="badge badge-warning">{% translate "Draft" %}</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="3" class="text-muted small">{% translate "No vouchers found." %}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

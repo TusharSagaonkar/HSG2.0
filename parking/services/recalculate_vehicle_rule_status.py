@@ -47,6 +47,25 @@ def _get_parking_slot_model():
         return None
 
 
+def _get_active_rotational_vehicle_ids(society_id, today, now):
+    try:
+        allocation_model = apps.get_model("parking", "ParkingRotationAllocation")
+        cycle_model = apps.get_model("parking", "ParkingRotationCycle")
+    except LookupError:
+        return set()
+
+    return set(
+        allocation_model.objects.filter(
+            cycle__society_id=society_id,
+            cycle__allocation_status=cycle_model.AllocationStatus.ACTIVE,
+            cycle__cycle_start_date__lte=today,
+            cycle__cycle_end_date__gte=today,
+            expires_at__gte=now,
+            vehicle_id__isnull=False,
+        ).values_list("vehicle_id", flat=True)
+    )
+
+
 def _permit_status_for_vehicle(vehicle, permit_model):
     if permit_model is None:
         return None
@@ -146,6 +165,11 @@ def recalculate_vehicle_rule_status(society_id):
     active_occupancy_by_unit = _get_active_occupancy_by_unit(society_id)
     permit_model = _get_parking_permit_model()
     slot_model = _get_parking_slot_model()
+    active_rotational_vehicle_ids = _get_active_rotational_vehicle_ids(
+        society_id,
+        today,
+        now,
+    )
     sold_slot_unit_ids = set()
     if slot_model is not None and hasattr(slot_model, "ParkingModel"):
         sold_slot_unit_ids = set(
@@ -171,6 +195,18 @@ def recalculate_vehicle_rule_status(society_id):
         if _has_active_sold_permit(vehicle, permit_model):
             updates[vehicle.id] = Vehicle.RuleStatus.ACTIVE
             continue
+
+        if vehicle.id in active_rotational_vehicle_ids:
+            error_status = _eligibility_error_status(
+                vehicle,
+                active_occupancy_by_unit,
+                today,
+                permit_model,
+            )
+            # Active rotational allocation can override only policy-capacity inactive states.
+            if error_status in {None, Vehicle.RuleStatus.VEHICLE_INACTIVE, Vehicle.RuleStatus.RULE_VIOLATION}:
+                updates[vehicle.id] = Vehicle.RuleStatus.ACTIVE
+                continue
 
         # For units with sold slots, only vehicle with ACTIVE sold permit may remain active.
         if vehicle.unit_id in sold_slot_unit_ids:

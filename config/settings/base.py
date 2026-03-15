@@ -239,6 +239,12 @@ EMAIL_BACKEND = env(
 )
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-timeout
 EMAIL_TIMEOUT = 5
+EMAIL_QUEUE_DELIVERY_BACKEND = env(
+    "DJANGO_EMAIL_QUEUE_DELIVERY_BACKEND",
+    default=EMAIL_BACKEND,
+)
+EMAIL_QUEUE_MAX_RETRIES = env.int("DJANGO_EMAIL_QUEUE_MAX_RETRIES", default=3)
+EMAIL_SETTINGS_ENCRYPTION_KEY = env("DJANGO_EMAIL_SETTINGS_ENCRYPTION_KEY", default="")
 
 # ADMIN
 # ------------------------------------------------------------------------------

@@ -63,7 +63,14 @@
           <select class="form-select form-select-sm" id="id_unit" name="unit" required>
             <option value="">{% translate "Select Unit" %}</option>
             {% for unit in units %}
-              <option value="{{ unit.id }}">{{ unit.identifier }}</option>
+              <option
+                value="{{ unit.id }}"
+                data-building="{{ unit.structure.name }}"
+                data-flat="{{ unit.identifier }}"
+                data-society="{{ cycle.society.name }}"
+              >
+                {{ unit.structure.name }} / {{ unit.identifier }}
+              </option>
             {% endfor %}
           </select>
         </div>
@@ -72,7 +79,13 @@
           <select class="form-select form-select-sm" id="id_vehicle" name="vehicle">
             <option value="">{% translate "No Vehicle" %}</option>
             {% for vehicle in vehicles %}
-              <option value="{{ vehicle.id }}">{{ vehicle.vehicle_number }} ({{ vehicle.unit.identifier }})</option>
+              <option
+                value="{{ vehicle.id }}"
+                data-unit-id="{{ vehicle.unit_id }}"
+                data-member="{{ vehicle.member.full_name|default:'-' }}"
+              >
+                {{ vehicle.vehicle_number }} ({{ vehicle.unit.identifier }})
+              </option>
             {% endfor %}
           </select>
         </div>
@@ -80,6 +93,15 @@
           <button type="submit" class="btn btn-outline-primary w-100">
             <i class="fas fa-paper-plane me-1"></i>{% translate "Submit Application" %}
           </button>
+        </div>
+      </div>
+      <div class="row g-2 mt-2">
+        <div class="col-12 col-md-4">
+          <div class="small text-muted"><strong>{% translate "Selected Unit Details" %}:</strong> <span id="selectedUnitDetails">-</span></div>
+        </div>
+        <div class="col-12 col-md-8">
+          <div class="small text-muted"><strong>{% translate "Members Associated with Unit" %}:</strong></div>
+          <div id="unitMembersList" class="small">-</div>
         </div>
       </div>
     </form>
@@ -150,3 +172,66 @@
     </div>
   </div>
 {% endblock content %}
+
+{% block inline_javascript %}
+  {{ block.super }}
+  <script>
+    (function () {
+      const unitSelect = document.getElementById("id_unit");
+      const vehicleSelect = document.getElementById("id_vehicle");
+      const unitDetails = document.getElementById("selectedUnitDetails");
+      const membersList = document.getElementById("unitMembersList");
+      if (!unitSelect || !vehicleSelect || !unitDetails || !membersList) return;
+
+      const baseOption = vehicleSelect.querySelector('option[value=""]');
+      const vehicleOptions = Array.from(vehicleSelect.querySelectorAll("option[data-unit-id]"));
+      const societyId = "{{ cycle.society_id }}";
+      const membersLookupUrl = "{{ members_lookup_url }}";
+
+      function filterVehiclesByUnit(unitId) {
+        vehicleSelect.value = "";
+        for (const opt of vehicleOptions) {
+          const visible = unitId && opt.dataset.unitId === unitId;
+          opt.hidden = !visible;
+          opt.disabled = !visible;
+        }
+        if (baseOption) {
+          baseOption.hidden = false;
+          baseOption.disabled = false;
+        }
+      }
+
+      function setUnitDetails() {
+        const selected = unitSelect.options[unitSelect.selectedIndex];
+        if (!selected || !selected.value) {
+          unitDetails.textContent = "-";
+          membersList.textContent = "-";
+          filterVehiclesByUnit("");
+          return;
+        }
+        const building = selected.dataset.building || "-";
+        const flat = selected.dataset.flat || "-";
+        const society = selected.dataset.society || "-";
+        unitDetails.textContent = `${society} / ${building} / Flat ${flat}`;
+        filterVehiclesByUnit(selected.value);
+        fetch(`${membersLookupUrl}?society=${societyId}&unit=${selected.value}`, {
+          headers: { "X-Requested-With": "XMLHttpRequest" }
+        })
+          .then((response) => response.ok ? response.json() : { members: [] })
+          .then((data) => {
+            if (!data.members || data.members.length === 0) {
+              membersList.textContent = "No members linked to this unit.";
+              return;
+            }
+            membersList.textContent = data.members.map((member) => member.full_name).join(", ");
+          })
+          .catch(() => {
+            membersList.textContent = "Unable to load members.";
+          });
+      }
+
+      setUnitDetails();
+      unitSelect.addEventListener("change", setUnitDetails);
+    })();
+  </script>
+{% endblock inline_javascript %}

@@ -58,9 +58,26 @@
               {% endif %}
             </td>
             <td>
-              <a href="{% url 'parking:rotation-cycle-detail' cycle.pk %}" class="btn btn-sm btn-outline-primary">
-                <i class="fas fa-eye me-1"></i>{% translate "Open" %}
-              </a>
+              <div class="d-flex gap-2 flex-wrap">
+                <a href="{% url 'parking:rotation-cycle-detail' cycle.pk %}" class="btn btn-sm btn-outline-primary">
+                  <i class="fas fa-eye me-1"></i>{% translate "Open" %}
+                </a>
+                {% if cycle.allocation_status == "DRAFT" %}
+                  <form action="{% url 'parking:rotation-cycle-allocate' cycle.pk %}" method="post" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-primary">
+                      <i class="fas fa-tasks me-1"></i>{% translate "Allocate" %}
+                    </button>
+                  </form>
+                {% elif cycle.allocation_status == "ACTIVE" %}
+                  <form action="{% url 'parking:rotation-cycle-complete' cycle.pk %}" method="post" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                      <i class="fas fa-check-circle me-1"></i>{% translate "Complete" %}
+                    </button>
+                  </form>
+                {% endif %}
+              </div>
             </td>
           </tr>
         {% empty %}

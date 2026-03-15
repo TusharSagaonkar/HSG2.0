@@ -9,12 +9,16 @@ from housing.models import Society
 from housing.models import Structure
 from housing.models import Unit
 from parking.models import ParkingRotationAllocation
+from parking.models import ParkingRotationCycle
 from parking.models import ParkingRotationPolicy
 from parking.models import ParkingRotationPolicyAudit
 from parking.models import ParkingRotationQueue
 from parking.models import ParkingSlot
+from parking.models import ParkingVehicleLimit
 from parking.models import Vehicle
+from parking.services.parking_access import has_any_parking_access
 from parking.services.rotation import allocate_rotation_cycle
+from parking.services.rotation import auto_complete_due_rotation_cycles
 from parking.services.rotation import generate_next_rotation_cycle
 from parking.services.rotation import submit_rotation_application
 
@@ -153,3 +157,103 @@ def test_vehicle_verify_is_active_when_rotational_allocation_exists(client):
     assert response.status_code == 200
     assert "activity-badge activity-active" in response.content.decode()
     assert policy.is_active is True
+
+
+def test_open_parking_rule_allows_vehicle_without_sold_or_rotational_mapping():
+    society = Society.objects.create(name="Open Rule Society")
+    unit = _build_unit(society, "A Wing", "102")
+    member = Member.objects.create(
+        society=society,
+        unit=unit,
+        full_name="Owner 102",
+        role=Member.MemberRole.OWNER,
+    )
+    ParkingVehicleLimit.create_new_version(
+        society=society,
+        member_role=ParkingVehicleLimit.MemberRole.OWNER,
+        vehicle_type=ParkingVehicleLimit.VehicleType.CAR,
+        max_allowed=2,
+    )
+    vehicle = Vehicle.objects.create(
+        society=society,
+        unit=unit,
+        member=member,
+        vehicle_number="MH-01-OP-0001",
+        vehicle_type=Vehicle.VehicleType.CAR,
+        valid_until=timezone.localdate() + timedelta(days=30),
+    )
+    vehicle.refresh_from_db()
+
+    assert vehicle.rule_status == Vehicle.RuleStatus.ACTIVE
+    assert has_any_parking_access(vehicle) is True
+
+
+def test_rotation_allocation_activates_allocated_vehicle_and_reverts_after_cycle_end():
+    society = Society.objects.create(name="Rotation Status Society")
+    unit = _build_unit(society, "A Wing", "103")
+    member = Member.objects.create(
+        society=society,
+        unit=unit,
+        full_name="Owner 103",
+        role=Member.MemberRole.OWNER,
+    )
+    ParkingVehicleLimit.create_new_version(
+        society=society,
+        member_role=ParkingVehicleLimit.MemberRole.OWNER,
+        vehicle_type=ParkingVehicleLimit.VehicleType.CAR,
+        max_allowed=1,
+    )
+    v1 = Vehicle.objects.create(
+        society=society,
+        unit=unit,
+        member=member,
+        vehicle_number="MH-01-RS-0001",
+        vehicle_type=Vehicle.VehicleType.CAR,
+        is_active=True,
+    )
+    v2 = Vehicle.objects.create(
+        society=society,
+        unit=unit,
+        member=member,
+        vehicle_number="MH-01-RS-0002",
+        vehicle_type=Vehicle.VehicleType.CAR,
+        is_active=True,
+    )
+    v1.refresh_from_db()
+    v2.refresh_from_db()
+    assert v1.rule_status == Vehicle.RuleStatus.RULE_VIOLATION
+    assert v2.rule_status == Vehicle.RuleStatus.ACTIVE
+
+    ParkingSlot.objects.create(
+        society=society,
+        slot_number="RR1",
+        is_rotational=True,
+        parking_model=ParkingSlot.ParkingModel.COMMON,
+    )
+    ParkingRotationPolicy.create_new_version(
+        society=society,
+        policy_name="Status Rotation Policy",
+        rotation_method=ParkingRotationPolicy.RotationMethod.QUEUE,
+        vehicle_required_before_apply=True,
+        max_total_parking_per_unit=5,
+    )
+    cycle = generate_next_rotation_cycle(society_id=society.id)
+    assert cycle is not None
+    submit_rotation_application(cycle=cycle, unit=unit, vehicle=v1)
+    allocate_rotation_cycle(cycle=cycle)
+
+    v1.refresh_from_db()
+    assert v1.rule_status == Vehicle.RuleStatus.ACTIVE
+    assert v1.is_active is True
+
+    ParkingRotationCycle.objects.filter(pk=cycle.pk).update(
+        cycle_end_date=timezone.localdate() - timedelta(days=1),
+        allocation_status=ParkingRotationCycle.AllocationStatus.ACTIVE,
+    )
+    completed_count = auto_complete_due_rotation_cycles(society_id=society.id)
+    assert completed_count == 1
+    cycle.refresh_from_db()
+    v1.refresh_from_db()
+
+    assert cycle.allocation_status == ParkingRotationCycle.AllocationStatus.COMPLETED
+    assert v1.rule_status == Vehicle.RuleStatus.RULE_VIOLATION

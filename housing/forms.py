@@ -11,6 +11,7 @@ from members.models import UnitOwnership
 from billing.models import Bill
 from billing.models import ChargeTemplate
 from accounting.models import Account
+from notifications.models import SocietyEmailSettings
 
 
 class BootstrapModelForm(forms.ModelForm):
@@ -52,6 +53,85 @@ class SocietyForm(BootstrapModelForm):
         widgets = {
             "address": forms.Textarea(attrs={"rows": 3}),
         }
+
+
+class SocietyEmailSettingsForm(BootstrapModelForm):
+    smtp_password = forms.CharField(
+        required=False,
+        widget=forms.PasswordInput(
+            attrs={"autocomplete": "new-password"},
+            render_value=False,
+        ),
+        help_text=_("Leave blank to keep the currently stored password."),
+        label=_("SMTP password"),
+    )
+
+    class Meta:
+        model = SocietyEmailSettings
+        fields = [
+            "is_active",
+            "provider_type",
+            "smtp_host",
+            "smtp_port",
+            "smtp_username",
+            "smtp_password",
+            "use_tls",
+            "use_ssl",
+            "default_from_email",
+            "default_reply_to",
+            "daily_limit",
+        ]
+
+    override_fields = (
+        "smtp_host",
+        "smtp_port",
+        "smtp_username",
+        "smtp_password",
+        "default_from_email",
+        "default_reply_to",
+        "daily_limit",
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["provider_type"].initial = "SMTP"
+        for field_name in ("smtp_host", "default_from_email"):
+            self.fields[field_name].required = False
+        self.fields["provider_type"].help_text = _(
+            "SMTP is supported now. Other providers are reserved for later expansion."
+        )
+
+    def has_override_data(self):
+        cleaned_data = getattr(self, "cleaned_data", {})
+        for field_name in self.override_fields:
+            value = cleaned_data.get(field_name)
+            if value not in (None, "", []):
+                return True
+        return False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        override_enabled = cleaned_data.get("is_active")
+        has_override_data = self.has_override_data()
+
+        if override_enabled or has_override_data:
+            if not cleaned_data.get("smtp_host"):
+                self.add_error("smtp_host", _("SMTP host is required when override is enabled."))
+            if not cleaned_data.get("default_from_email"):
+                self.add_error(
+                    "default_from_email",
+                    _("From email is required when override is enabled."),
+                )
+        return cleaned_data
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        smtp_password = self.cleaned_data.get("smtp_password")
+        if smtp_password:
+            instance.set_smtp_password(smtp_password)
+        if commit:
+            instance.save()
+        return instance
 
 
 class StructureForm(BootstrapModelForm):
