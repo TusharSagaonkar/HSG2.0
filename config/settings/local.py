@@ -1,5 +1,7 @@
 from copy import deepcopy
 
+from django.core.exceptions import ImproperlyConfigured
+
 from .base import *  # noqa: F403
 from .base import BASE_DIR
 from .base import INSTALLED_APPS
@@ -86,7 +88,7 @@ local_database = {
     "PORT": env.str("LOCAL_DB_PORT", default="5432"),
 }
 
-USE_SUPABASE_DB = env.bool("USE_SUPABASE_DB", default=False)
+USE_SUPABASE_DB = env.bool("USE_SUPABASE_DB", default=True)
 SUPABASE_DATABASE_URL = env.str("SUPABASE_DATABASE_URL", default="")
 if USE_SUPABASE_DB and not SUPABASE_DATABASE_URL:
     supabase_password = env.str("SUPABASE_DB_PASSWORD", default="")
@@ -99,37 +101,36 @@ if USE_SUPABASE_DB and not SUPABASE_DATABASE_URL:
 SUPABASE_POOLER_URL = env.str("SUPABASE_POOLER_URL", default="")
 supabase_target_url = SUPABASE_POOLER_URL or SUPABASE_DATABASE_URL
 
+if not supabase_target_url:
+    raise ImproperlyConfigured(
+        "Set SUPABASE_POOLER_URL, SUPABASE_DATABASE_URL, or SUPABASE_DB_PASSWORD.",
+    )
+
 DATABASES = {
-    "default": deepcopy(local_database),
+    "default": env.db_url_config(supabase_target_url),
     "local": deepcopy(local_database),
 }
 
-if USE_SUPABASE_DB and supabase_target_url:
-    DATABASES["supabase"] = env.db_url_config(supabase_target_url)
-    DATABASES["supabase"].setdefault("OPTIONS", {})
-    DATABASES["supabase"]["OPTIONS"]["sslmode"] = "require"
-
 DATABASES["default"]["ATOMIC_REQUESTS"] = True
 DATABASES["local"]["ATOMIC_REQUESTS"] = True
-local_conn_max_age = env.int("LOCAL_DB_CONN_MAX_AGE", default=300)
-DATABASES["default"]["CONN_MAX_AGE"] = local_conn_max_age
-DATABASES["local"]["CONN_MAX_AGE"] = local_conn_max_age
+
+DATABASES["default"].setdefault("OPTIONS", {})
+DATABASES["default"]["OPTIONS"]["sslmode"] = "require"
+DATABASES["default"]["CONN_MAX_AGE"] = env.int(
+    "SUPABASE_CONN_MAX_AGE",
+    default=300,
+)
 DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
+DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True
+DATABASES["default"]["OPTIONS"]["connect_timeout"] = env.int(
+    "SUPABASE_CONNECT_TIMEOUT",
+    default=5,
+)
+
+local_conn_max_age = env.int("LOCAL_DB_CONN_MAX_AGE", default=300)
+DATABASES["local"]["CONN_MAX_AGE"] = local_conn_max_age
 DATABASES["local"]["CONN_HEALTH_CHECKS"] = True
 local_connect_timeout = env.int("LOCAL_DB_CONNECT_TIMEOUT", default=5)
-DATABASES["default"].setdefault("OPTIONS", {})
-DATABASES["default"]["OPTIONS"]["connect_timeout"] = local_connect_timeout
 DATABASES["local"].setdefault("OPTIONS", {})
 DATABASES["local"]["OPTIONS"]["connect_timeout"] = local_connect_timeout
-if "supabase" in DATABASES:
-    DATABASES["supabase"]["ATOMIC_REQUESTS"] = True
-    DATABASES["supabase"]["CONN_MAX_AGE"] = env.int(
-        "SUPABASE_CONN_MAX_AGE",
-        default=300,
-    )
-    DATABASES["supabase"]["CONN_HEALTH_CHECKS"] = True
-    DATABASES["supabase"]["DISABLE_SERVER_SIDE_CURSORS"] = True
-    DATABASES["supabase"]["OPTIONS"]["connect_timeout"] = env.int(
-        "SUPABASE_CONNECT_TIMEOUT",
-        default=5,
-    )
+DATABASES["local"]["OPTIONS"]["options"] = "-c default_transaction_read_only=on"
