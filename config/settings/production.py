@@ -20,26 +20,35 @@ ALLOWED_HOSTS = env.list(
 # DATABASES
 # ------------------------------------------------------------------------------
 # Support rendered services (and other PaaS providers) that set DATABASE_URL.
-# When DATABASE_URL is provided, it is used directly.
-# If not provided, we fall back to existing local/Supabase configuration.
+# We also support using Supabase as the primary DB by setting USE_SUPABASE_DB and
+# providing SUPABASE_POOLER_URL or SUPABASE_DATABASE_URL.
+
+# Priority (highest -> lowest):
+# 1) SUPABASE_POOLER_URL / SUPABASE_DATABASE_URL (when USE_SUPABASE_DB=true)
+# 2) DATABASE_URL
+# 3) local DB settings
+
+use_supabase_db = env.bool("USE_SUPABASE_DB", default=False)
+supabase_pooler_url = env.str("SUPABASE_POOLER_URL", default="")
+supabase_database_url = env.str("SUPABASE_DATABASE_URL", default="")
 database_url = env.str("DATABASE_URL", default="")
-if database_url:
+
+use_supabase_primary = use_supabase_db and (supabase_pooler_url or supabase_database_url)
+
+if use_supabase_primary:
+    db_url = supabase_pooler_url or supabase_database_url
+    DATABASES["default"] = env.db_url_config(db_url)
+elif database_url:
     DATABASES["default"] = env.db_url_config(database_url)
 else:
-    use_supabase_db = env.bool("USE_SUPABASE_DB", default=False)
-    if not use_supabase_db:
-        DATABASES["default"] = {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": env.str("LOCAL_DB_NAME", default="housing_accounting"),
-            "USER": env.str("LOCAL_DB_USER", default="tushar"),
-            "PASSWORD": env.str("LOCAL_DB_PASSWORD", default="tushar"),
-            "HOST": env.str("LOCAL_DB_HOST", default="localhost"),
-            "PORT": env.str("LOCAL_DB_PORT", default="5432"),
-        }
-    else:
-        supabase_pooler_url = env.str("SUPABASE_POOLER_URL", default="")
-        if supabase_pooler_url:
-            DATABASES["default"] = env.db_url_config(supabase_pooler_url)
+    DATABASES["default"] = {
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": env.str("LOCAL_DB_NAME", default="housing_accounting"),
+        "USER": env.str("LOCAL_DB_USER", default="tushar"),
+        "PASSWORD": env.str("LOCAL_DB_PASSWORD", default="tushar"),
+        "HOST": env.str("LOCAL_DB_HOST", default="localhost"),
+        "PORT": env.str("LOCAL_DB_PORT", default="5432"),
+    }
 
 DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=120)
 DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
@@ -48,7 +57,7 @@ DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = env.bool(
     default=True,
 )
 DATABASES["default"].setdefault("OPTIONS", {})
-if use_supabase_db:
+if use_supabase_primary:
     DATABASES["default"]["OPTIONS"]["sslmode"] = "require"
 else:
     DATABASES["default"]["OPTIONS"].pop("sslmode", None)
