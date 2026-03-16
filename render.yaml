@@ -19,9 +19,9 @@ services:
         value: "False"
       - key: DJANGO_ALLOWED_HOSTS
         # Replace with your Render service hostname (or use '*' for testing)
-        value: "housing-accounting.onrender.com"
+        value: "housing-accounting.onrender.com,hsg2-0.onrender.com"
       - key: DJANGO_CSRF_TRUSTED_ORIGINS
-        value: "https://housing-accounting.onrender.com"
+        value: "https://housing-accounting.onrender.com,https://hsg2-0.onrender.com"
       - key: DJANGO_ADMIN_URL
         value: "admin/"
       - key: DJANGO_DEFAULT_FROM_EMAIL
