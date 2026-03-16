@@ -19,20 +19,27 @@ ALLOWED_HOSTS = env.list(
 
 # DATABASES
 # ------------------------------------------------------------------------------
-use_supabase_db = env.bool("USE_SUPABASE_DB", default=False)
-if not use_supabase_db:
-    DATABASES["default"] = {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": env.str("LOCAL_DB_NAME", default="housing_accounting"),
-        "USER": env.str("LOCAL_DB_USER", default="tushar"),
-        "PASSWORD": env.str("LOCAL_DB_PASSWORD", default="tushar"),
-        "HOST": env.str("LOCAL_DB_HOST", default="localhost"),
-        "PORT": env.str("LOCAL_DB_PORT", default="5432"),
-    }
+# Support rendered services (and other PaaS providers) that set DATABASE_URL.
+# When DATABASE_URL is provided, it is used directly.
+# If not provided, we fall back to existing local/Supabase configuration.
+database_url = env.str("DATABASE_URL", default="")
+if database_url:
+    DATABASES["default"] = env.db_url_config(database_url)
 else:
-    supabase_pooler_url = env.str("SUPABASE_POOLER_URL", default="")
-    if supabase_pooler_url:
-        DATABASES["default"] = env.db_url_config(supabase_pooler_url)
+    use_supabase_db = env.bool("USE_SUPABASE_DB", default=False)
+    if not use_supabase_db:
+        DATABASES["default"] = {
+            "ENGINE": "django.db.backends.postgresql",
+            "NAME": env.str("LOCAL_DB_NAME", default="housing_accounting"),
+            "USER": env.str("LOCAL_DB_USER", default="tushar"),
+            "PASSWORD": env.str("LOCAL_DB_PASSWORD", default="tushar"),
+            "HOST": env.str("LOCAL_DB_HOST", default="localhost"),
+            "PORT": env.str("LOCAL_DB_PORT", default="5432"),
+        }
+    else:
+        supabase_pooler_url = env.str("SUPABASE_POOLER_URL", default="")
+        if supabase_pooler_url:
+            DATABASES["default"] = env.db_url_config(supabase_pooler_url)
 
 DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=120)
 DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
