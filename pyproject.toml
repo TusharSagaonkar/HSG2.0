@@ -160,7 +160,7 @@ license = { text = "MIT" }
 authors = [
   { name = "Tushar Sagoankar", email = "admin@localhost" },
 ]
-requires-python = "==3.13.*"
+requires-python = ">=3.13,<3.15"
 dependencies = [
     "argon2-cffi==25.1.0",
     "crispy-bootstrap5==2025.6",
