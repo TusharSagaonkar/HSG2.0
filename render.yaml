@@ -6,28 +6,41 @@ services:
     name: housing-accounting
     env: python
     plan: free
+    healthCheckPath: /
     # Build steps (RUN once per deploy)
-    buildCommand: pip install -r requirement.txt
+    buildCommand: pip install -r requirement.txt && python manage.py collectstatic --noinput
     # Start command (RUN on each instance restart)
-    startCommand: python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers 2
+    startCommand: python manage.py migrate --noinput && gunicorn config.wsgi:application --bind 0.0.0.0:$PORT --workers ${WEB_CONCURRENCY:-2}
     envVars:
       # Django configuration
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
       - key: DJANGO_DEBUG
         value: "False"
       - key: DJANGO_ALLOWED_HOSTS
         # Replace with your Render service hostname (or use '*' for testing)
         value: "housing-accounting.onrender.com"
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        value: "https://housing-accounting.onrender.com"
       - key: DJANGO_ADMIN_URL
         value: "admin/"
       - key: DJANGO_DEFAULT_FROM_EMAIL
         value: "noreply@localhost"
-      # The secret key should come from Render Secrets (do NOT commit it).
+      - key: WEB_CONCURRENCY
+        value: "2"
       - key: DJANGO_SECRET_KEY
-        fromSecret: DJANGO_SECRET_KEY
-
-    # Optional: set the instance type / autoscaling settings.
-    # Instances:
-    #   type: "standard-1x"
+        generateValue: true
+      - key: USE_SUPABASE_DB
+        value: "true"
+      - key: SUPABASE_DATABASE_URL
+        sync: false
+      - key: SUPABASE_POOLER_URL
+        sync: false
+      # Optional. Leave unset to use in-memory cache instead of a Render Redis service.
+      - key: REDIS_URL
+        sync: false
+      # On the first Blueprint creation, Render prompts for values of any vars with `sync: false`.
+      # If you upgrade to a paid plan later, you can move migrations to `preDeployCommand`.
 
 # Note: Render will provide DATABASE_URL and REDIS_URL automatically if you add
 # a Postgres/Redis addon from the Render dashboard.

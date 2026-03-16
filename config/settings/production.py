@@ -2,7 +2,6 @@
 from .base import *  # noqa: F403
 from .base import DATABASES
 from .base import INSTALLED_APPS
-from .base import REDIS_URL
 from .base import env
 
 # GENERAL
@@ -16,6 +15,7 @@ ALLOWED_HOSTS = env.list(
     "DJANGO_ALLOWED_HOSTS",
     default=["TusharSagaonkar.pythonanywhere.com"],
 )
+CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
 
 # DATABASES
 # ------------------------------------------------------------------------------
@@ -68,18 +68,28 @@ DATABASES["default"]["OPTIONS"]["connect_timeout"] = env.int(
 
 # CACHES
 # ------------------------------------------------------------------------------
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": REDIS_URL,
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-            # Mimicking memcache behavior.
-            # https://github.com/jazzband/django-redis#memcached-exceptions-behavior
-            "IGNORE_EXCEPTIONS": True,
+redis_url = env.str("REDIS_URL", default="")
+
+if redis_url:
+    CACHES = {
+        "default": {
+            "BACKEND": "django_redis.cache.RedisCache",
+            "LOCATION": redis_url,
+            "OPTIONS": {
+                "CLIENT_CLASS": "django_redis.client.DefaultClient",
+                # Mimicking memcache behavior.
+                # https://github.com/jazzband/django-redis#memcached-exceptions-behavior
+                "IGNORE_EXCEPTIONS": True,
+            },
         },
-    },
-}
+    }
+else:
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "render-production-cache",
+        },
+    }
 
 # SECURITY
 # ------------------------------------------------------------------------------

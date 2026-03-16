@@ -13,6 +13,7 @@ Use this as the first stop before planning or implementing major changes.
 | `CHALLENGES_AND_DECISIONS.md` | Problem register with root cause, impact, and mitigations. | Any blocker, production issue, or recurring defect pattern. |
 | `STRATEGY_CHANGELOG.md` | Why strategy changed, expected impact, and rollback approach. | Product or technical strategy adjustments. |
 | `DATABASE_SWITCHING.md` | Safe temporary DB switch and rollback runbook for local operations. | Any database environment switch or connection-strategy update. |
+| `RENDER_DEPLOY.md` | Render deployment workflow, required env vars, and first-deploy verification steps. | Any Render topology or deployment-process update. |
 | `templates/` | Standard templates for consistent documentation updates. | Use whenever adding a new entry. |
 
 ## Documentation Standards
