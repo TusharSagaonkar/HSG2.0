@@ -1,9 +1,5 @@
-from copy import deepcopy
-
-from django.core.exceptions import ImproperlyConfigured
-
 from .base import *  # noqa: F403
-from .base import BASE_DIR
+from .base import DATABASES
 from .base import INSTALLED_APPS
 from .base import MIDDLEWARE
 from .base import env
@@ -23,6 +19,7 @@ ALLOWED_HOSTS = [
     "0.0.0.0",  # noqa: S104
     "127.0.0.1",
     "TusharSagaonkar.pythonanywhere.com",
+    "hsg2-0.onrender.com",
 ]
 
 # CACHES
@@ -73,64 +70,25 @@ INTERNAL_IPS = ["127.0.0.1", "10.0.2.2"]
 # https://django-extensions.readthedocs.io/en/latest/installation_instructions.html#configuration
 INSTALLED_APPS += ["django_extensions"]
 
-# Your stuff...
-# ------------------------------------------------------------------------------
-local_env_file = BASE_DIR / ".env.local"
-if local_env_file.exists():
-    env.read_env(str(local_env_file))
+for database_alias, env_prefix in (
+    ("default", "DATABASE"),
+    ("analytics", "ANALYTICS_DB"),
+    ("archive", "ARCHIVE_DB"),
+):
+    if not DATABASES.get(database_alias):
+        continue
 
-local_database = {
-    "ENGINE": "django.db.backends.postgresql",
-    "NAME": env.str("LOCAL_DB_NAME", default="housing_accounting"),
-    "USER": env.str("LOCAL_DB_USER", default="tushar"),
-    "PASSWORD": env.str("LOCAL_DB_PASSWORD", default="tushar"),
-    "HOST": env.str("LOCAL_DB_HOST", default="localhost"),
-    "PORT": env.str("LOCAL_DB_PORT", default="5432"),
-}
-
-USE_SUPABASE_DB = env.bool("USE_SUPABASE_DB", default=True)
-SUPABASE_DATABASE_URL = env.str("SUPABASE_DATABASE_URL", default="")
-if USE_SUPABASE_DB and not SUPABASE_DATABASE_URL:
-    supabase_password = env.str("SUPABASE_DB_PASSWORD", default="")
-    if supabase_password:
-        SUPABASE_DATABASE_URL = (
-            "postgresql://postgres:"
-            f"{supabase_password}@"
-            "db.wmixkdfdfsoawucdbfsc.supabase.co:5432/postgres?sslmode=require"
-        )
-SUPABASE_POOLER_URL = env.str("SUPABASE_POOLER_URL", default="")
-supabase_target_url = SUPABASE_POOLER_URL or SUPABASE_DATABASE_URL
-
-if not supabase_target_url:
-    raise ImproperlyConfigured(
-        "Set SUPABASE_POOLER_URL, SUPABASE_DATABASE_URL, or SUPABASE_DB_PASSWORD.",
+    DATABASES[database_alias]["CONN_MAX_AGE"] = env.int(
+        f"{env_prefix}_CONN_MAX_AGE",
+        default=300,
     )
-
-DATABASES = {
-    "default": env.db_url_config(supabase_target_url),
-    "local": deepcopy(local_database),
-}
-
-DATABASES["default"]["ATOMIC_REQUESTS"] = True
-DATABASES["local"]["ATOMIC_REQUESTS"] = True
-
-DATABASES["default"].setdefault("OPTIONS", {})
-DATABASES["default"]["OPTIONS"]["sslmode"] = "require"
-DATABASES["default"]["CONN_MAX_AGE"] = env.int(
-    "SUPABASE_CONN_MAX_AGE",
-    default=300,
-)
-DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
-DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True
-DATABASES["default"]["OPTIONS"]["connect_timeout"] = env.int(
-    "SUPABASE_CONNECT_TIMEOUT",
-    default=5,
-)
-
-local_conn_max_age = env.int("LOCAL_DB_CONN_MAX_AGE", default=300)
-DATABASES["local"]["CONN_MAX_AGE"] = local_conn_max_age
-DATABASES["local"]["CONN_HEALTH_CHECKS"] = True
-local_connect_timeout = env.int("LOCAL_DB_CONNECT_TIMEOUT", default=5)
-DATABASES["local"].setdefault("OPTIONS", {})
-DATABASES["local"]["OPTIONS"]["connect_timeout"] = local_connect_timeout
-DATABASES["local"]["OPTIONS"]["options"] = "-c default_transaction_read_only=on"
+    DATABASES[database_alias]["CONN_HEALTH_CHECKS"] = True
+    DATABASES[database_alias]["DISABLE_SERVER_SIDE_CURSORS"] = env.bool(
+        f"{env_prefix}_DISABLE_SERVER_SIDE_CURSORS",
+        default=database_alias == "default",
+    )
+    DATABASES[database_alias].setdefault("OPTIONS", {})
+    DATABASES[database_alias]["OPTIONS"]["connect_timeout"] = env.int(
+        f"{env_prefix}_CONNECT_TIMEOUT",
+        default=5,
+    )

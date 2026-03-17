@@ -2,8 +2,10 @@
 """Base settings to build other settings files upon."""
 
 
+import os
 from pathlib import Path
 
+import dj_database_url
 import environ
 
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
@@ -15,6 +17,10 @@ READ_DOT_ENV_FILE = env.bool("DJANGO_READ_DOT_ENV_FILE", default=False)
 if READ_DOT_ENV_FILE:
     # OS environment variables take precedence over variables from .env
     env.read_env(str(BASE_DIR / ".env"))
+
+local_env_file = BASE_DIR / ".env.local"
+if local_env_file.exists():
+    env.read_env(str(local_env_file))
 
 # GENERAL
 # ------------------------------------------------------------------------------
@@ -48,12 +54,27 @@ LOCALE_PATHS = [str(BASE_DIR / "locale")]
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 
 DATABASES = {
-    "default": env.db(
-        "DATABASE_URL",
-        default="postgres:///housing_accounting",
+    "default": dj_database_url.config(
+        default=os.getenv("DATABASE_URL", "sqlite:///db.sqlite3"),
+        conn_max_age=600,
+    ),
+    "analytics": (
+        dj_database_url.parse(os.getenv("ANALYTICS_DB_URL"))
+        if os.getenv("ANALYTICS_DB_URL")
+        else {}
+    ),
+    "archive": (
+        dj_database_url.parse(os.getenv("ARCHIVE_DB_URL"))
+        if os.getenv("ARCHIVE_DB_URL")
+        else {}
     ),
 }
 DATABASES["default"]["ATOMIC_REQUESTS"] = True
+for database_alias in ("analytics", "archive"):
+    if DATABASES[database_alias]:
+        DATABASES[database_alias]["ATOMIC_REQUESTS"] = True
+
+DATABASE_ROUTERS = ["core.db_router.DatabaseRouter"]
 # https://docs.djangoproject.com/en/stable/ref/settings/#std:setting-DEFAULT_AUTO_FIELD
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 

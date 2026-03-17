@@ -19,52 +19,30 @@ CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
 
 # DATABASES
 # ------------------------------------------------------------------------------
-# Support rendered services (and other PaaS providers) that set DATABASE_URL.
-# We also support using Supabase as the primary DB by setting USE_SUPABASE_DB and
-# providing SUPABASE_POOLER_URL or SUPABASE_DATABASE_URL.
+for database_alias, env_prefix in (
+    ("default", "DATABASE"),
+    ("analytics", "ANALYTICS_DB"),
+    ("archive", "ARCHIVE_DB"),
+):
+    if not DATABASES.get(database_alias):
+        continue
 
-# Priority (highest -> lowest):
-# 1) SUPABASE_POOLER_URL / SUPABASE_DATABASE_URL (when USE_SUPABASE_DB=true)
-# 2) DATABASE_URL
-# 3) local DB settings
-
-use_supabase_db = env.bool("USE_SUPABASE_DB", default=False)
-supabase_pooler_url = env.str("SUPABASE_POOLER_URL", default="")
-supabase_database_url = env.str("SUPABASE_DATABASE_URL", default="")
-database_url = env.str("DATABASE_URL", default="")
-
-use_supabase_primary = use_supabase_db and (supabase_pooler_url or supabase_database_url)
-
-if use_supabase_primary:
-    db_url = supabase_pooler_url or supabase_database_url
-    DATABASES["default"] = env.db_url_config(db_url)
-elif database_url:
-    DATABASES["default"] = env.db_url_config(database_url)
-else:
-    DATABASES["default"] = {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": env.str("LOCAL_DB_NAME", default="housing_accounting"),
-        "USER": env.str("LOCAL_DB_USER", default="tushar"),
-        "PASSWORD": env.str("LOCAL_DB_PASSWORD", default="tushar"),
-        "HOST": env.str("LOCAL_DB_HOST", default="localhost"),
-        "PORT": env.str("LOCAL_DB_PORT", default="5432"),
-    }
-
-DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=120)
-DATABASES["default"]["CONN_HEALTH_CHECKS"] = True
-DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = env.bool(
-    "DB_DISABLE_SERVER_SIDE_CURSORS",
-    default=True,
-)
-DATABASES["default"].setdefault("OPTIONS", {})
-if use_supabase_primary:
-    DATABASES["default"]["OPTIONS"]["sslmode"] = "require"
-else:
-    DATABASES["default"]["OPTIONS"].pop("sslmode", None)
-DATABASES["default"]["OPTIONS"]["connect_timeout"] = env.int(
-    "DB_CONNECT_TIMEOUT",
-    default=5,
-)
+    DATABASES[database_alias]["CONN_MAX_AGE"] = env.int(
+        f"{env_prefix}_CONN_MAX_AGE",
+        default=120,
+    )
+    DATABASES[database_alias]["CONN_HEALTH_CHECKS"] = True
+    DATABASES[database_alias]["DISABLE_SERVER_SIDE_CURSORS"] = env.bool(
+        f"{env_prefix}_DISABLE_SERVER_SIDE_CURSORS",
+        default=True,
+    )
+    DATABASES[database_alias].setdefault("OPTIONS", {})
+    DATABASES[database_alias]["OPTIONS"]["connect_timeout"] = env.int(
+        f"{env_prefix}_CONNECT_TIMEOUT",
+        default=5,
+    )
+    if env.bool(f"{env_prefix}_SSL_REQUIRE", default=False):
+        DATABASES[database_alias]["OPTIONS"]["sslmode"] = "require"
 
 # CACHES
 # ------------------------------------------------------------------------------
