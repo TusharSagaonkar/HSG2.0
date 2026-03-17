@@ -36,6 +36,7 @@ LANGUAGE_CODE = "en-us"
 CSRF_TRUSTED_ORIGINS = os.getenv(
     "CSRF_TRUSTED_ORIGINS",
     "http://localhost",
+    "https://hsg2-0.onrender.com",
 ).split(",")
 # https://docs.djangoproject.com/en/dev/ref/settings/#languages
 # from django.utils.translation import gettext_lazy as _
