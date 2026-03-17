@@ -1,4 +1,6 @@
 # ruff: noqa: E501
+import os
+
 from .base import *  # noqa: F403
 from .base import DATABASES
 from .base import INSTALLED_APPS
@@ -11,11 +13,10 @@ DEBUG = False
 # https://docs.djangoproject.com/en/dev/ref/settings/#secret-key
 SECRET_KEY = env("DJANGO_SECRET_KEY")
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
-ALLOWED_HOSTS = env.list(
+ALLOWED_HOSTS = os.getenv(
     "DJANGO_ALLOWED_HOSTS",
-    default=["TusharSagaonkar.pythonanywhere.com"],
-)
-CSRF_TRUSTED_ORIGINS = env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[])
+    ".onrender.com,localhost,127.0.0.1",
+).split(",")
 
 # DATABASES
 # ------------------------------------------------------------------------------
