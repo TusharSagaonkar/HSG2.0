@@ -136,14 +136,18 @@ def resolve_email_config(
         )
 
     global_settings = GlobalEmailSettings.objects.filter(active=True).first()
-    if not global_settings:
-        msg = "No active global email settings found."
-        raise EmailConfigurationError(msg)
+    if global_settings:
+        return _build_resolved_email_config(
+            source="global",
+            settings_record=global_settings,
+        )
 
-    return _build_resolved_email_config(
-        source="global",
-        settings_record=global_settings,
-    )
+    django_settings_config = _build_django_settings_email_config()
+    if django_settings_config:
+        return django_settings_config
+
+    msg = "No active global email settings found."
+    raise EmailConfigurationError(msg)
 
 
 def render_email_template(
@@ -368,4 +372,33 @@ def _build_resolved_email_config(*, source: str, settings_record) -> ResolvedEma
         from_email=settings_record.default_from_email,
         reply_to_email=settings_record.default_reply_to,
         daily_limit=settings_record.daily_limit,
+    )
+
+
+def _build_django_settings_email_config() -> ResolvedEmailConfiguration | None:
+    if settings.EMAIL_BACKEND != "django.core.mail.backends.smtp.EmailBackend":
+        return None
+    if not getattr(settings, "EMAIL_HOST", ""):
+        return None
+
+    from_email = (
+        getattr(settings, "DEFAULT_FROM_EMAIL", "")
+        or getattr(settings, "SERVER_EMAIL", "")
+    )
+    if not from_email:
+        return None
+
+    return ResolvedEmailConfiguration(
+        source="django_settings",
+        source_id=0,
+        provider_type=EmailProviderType.SMTP,
+        smtp_host=settings.EMAIL_HOST,
+        smtp_port=settings.EMAIL_PORT,
+        smtp_username=settings.EMAIL_HOST_USER,
+        smtp_password=settings.EMAIL_HOST_PASSWORD,
+        use_tls=settings.EMAIL_USE_TLS,
+        use_ssl=settings.EMAIL_USE_SSL,
+        from_email=from_email,
+        reply_to_email=getattr(settings, "SERVER_EMAIL", ""),
+        daily_limit=None,
     )

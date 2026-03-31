@@ -1,4 +1,8 @@
+import dj_database_url
+import psycopg
+
 from .base import *  # noqa: F403
+from .base import BASE_DIR
 from .base import DATABASES
 from .base import INSTALLED_APPS
 from .base import MIDDLEWARE
@@ -70,6 +74,31 @@ INTERNAL_IPS = ["127.0.0.1", "10.0.2.2"]
 # https://django-extensions.readthedocs.io/en/latest/installation_instructions.html#configuration
 INSTALLED_APPS += ["django_extensions"]
 
+LOCAL_DATABASE_MODE = env.str("DJANGO_LOCAL_DATABASE_MODE", default="auto").lower()
+
+def _remote_database_is_reachable() -> bool:
+    database_url = env.str("DATABASE_URL", default="")
+    if not database_url:
+        return False
+
+    try:
+        with psycopg.connect(
+            database_url,
+            connect_timeout=env.int("DATABASE_CONNECT_TIMEOUT", default=2),
+        ):
+            return True
+    except psycopg.Error:
+        return False
+
+
+if LOCAL_DATABASE_MODE == "sqlite" or (
+    LOCAL_DATABASE_MODE == "auto" and not _remote_database_is_reachable()
+):
+    DATABASES["default"] = dj_database_url.parse(
+        f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=0,
+    )
+
 for database_alias, env_prefix in (
     ("default", "DATABASE"),
     ("analytics", "ANALYTICS_DB"),
@@ -87,8 +116,9 @@ for database_alias, env_prefix in (
         f"{env_prefix}_DISABLE_SERVER_SIDE_CURSORS",
         default=database_alias == "default",
     )
-    DATABASES[database_alias].setdefault("OPTIONS", {})
-    DATABASES[database_alias]["OPTIONS"]["connect_timeout"] = env.int(
-        f"{env_prefix}_CONNECT_TIMEOUT",
-        default=5,
-    )
+    if DATABASES[database_alias]["ENGINE"] != "django.db.backends.sqlite3":
+        DATABASES[database_alias].setdefault("OPTIONS", {})
+        DATABASES[database_alias]["OPTIONS"]["connect_timeout"] = env.int(
+            f"{env_prefix}_CONNECT_TIMEOUT",
+            default=5,
+        )

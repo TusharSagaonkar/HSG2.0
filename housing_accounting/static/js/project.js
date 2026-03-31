@@ -324,9 +324,137 @@ const initAutoReloadUnitForms = () => {
   });
 };
 
+const initStructureHierarchyFilters = () => {
+  const filterBar = document.querySelector("[data-structure-filters]");
+  if (!filterBar || !window.bootstrap) {
+    return;
+  }
+
+  const searchField = filterBar.querySelector("[data-structure-search]");
+  const structureTypeField = filterBar.querySelector("[data-structure-type-filter]");
+  const unitStatusField = filterBar.querySelector("[data-unit-status-filter]");
+  const occupancyField = filterBar.querySelector("[data-occupancy-filter]");
+  const resetButton = filterBar.querySelector("[data-structure-filter-reset]");
+  const summary = document.querySelector("[data-structure-filter-summary]");
+  const structureNodes = Array.from(document.querySelectorAll("[data-structure-node]"));
+
+  if (!searchField || !structureTypeField || !unitStatusField || !occupancyField) {
+    return;
+  }
+
+  const applyFilters = () => {
+    const searchTerm = searchField.value.trim().toLowerCase();
+    const structureType = structureTypeField.value;
+    const unitStatus = unitStatusField.value;
+    const occupancy = occupancyField.value;
+
+    const evaluateNode = (node) => {
+      const accordion = node.querySelector(":scope > .structure-accordion");
+      const collapseElement = accordion?.querySelector(":scope > [data-structure-collapse]");
+      const childList = collapseElement?.querySelector(":scope > .structure-children");
+      const unitGrid = collapseElement?.querySelector(":scope > [data-structure-unit-grid]");
+      const childNodes = childList
+        ? Array.from(childList.querySelectorAll(":scope > [data-structure-node]"))
+        : [];
+      const unitCards = unitGrid
+        ? Array.from(unitGrid.querySelectorAll(":scope > [data-unit-card]"))
+        : [];
+      const ownName = (node.dataset.structureSearch || "").trim();
+      const structureTypeMatch = !structureType || node.dataset.structureType === structureType;
+      const structureSearchMatch = !searchTerm || ownName.includes(searchTerm);
+
+      let visibleUnitCount = 0;
+      unitCards.forEach((card) => {
+        const unitSearch = card.dataset.unitSearch || "";
+        const statusMatch = !unitStatus || card.dataset.unitActive === unitStatus;
+        const occupancyMatch = !occupancy || card.dataset.unitOccupancy === occupancy;
+        const searchMatch = !searchTerm || unitSearch.includes(searchTerm);
+        const matches = statusMatch && occupancyMatch && searchMatch;
+        card.style.display = matches ? "" : "none";
+        if (matches) {
+          visibleUnitCount += 1;
+        }
+      });
+
+      let visibleChildCount = 0;
+      childNodes.forEach((childNode) => {
+        const childVisible = evaluateNode(childNode);
+        childNode.style.display = childVisible ? "" : "none";
+        if (childVisible) {
+          visibleChildCount += 1;
+        }
+      });
+
+      const shouldShow =
+        (structureTypeMatch && structureSearchMatch) ||
+        visibleUnitCount > 0 ||
+        visibleChildCount > 0;
+
+      if (collapseElement) {
+        const collapseInstance = window.bootstrap.Collapse.getOrCreateInstance(collapseElement, {
+          toggle: false,
+        });
+        if (shouldShow && (searchTerm || unitStatus || occupancy || structureType)) {
+          collapseInstance.show();
+        }
+      }
+
+      return shouldShow;
+    };
+
+    let visibleStructures = 0;
+    let visibleUnits = 0;
+
+    structureNodes
+      .filter((node) => !node.parentElement.closest("[data-structure-node]"))
+      .forEach((node) => {
+        const visible = evaluateNode(node);
+        node.style.display = visible ? "" : "none";
+      });
+
+    structureNodes.forEach((node) => {
+      if (node.style.display !== "none") {
+        visibleStructures += 1;
+      }
+    });
+
+    document.querySelectorAll("[data-unit-card]").forEach((card) => {
+      if (card.style.display !== "none") {
+        visibleUnits += 1;
+      }
+    });
+
+    if (summary) {
+      if (!searchTerm && !structureType && !unitStatus && !occupancy) {
+        summary.textContent = "Showing full structure hierarchy.";
+      } else {
+        summary.textContent = `Showing ${visibleStructures} matching structures and ${visibleUnits} matching units.`;
+      }
+    }
+  };
+
+  [searchField, structureTypeField, unitStatusField, occupancyField].forEach((field) => {
+    field.addEventListener("input", applyFilters);
+    field.addEventListener("change", applyFilters);
+  });
+
+  if (resetButton) {
+    resetButton.addEventListener("click", () => {
+      searchField.value = "";
+      structureTypeField.value = "";
+      unitStatusField.value = "";
+      occupancyField.value = "";
+      applyFilters();
+    });
+  }
+
+  applyFilters();
+};
+
 window.addEventListener("DOMContentLoaded", () => {
   initLayoutToggles();
   initVoucherDetailModal();
   initAutoReloadSocietyForms();
   initAutoReloadUnitForms();
+  initStructureHierarchyFilters();
 });

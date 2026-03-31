@@ -111,7 +111,7 @@
                     </div>
                   </li>
 
-                  <li class="nav-item {% if current_namespace == 'housing' and current_url_name == 'structure-unit-dashboard' or current_namespace == 'housing' and current_url_name == 'structure-add' or current_namespace == 'housing' and current_url_name == 'unit-add' or current_namespace == 'housing' and current_url_name == 'ownership-add' or current_namespace == 'housing' and current_url_name == 'occupancy-add' %}active{% endif %}">
+                  <li class="nav-item {% if current_namespace == 'housing' and current_url_name == 'structure-unit-dashboard' or current_namespace == 'housing' and current_url_name == 'structure-add' or current_namespace == 'housing' and current_url_name == 'unit-add' or current_namespace == 'housing' and current_url_name == 'unit-bulk-add' or current_namespace == 'housing' and current_url_name == 'ownership-add' or current_namespace == 'housing' and current_url_name == 'occupancy-add' %}active{% endif %}">
                     <a class="submenu-link"
                        data-toggle="collapse"
                        data-submenu-target="structureMenu"
@@ -131,6 +131,9 @@
                         </li>
                         <li class="{% if current_namespace == 'housing' and current_url_name == 'unit-add' %}active{% endif %}">
                           <a href="{% url 'housing:unit-add' %}"><span class="sub-item">{% translate "Add Unit" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'housing' and current_url_name == 'unit-bulk-add' %}active{% endif %}">
+                          <a href="{% url 'housing:unit-bulk-add' %}"><span class="sub-item">{% translate "Bulk Add Units" %}</span></a>
                         </li>
                         <li class="{% if current_namespace == 'housing' and current_url_name == 'ownership-add' %}active{% endif %}">
                           <a href="{% url 'housing:ownership-add' %}"><span class="sub-item">{% translate "Add Ownership" %}</span></a>

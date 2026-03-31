@@ -1,95 +1,138 @@
 {% load i18n %}
-<li class="structure-node">
-  <div class="d-flex flex-wrap justify-content-between gap-2 align-items-start">
-    <div>
-      <strong>{{ structure.name }}</strong>
-      <span class="text-muted">({{ structure.get_structure_type_display }})</span>
-      <div class="small text-muted">
-        {% translate "Units:" %} {{ structure.tree_units|length }}
-      </div>
-    </div>
-    <a href="{% url 'housing:unit-add' %}?society={{ society.pk }}&structure={{ structure.pk }}"
-       class="btn btn-sm btn-outline-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Unit" %}</a>
-  </div>
-
-  {% if structure.tree_units %}
-    <ul class="list-group list-group-flush mt-2 ms-3">
-      {% for unit in structure.tree_units %}
-        <li class="list-group-item px-0 d-flex justify-content-between align-items-start">
-          <div>
-            <strong>{{ unit.identifier }}</strong>
-            <span class="text-muted">({{ unit.get_unit_type_display }})</span>
-            {% if unit.area_sqft %}
-              <div class="small text-muted">{{ unit.area_sqft }} sq ft</div>
+<li class="structure-node"
+    data-structure-node
+    data-structure-name="{{ structure.name|lower }}"
+    data-structure-type="{{ structure.structure_type }}"
+    data-structure-search="{{ structure.name|lower }} {{ structure.get_structure_type_display|lower }}">
+  <div class="structure-accordion">
+    <div class="d-flex flex-wrap justify-content-between gap-2 align-items-start">
+      <button class="btn structure-toggle"
+              type="button"
+              data-bs-toggle="collapse"
+              data-bs-target="#structure-body-{{ structure.pk }}"
+              aria-expanded="true"
+              aria-controls="structure-body-{{ structure.pk }}">
+        <span class="structure-toggle-icon"><i class="fas fa-chevron-down"></i></span>
+        <span class="structure-toggle-copy">
+          <strong>{{ structure.name }}</strong>
+          <span class="text-muted">({{ structure.get_structure_type_display }})</span>
+          <span class="small text-muted d-block structure-toggle-meta">
+            {% translate "Units:" %} {{ structure.total_unit_count }}
+            {% if structure.child_structure_count %}
+              • {% translate "Children:" %} {{ structure.child_structure_count }}
             {% endif %}
-            <div class="small mt-1">
-              <strong>{% translate "Current owner:" %}</strong>
-              {% if unit.current_owner_name %}
-                {{ unit.current_owner_name }}
-              {% else %}
-                <span class="text-muted">{% translate "Not assigned" %}</span>
-              {% endif %}
-            </div>
-            <div class="small">
-              <strong>{% translate "Currently occupied by:" %}</strong>
-              {% if unit.current_occupancy_record %}
-                {% if unit.current_occupant_name %}
-                  {{ unit.current_occupant_name }}
-                {% else %}
-                  <span class="text-muted">{% translate "N/A" %}</span>
-                {% endif %}
-                <span class="text-muted">
-                  ({{ unit.current_occupancy_record.get_occupancy_type_display }})
-                </span>
-              {% else %}
-                <span class="text-muted">{% translate "No active occupancy" %}</span>
-              {% endif %}
-            </div>
-            <div class="small">
-              <strong>{% translate "Active owner members:" %}</strong>
-              {% if unit.active_owner_members %}
-                {% for member in unit.active_owner_members %}
-                  <a href="{% url 'members:member-detail' member.pk %}" class="text-decoration-none">
-                    {{ member.full_name }}
-                  </a>{% if not forloop.last %}, {% endif %}
-                {% endfor %}
-              {% else %}
-                <span class="text-muted">{% translate "None" %}</span>
-              {% endif %}
-            </div>
-            <div class="small">
-              <strong>{% translate "Active tenant members:" %}</strong>
-              {% if unit.active_tenant_members %}
-                {% for member in unit.active_tenant_members %}
-                  <a href="{% url 'members:member-detail' member.pk %}" class="text-decoration-none">
-                    {{ member.full_name }}
-                  </a>{% if not forloop.last %}, {% endif %}
-                {% endfor %}
-              {% else %}
-                <span class="text-muted">{% translate "None" %}</span>
-              {% endif %}
-            </div>
-            <div class="small">
-              <a href="{% url 'housing:member-add' %}?society={{ society.pk }}" class="text-decoration-none">
-                {% translate "Add Member" %}
-              </a>
-            </div>
-          </div>
-          {% if unit.is_active %}
-            <span class="badge text-bg-success">{% translate "Active" %}</span>
-          {% else %}
-            <span class="badge text-bg-secondary">{% translate "Inactive" %}</span>
-          {% endif %}
-        </li>
-      {% endfor %}
-    </ul>
-  {% endif %}
+          </span>
+          <span class="structure-toggle-badges">
+            <span class="badge text-bg-success">
+              {% translate "Active" %}: {{ structure.active_unit_count }}
+            </span>
+            <span class="badge text-bg-secondary">
+              {% translate "Inactive" %}: {{ structure.inactive_unit_count }}
+            </span>
+            <span class="badge text-bg-primary">
+              {% translate "Occupied" %}: {{ structure.occupied_unit_count }}
+            </span>
+            <span class="badge text-bg-light">
+              {% translate "Vacant" %}: {{ structure.vacant_unit_count }}
+            </span>
+          </span>
+        </span>
+      </button>
+      <a href="{% url 'housing:unit-add' %}?society={{ society.pk }}&structure={{ structure.pk }}"
+         class="btn btn-sm btn-outline-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Unit" %}</a>
+    </div>
 
-  {% if structure.tree_children %}
-    <ul class="structure-children">
-      {% for structure in structure.tree_children %}
-        {% include "housing/partials/structure_tree.html" with structure=structure society=society %}
-      {% endfor %}
-    </ul>
-  {% endif %}
+    <div id="structure-body-{{ structure.pk }}"
+         class="collapse show structure-collapse-body"
+         data-structure-collapse>
+      {% if structure.tree_units %}
+        <ul class="structure-unit-grid mt-2 ms-3" data-structure-unit-grid>
+          {% for unit in structure.tree_units %}
+            <li class="structure-unit-card"
+                data-unit-card
+                data-unit-identifier="{{ unit.identifier|lower }}"
+                data-unit-type="{{ unit.unit_type }}"
+                data-unit-active="{% if unit.is_active %}active{% else %}inactive{% endif %}"
+                data-unit-occupancy="{% if unit.current_occupancy_record and unit.current_occupancy_record.occupancy_type != 'VACANT' %}occupied{% else %}vacant{% endif %}"
+                data-unit-search="{{ unit.identifier|lower }} {{ unit.get_unit_type_display|lower }} {{ unit.primary_owner_name|lower }} {{ unit.current_occupant_name|lower }}">
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <div>
+                  <strong>{{ unit.identifier }}</strong>
+                  <span class="text-muted">({{ unit.get_unit_type_display }})</span>
+                  {% if unit.area_sqft %}
+                    <div class="small text-muted">{{ unit.area_sqft }} sq ft</div>
+                  {% endif %}
+                </div>
+                {% if unit.is_active %}
+                  <span class="badge text-bg-success">{% translate "Active" %}</span>
+                {% else %}
+                  <span class="badge text-bg-secondary">{% translate "Inactive" %}</span>
+                {% endif %}
+              </div>
+              <div class="small mt-2">
+                <strong>{% translate "Primary owner:" %}</strong>
+                {% if unit.primary_owner_name %}
+                  {{ unit.primary_owner_name }}
+                {% else %}
+                  <span class="text-muted">{% translate "Not assigned" %}</span>
+                {% endif %}
+              </div>
+              <div class="small">
+                <strong>{% translate "Currently occupied by:" %}</strong>
+                {% if unit.current_occupancy_record %}
+                  {% if unit.current_occupant_name %}
+                    {{ unit.current_occupant_name }}
+                  {% else %}
+                    <span class="text-muted">{% translate "N/A" %}</span>
+                  {% endif %}
+                  <span class="text-muted">
+                    ({{ unit.current_occupancy_record.get_occupancy_type_display }})
+                  </span>
+                {% else %}
+                  <span class="text-muted">{% translate "No active occupancy" %}</span>
+                {% endif %}
+              </div>
+              <div class="small">
+                <strong>{% translate "Active owner members:" %}</strong>
+                {% if unit.active_owner_members %}
+                  {% for member in unit.active_owner_members %}
+                    <a href="{% url 'members:member-detail' member.pk %}" class="text-decoration-none">
+                      {{ member.full_name }}
+                    </a>{% if not forloop.last %}, {% endif %}
+                  {% endfor %}
+                {% else %}
+                  <span class="text-muted">{% translate "None" %}</span>
+                {% endif %}
+              </div>
+              <div class="small">
+                <strong>{% translate "Active tenant members:" %}</strong>
+                {% if unit.active_tenant_members %}
+                  {% for member in unit.active_tenant_members %}
+                    <a href="{% url 'members:member-detail' member.pk %}" class="text-decoration-none">
+                      {{ member.full_name }}
+                    </a>{% if not forloop.last %}, {% endif %}
+                  {% endfor %}
+                {% else %}
+                  <span class="text-muted">{% translate "None" %}</span>
+                {% endif %}
+              </div>
+              <div class="small mt-1">
+                <a href="{% url 'housing:member-add' %}?society={{ society.pk }}" class="text-decoration-none">
+                  {% translate "Add Member" %}
+                </a>
+              </div>
+            </li>
+          {% endfor %}
+        </ul>
+      {% endif %}
+
+      {% if structure.tree_children %}
+        <ul class="structure-children">
+          {% for structure in structure.tree_children %}
+            {% include "housing/partials/structure_tree.html" with structure=structure society=society %}
+          {% endfor %}
+        </ul>
+      {% endif %}
+    </div>
+  </div>
 </li>

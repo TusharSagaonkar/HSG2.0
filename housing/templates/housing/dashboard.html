@@ -15,19 +15,42 @@
 
 {% block content %}
   <div class="page-actions">
-    <a href="{% url 'housing:society-add' %}" class="btn btn-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Society" %}</a>
-    <a href="{% url 'housing:society-list' %}" class="btn btn-outline-primary"><i class="fas fa-building me-1"></i>{% translate "Societies" %}</a>
-    <a href="{% url 'housing:structure-add' %}" class="btn btn-outline-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Structure" %}</a>
-    <a href="{% url 'housing:unit-add' %}" class="btn btn-outline-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Unit" %}</a>
-    <a href="{% url 'housing:ownership-add' %}" class="btn btn-outline-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Ownership" %}</a>
-    <a href="{% url 'housing:occupancy-add' %}" class="btn btn-outline-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Occupancy" %}</a>
-    <a href="{% url 'housing:member-list' %}" class="btn btn-outline-primary"><i class="fas fa-users me-1"></i>{% translate "Members" %}</a>
-    <a href="{% url 'billing:charge-template-list' %}" class="btn btn-outline-primary"><i class="fas fa-list-alt me-1"></i>{% translate "Charge Templates" %}</a>
-    <a href="{% url 'housing:charge-template-add' %}" class="btn btn-outline-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Charge Template" %}</a>
-    <a href="{% url 'billing:bill-list' %}" class="btn btn-outline-primary"><i class="fas fa-file-invoice me-1"></i>{% translate "Bills" %}</a>
-    <a href="{% url 'housing:billing-generate' %}" class="btn btn-outline-primary"><i class="fas fa-cogs me-1"></i>{% translate "Generate Bills" %}</a>
-    <a href="{% url 'receipts:receipt-list' %}" class="btn btn-outline-primary"><i class="fas fa-receipt me-1"></i>{% translate "Receipts" %}</a>
-    <a href="{% url 'housing:receipt-post' %}" class="btn btn-outline-primary"><i class="fas fa-money-check-alt me-1"></i>{% translate "Post Receipt" %}</a>
+    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Society actions' %}">
+      <a href="{% url 'housing:society-list' %}" class="btn btn-main"><i class="fas fa-building me-1"></i>{% translate "Societies" %}</a>
+      <a href="{% url 'housing:society-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Society' %}">+</a>
+    </div>
+    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Structure actions' %}">
+      <a href="{% url 'housing:structure-unit-dashboard' %}" class="btn btn-main"><i class="fas fa-sitemap me-1"></i>{% translate "Structure & Units" %}</a>
+      <a href="{% url 'housing:structure-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Structure' %}">+</a>
+    </div>
+    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Unit actions' %}">
+      <a href="{% url 'housing:structure-unit-dashboard' %}" class="btn btn-main"><i class="fas fa-door-open me-1"></i>{% translate "Units" %}</a>
+      <a href="{% url 'housing:unit-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Unit' %}">+</a>
+    </div>
+    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Ownership actions' %}">
+      <a href="{% url 'housing:structure-unit-dashboard' %}" class="btn btn-main"><i class="fas fa-user-tag me-1"></i>{% translate "Ownership" %}</a>
+      <a href="{% url 'housing:ownership-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Ownership' %}">+</a>
+    </div>
+    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Occupancy actions' %}">
+      <a href="{% url 'housing:structure-unit-dashboard' %}" class="btn btn-main"><i class="fas fa-home me-1"></i>{% translate "Occupancy" %}</a>
+      <a href="{% url 'housing:occupancy-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Occupancy' %}">+</a>
+    </div>
+    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Member actions' %}">
+      <a href="{% url 'housing:member-list' %}" class="btn btn-main"><i class="fas fa-users me-1"></i>{% translate "Members" %}</a>
+      <a href="{% url 'housing:member-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Member' %}">+</a>
+    </div>
+    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Charge template actions' %}">
+      <a href="{% url 'billing:charge-template-list' %}" class="btn btn-main"><i class="fas fa-list-alt me-1"></i>{% translate "Charge Templates" %}</a>
+      <a href="{% url 'housing:charge-template-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Charge Template' %}">+</a>
+    </div>
+    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Bill actions' %}">
+      <a href="{% url 'billing:bill-list' %}" class="btn btn-main"><i class="fas fa-file-invoice me-1"></i>{% translate "Bills" %}</a>
+      <a href="{% url 'housing:billing-generate' %}" class="btn btn-plus" aria-label="{% translate 'Generate Bills' %}">+</a>
+    </div>
+    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Receipt actions' %}">
+      <a href="{% url 'receipts:receipt-list' %}" class="btn btn-main"><i class="fas fa-receipt me-1"></i>{% translate "Receipts" %}</a>
+      <a href="{% url 'housing:receipt-post' %}" class="btn btn-plus" aria-label="{% translate 'Post Receipt' %}">+</a>
+    </div>
     <a href="{% url 'notifications:reminder-list' %}" class="btn btn-outline-primary"><i class="fas fa-bell me-1"></i>{% translate "Reminders" %}</a>
     <a href="{% url 'housing:outstanding-dashboard' %}" class="btn btn-outline-primary"><i class="fas fa-exclamation-circle me-1"></i>{% translate "Outstanding" %}</a>
   </div>

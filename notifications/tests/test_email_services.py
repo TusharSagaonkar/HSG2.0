@@ -177,3 +177,24 @@ def test_process_email_queue_retries_when_no_global_config():
     assert queue_item.status == EmailQueue.Status.RETRY
     assert queue_item.retry_count == 1
     assert "No active global email settings found." in queue_item.error_message
+
+
+@pytest.mark.django_db
+def test_resolve_email_config_falls_back_to_django_settings(settings):
+    settings.EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
+    settings.EMAIL_HOST = "smtp.render.test"
+    settings.EMAIL_PORT = 587
+    settings.EMAIL_HOST_USER = "render-user"
+    settings.EMAIL_HOST_PASSWORD = "render-secret"
+    settings.EMAIL_USE_TLS = True
+    settings.EMAIL_USE_SSL = False
+    settings.DEFAULT_FROM_EMAIL = "Housing Accounting <noreply@example.com>"
+    settings.SERVER_EMAIL = "support@example.com"
+
+    config = resolve_email_config(email_type=EmailQueue.EmailType.AUTHENTICATION)
+
+    assert config.source == "django_settings"
+    assert config.smtp_host == "smtp.render.test"
+    assert config.smtp_username == "render-user"
+    assert config.from_email == "Housing Accounting <noreply@example.com>"
+    assert config.reply_to_email == "support@example.com"

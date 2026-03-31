@@ -25,7 +25,19 @@ services:
       - key: DJANGO_ADMIN_URL
         value: "admin/"
       - key: DJANGO_DEFAULT_FROM_EMAIL
-        value: "noreply@localhost"
+        value: "Housing Accounting <noreply@localhost>"
+      - key: DJANGO_EMAIL_HOST
+        sync: false
+      - key: DJANGO_EMAIL_PORT
+        value: "587"
+      - key: DJANGO_EMAIL_HOST_USER
+        sync: false
+      - key: DJANGO_EMAIL_HOST_PASSWORD
+        sync: false
+      - key: DJANGO_EMAIL_USE_TLS
+        value: "true"
+      - key: DJANGO_EMAIL_USE_SSL
+        value: "false"
       - key: WEB_CONCURRENCY
         value: "2"
       - key: DJANGO_SECRET_KEY

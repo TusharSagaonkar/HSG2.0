@@ -17,6 +17,9 @@ def _update_or_create_site_with_sequence(site_model, connection, domain, name):
         },
     )
     if created:
+        if connection.vendor != "postgresql":
+            return
+
         # We provided the ID explicitly when creating the Site entry, therefore the DB
         # sequence to auto-generate them wasn't used and is now out of sync. If we
         # don't do anything, we'll get a unique constraint violation the next time a

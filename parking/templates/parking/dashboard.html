@@ -5,43 +5,6 @@
   {% translate "Parking Dashboard" %} | Housing Accounting System
 {% endblock title %}
 
-{% block css %}
-  {{ block.super }}
-  <style>
-    .parking-action-group .btn {
-      font-weight: 600;
-    }
-    .parking-action-group .btn-main {
-      background: #ffffff;
-      color: var(--bs-primary);
-      border-color: var(--bs-primary);
-    }
-    .parking-action-group .btn-main:hover,
-    .parking-action-group .btn-main:focus {
-      background: #ffffff;
-      color: var(--bs-primary);
-      border-color: var(--bs-primary);
-    }
-    .parking-action-group .btn-plus {
-      background: var(--bs-primary);
-      color: #ffffff;
-      border-color: var(--bs-primary);
-      min-width: 34px;
-      padding-left: 10px;
-      padding-right: 10px;
-      font-size: 1.2rem;
-      font-weight: 800;
-      line-height: 1;
-    }
-    .parking-action-group .btn-plus:hover,
-    .parking-action-group .btn-plus:focus {
-      background: var(--bs-primary);
-      color: #ffffff;
-      border-color: var(--bs-primary);
-    }
-  </style>
-{% endblock css %}
-
 {% block dashboard_title %}
   {% translate "Parking Dashboard" %}
 {% endblock dashboard_title %}
@@ -52,21 +15,21 @@
 
 {% block content %}
   <div class="page-actions">
-    <div class="btn-group parking-action-group" role="group" aria-label="{% translate 'Slots actions' %}">
+    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Slots actions' %}">
       <a href="{% url 'parking:slot-list' %}" class="btn btn-main"><i class="fas fa-parking me-1"></i>{% translate "Slots" %}</a>
       <a href="{% url 'parking:slot-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Slot' %}">+</a>
     </div>
     <a href="{% url 'parking:flat-dashboard-list' %}" class="btn btn-outline-primary"><i class="fas fa-building me-1"></i>{% translate "Flat Dashboard" %}</a>
-    <div class="btn-group parking-action-group" role="group" aria-label="{% translate 'Vehicles actions' %}">
+    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Vehicles actions' %}">
       <a href="{% url 'parking:vehicle-list' %}" class="btn btn-main"><i class="fas fa-car me-1"></i>{% translate "Vehicles" %}</a>
       <a href="{% url 'parking:vehicle-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Vehicle' %}">+</a>
     </div>
     <a href="{% url 'parking:permit-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Permits" %}</a>
-    <div class="btn-group parking-action-group" role="group" aria-label="{% translate 'Open parking limits actions' %}">
+    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Open parking limits actions' %}">
       <a href="{% url 'parking:limit-list' %}" class="btn btn-main"><i class="fas fa-sliders-h me-1"></i>{% translate "Open Parking Limits" %}</a>
       <a href="{% url 'parking:limit-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Open Parking Limit' %}">+</a>
     </div>
-    <div class="btn-group parking-action-group" role="group" aria-label="{% translate 'Rotation policy actions' %}">
+    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Rotation policy actions' %}">
       <a href="{% url 'parking:rotation-policy-list' %}" class="btn btn-main"><i class="fas fa-random me-1"></i>{% translate "Rotation Policies" %}</a>
       <a href="{% url 'parking:rotation-policy-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Rotation Policy' %}">+</a>
     </div>

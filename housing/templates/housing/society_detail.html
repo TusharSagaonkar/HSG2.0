@@ -20,10 +20,22 @@
 {% block content %}
   <div class="page-actions">
     <a href="{% url 'housing:society-list' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to societies" %}</a>
-    <a href="{% url 'housing:structure-add' %}?society={{ society.pk }}" class="btn btn-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Structure" %}</a>
-    <a href="{% url 'housing:unit-add' %}?society={{ society.pk }}" class="btn btn-outline-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Unit" %}</a>
-    <a href="{% url 'housing:ownership-add' %}?society={{ society.pk }}" class="btn btn-outline-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Ownership" %}</a>
-    <a href="{% url 'housing:occupancy-add' %}?society={{ society.pk }}" class="btn btn-outline-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Occupancy" %}</a>
+    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Structure actions' %}">
+      <a href="#structure-hierarchy" class="btn btn-main"><i class="fas fa-sitemap me-1"></i>{% translate "Structure" %}</a>
+      <a href="{% url 'housing:structure-add' %}?society={{ society.pk }}" class="btn btn-plus" aria-label="{% translate 'Add Structure' %}">+</a>
+    </div>
+    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Unit actions' %}">
+      <a href="#structure-hierarchy" class="btn btn-main"><i class="fas fa-door-open me-1"></i>{% translate "Units" %}</a>
+      <a href="{% url 'housing:unit-add' %}?society={{ society.pk }}" class="btn btn-plus" aria-label="{% translate 'Add Unit' %}">+</a>
+    </div>
+    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Ownership actions' %}">
+      <a href="#structure-hierarchy" class="btn btn-main"><i class="fas fa-user-tag me-1"></i>{% translate "Ownership" %}</a>
+      <a href="{% url 'housing:ownership-add' %}?society={{ society.pk }}" class="btn btn-plus" aria-label="{% translate 'Add Ownership' %}">+</a>
+    </div>
+    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Occupancy actions' %}">
+      <a href="#structure-hierarchy" class="btn btn-main"><i class="fas fa-home me-1"></i>{% translate "Occupancy" %}</a>
+      <a href="{% url 'housing:occupancy-add' %}?society={{ society.pk }}" class="btn btn-plus" aria-label="{% translate 'Add Occupancy' %}">+</a>
+    </div>
     <a href="{% url 'housing:member-list' %}" class="btn btn-outline-primary"><i class="fas fa-users me-1"></i>{% translate "Members" %}</a>
     <a href="{% url 'housing:society-email-settings' society.pk %}" class="btn btn-outline-primary"><i class="fas fa-envelope me-1"></i>{% translate "Email Settings" %}</a>
     <a href="{% url 'billing:charge-template-list' %}" class="btn btn-outline-primary"><i class="fas fa-list-alt me-1"></i>{% translate "Charge Templates" %}</a>
@@ -52,9 +64,56 @@
     </div>
   </div>
 
-  <div class="quick-card">
+  <div class="quick-card" id="structure-hierarchy">
     <h3 class="h6 mb-2">{% translate "Structure Hierarchy with Units" %}</h3>
     <p class="small text-muted">{% translate "Each unit is shown under the exact structure it belongs to." %}</p>
+    {% if root_structures %}
+      <div class="structure-filter-bar" data-structure-filters>
+        <div class="structure-filter-item structure-filter-search">
+          <label class="form-label" for="structure-search">{% translate "Search" %}</label>
+          <input id="structure-search"
+                 type="search"
+                 class="form-control"
+                 placeholder="{% translate 'Search structure, unit, owner, occupant' %}"
+                 data-structure-search />
+        </div>
+        <div class="structure-filter-item">
+          <label class="form-label" for="structure-type-filter">{% translate "Structure" %}</label>
+          <select id="structure-type-filter" class="form-select" data-structure-type-filter>
+            <option value="">{% translate "All" %}</option>
+            <option value="BUILDING">{% translate "Building" %}</option>
+            <option value="WING">{% translate "Wing" %}</option>
+            <option value="BLOCK">{% translate "Block" %}</option>
+            <option value="TOWER">{% translate "Tower" %}</option>
+            <option value="FLOOR">{% translate "Floor" %}</option>
+          </select>
+        </div>
+        <div class="structure-filter-item">
+          <label class="form-label" for="unit-status-filter">{% translate "Unit Status" %}</label>
+          <select id="unit-status-filter" class="form-select" data-unit-status-filter>
+            <option value="">{% translate "All" %}</option>
+            <option value="active">{% translate "Active" %}</option>
+            <option value="inactive">{% translate "Inactive" %}</option>
+          </select>
+        </div>
+        <div class="structure-filter-item">
+          <label class="form-label" for="occupancy-filter">{% translate "Occupancy" %}</label>
+          <select id="occupancy-filter" class="form-select" data-occupancy-filter>
+            <option value="">{% translate "All" %}</option>
+            <option value="occupied">{% translate "Occupied" %}</option>
+            <option value="vacant">{% translate "Vacant / Empty" %}</option>
+          </select>
+        </div>
+        <div class="structure-filter-actions">
+          <button type="button" class="btn btn-outline-secondary" data-structure-filter-reset>
+            <i class="fas fa-undo me-1"></i>{% translate "Reset" %}
+          </button>
+        </div>
+      </div>
+      <div class="small text-muted mb-3" data-structure-filter-summary>
+        {% translate "Showing full structure hierarchy." %}
+      </div>
+    {% endif %}
     {% if root_structures %}
       <ul class="structure-tree">
         {% for structure in root_structures %}

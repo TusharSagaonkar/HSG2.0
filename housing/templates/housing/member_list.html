@@ -16,7 +16,10 @@
 {% block content %}
   <div class="page-actions">
     <a href="{% url 'housing:dashboard' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}</a>
-    <a href="{% url 'housing:member-add' %}" class="btn btn-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Member" %}</a>
+    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Member actions' %}">
+      <a href="{% url 'housing:member-list' %}" class="btn btn-main"><i class="fas fa-users me-1"></i>{% translate "Members" %}</a>
+      <a href="{% url 'housing:member-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Member' %}">+</a>
+    </div>
     <a href="{% url 'billing:bill-list' %}" class="btn btn-outline-primary"><i class="fas fa-file-invoice me-1"></i>{% translate "Bills" %}</a>
     <a href="{% url 'receipts:receipt-list' %}" class="btn btn-outline-primary"><i class="fas fa-receipt me-1"></i>{% translate "Receipts" %}</a>
   </div>

@@ -15,6 +15,7 @@ from housing.views import society_email_settings_view
 from housing.views import society_list_view
 from housing.views import structure_create_view
 from housing.views import structure_unit_dashboard_view
+from housing.views import bulk_unit_create_view
 from housing.views import unit_create_view
 from housing.views import unit_occupancy_create_view
 from housing.views import unit_ownership_create_view
@@ -38,6 +39,7 @@ urlpatterns = [
     ),
     path("structures/add/", view=structure_create_view, name="structure-add"),
     path("units/add/", view=unit_create_view, name="unit-add"),
+    path("units/bulk-add/", view=bulk_unit_create_view, name="unit-bulk-add"),
     path("ownerships/add/", view=unit_ownership_create_view, name="ownership-add"),
     path("occupancies/add/", view=unit_occupancy_create_view, name="occupancy-add"),
     path("members/", view=member_list_view, name="member-list"),

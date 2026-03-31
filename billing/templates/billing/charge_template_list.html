@@ -16,7 +16,10 @@
 {% block content %}
   <div class="page-actions">
     <a href="{% url 'housing:dashboard' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}</a>
-    <a href="{% url 'housing:charge-template-add' %}" class="btn btn-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Template" %}</a>
+    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Charge template actions' %}">
+      <a href="{% url 'billing:charge-template-list' %}" class="btn btn-main"><i class="fas fa-list-alt me-1"></i>{% translate "Charge Templates" %}</a>
+      <a href="{% url 'housing:charge-template-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Template' %}">+</a>
+    </div>
     <a href="{% url 'billing:bill-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Bills" %}</a>
   </div>
 

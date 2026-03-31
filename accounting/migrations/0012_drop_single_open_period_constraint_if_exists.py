@@ -3,6 +3,16 @@
 from django.db import migrations
 
 
+def drop_single_open_period_constraint(apps, schema_editor):
+    if schema_editor.connection.vendor != "postgresql":
+        return
+
+    schema_editor.execute(
+        "ALTER TABLE accounting_accountingperiod "
+        "DROP CONSTRAINT IF EXISTS uniq_single_open_period_per_year;"
+    )
+
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -10,11 +20,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.RunSQL(
-            sql=(
-                "ALTER TABLE accounting_accountingperiod "
-                "DROP CONSTRAINT IF EXISTS uniq_single_open_period_per_year;"
-            ),
-            reverse_sql=migrations.RunSQL.noop,
+        migrations.RunPython(
+            code=drop_single_open_period_constraint,
+            reverse_code=migrations.RunPython.noop,
         ),
     ]

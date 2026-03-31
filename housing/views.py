@@ -2,6 +2,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Count
 from django.db.models import Q
 from django.urls import reverse
@@ -19,6 +20,7 @@ from django.utils import timezone
 from housing.forms import SocietyForm
 from housing.forms import SocietyEmailSettingsForm
 from housing.forms import StructureForm
+from housing.forms import BulkUnitCreateForm
 from housing.forms import UnitForm
 from housing.forms import UnitOccupancyForm
 from housing.forms import UnitOwnershipForm
@@ -188,11 +190,13 @@ class SocietyDetailView(LoginRequiredMixin, DetailView):
                 end_date__isnull=True,
             )
             .select_related("owner")
-            .order_by("unit_id", "-start_date", "-id")
+            .order_by("unit_id", "role", "-start_date", "-id")
         )
-        current_ownership_by_unit = {}
+        primary_ownership_by_unit = {}
         for ownership in active_ownerships:
-            current_ownership_by_unit.setdefault(ownership.unit_id, ownership)
+            if ownership.role != UnitOwnership.OwnershipRole.PRIMARY:
+                continue
+            primary_ownership_by_unit.setdefault(ownership.unit_id, ownership)
 
         active_occupancies = (
             UnitOccupancy.objects.filter(
@@ -228,11 +232,11 @@ class SocietyDetailView(LoginRequiredMixin, DetailView):
 
         units_map = {}
         for unit in units:
-            ownership = current_ownership_by_unit.get(unit.id)
+            ownership = primary_ownership_by_unit.get(unit.id)
             occupancy = current_occupancy_by_unit.get(unit.id)
-            unit.current_owner_record = ownership
+            unit.primary_owner_record = ownership
             unit.current_occupancy_record = occupancy
-            unit.current_owner_name = self._user_display_name(
+            unit.primary_owner_name = self._user_display_name(
                 ownership.owner if ownership else None,
             )
             unit.current_occupant_name = self._user_display_name(
@@ -245,6 +249,25 @@ class SocietyDetailView(LoginRequiredMixin, DetailView):
         for structure in structures:
             structure.tree_children = children_map.get(structure.id, [])
             structure.tree_units = units_map.get(structure.id, [])
+            structure.total_unit_count = len(structure.tree_units)
+            structure.active_unit_count = sum(
+                1 for unit in structure.tree_units if unit.is_active
+            )
+            structure.inactive_unit_count = (
+                structure.total_unit_count - structure.active_unit_count
+            )
+            structure.occupied_unit_count = sum(
+                1
+                for unit in structure.tree_units
+                if unit.current_occupancy_record
+                and unit.current_occupancy_record.occupancy_type
+                != UnitOccupancy.OccupancyType.VACANT
+            )
+            structure.vacant_unit_count = max(
+                structure.total_unit_count - structure.occupied_unit_count,
+                0,
+            )
+            structure.child_structure_count = len(structure.tree_children)
 
         context["root_structures"] = children_map.get(None, [])
         context["total_units"] = len(units)
@@ -403,6 +426,79 @@ class UnitCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
 
 
 unit_create_view = UnitCreateView.as_view()
+
+
+class BulkUnitCreateView(LoginRequiredMixin, FormView):
+    form_class = BulkUnitCreateForm
+    template_name = "housing/unit_bulk_form.html"
+    success_message = _("Units created successfully.")
+
+    def get_initial(self):
+        initial = super().get_initial()
+        society_id = self.request.GET.get("society")
+        if not society_id:
+            selected_society, _ = get_selected_scope(self.request)
+            if selected_society:
+                society_id = selected_society.pk
+        structure_id = self.request.GET.get("structure")
+        if society_id:
+            initial["society"] = society_id
+        if structure_id:
+            initial["structure"] = structure_id
+        return initial
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["initial"] = self.get_initial()
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["form_title"] = _("Bulk Add Units")
+        context["form_subtitle"] = _(
+            "Design a floor-by-floor grid, edit cells inline, and save everything in one go."
+        )
+        context["cancel_url"] = reverse("housing:structure-unit-dashboard")
+        context["cancel_label"] = _("Back to Structure & Units")
+        context["submit_label"] = _("Save Units")
+        context["submit_icon"] = "fas fa-layer-group"
+        context["unit_type_choices"] = Unit.UnitType.choices
+        return context
+
+    def form_valid(self, form):
+        structure = form.cleaned_data["structure"]
+        grid_units = form.cleaned_data["grid_units"]
+        self.created_structure = structure
+        units = [
+            Unit(
+                structure=structure,
+                identifier=row["identifier"],
+                unit_type=row["unit_type"],
+                area_sqft=row["area_sqft"],
+                chargeable_area_sqft=row["chargeable_area_sqft"],
+                is_active=row["is_active"],
+            )
+            for row in grid_units
+        ]
+
+        with transaction.atomic():
+            Unit.objects.bulk_create(units)
+
+        messages.success(self.request, self.success_message)
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        structure = self.created_structure
+        return reverse("housing:society-detail", kwargs={"pk": structure.society_id})
+
+    def post(self, request, *args, **kwargs):
+        self.form = self.get_form()
+        if self.form.is_valid():
+            return self.form_valid(self.form)
+        return self.form_invalid(self.form)
+
+
+bulk_unit_create_view = BulkUnitCreateView.as_view()
 
 
 class UnitOwnershipCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):

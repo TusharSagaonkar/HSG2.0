@@ -57,12 +57,17 @@ LOCALE_PATHS = [str(BASE_DIR / "locale")]
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 
+db_config = dj_database_url.config(
+    default=os.getenv("DATABASE_URL", "sqlite:///db.sqlite3"),
+    conn_max_age=600,
+)
+
+if db_config["ENGINE"] == "django.db.backends.postgresql":
+    db_config.setdefault("OPTIONS", {})
+    db_config["OPTIONS"]["sslmode"] = "require"
+
 DATABASES = {
-    "default": dj_database_url.config(
-        default=os.getenv("DATABASE_URL", "sqlite:///db.sqlite3"),
-        conn_max_age=600,
-        ssl_require=True,
-    ),
+    "default": db_config,
     "analytics": (
         dj_database_url.parse(os.getenv("ANALYTICS_DB_URL"))
         if os.getenv("ANALYTICS_DB_URL")
@@ -263,6 +268,12 @@ EMAIL_BACKEND = env(
     "DJANGO_EMAIL_BACKEND",
     default="django.core.mail.backends.smtp.EmailBackend",
 )
+EMAIL_HOST = env("DJANGO_EMAIL_HOST", default="")
+EMAIL_PORT = env.int("DJANGO_EMAIL_PORT", default=587)
+EMAIL_HOST_USER = env("DJANGO_EMAIL_HOST_USER", default="")
+EMAIL_HOST_PASSWORD = env("DJANGO_EMAIL_HOST_PASSWORD", default="")
+EMAIL_USE_TLS = env.bool("DJANGO_EMAIL_USE_TLS", default=True)
+EMAIL_USE_SSL = env.bool("DJANGO_EMAIL_USE_SSL", default=False)
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-timeout
 EMAIL_TIMEOUT = 5
 EMAIL_QUEUE_DELIVERY_BACKEND = env(
