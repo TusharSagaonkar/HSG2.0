@@ -24,6 +24,7 @@ from parking.views import parking_vehicle_limit_list_view
 from parking.views import vehicle_create_view
 from parking.views import vehicle_list_view
 from parking.views import vehicle_members_by_unit_view
+from parking.views import vehicle_units_by_structure_view
 from parking.views import vehicle_qr_code_view
 from parking.views import vehicle_sticker_view
 from parking.views import verify_parking_permit
@@ -68,6 +69,11 @@ urlpatterns = [
         "permits/<int:pk>/sticker/",
         view=parking_permit_sticker_view,
         name="permit-sticker",
+    ),
+    path(
+        "vehicles/units/",
+        view=vehicle_units_by_structure_view,
+        name="vehicle-units",
     ),
     path(
         "vehicles/members/",

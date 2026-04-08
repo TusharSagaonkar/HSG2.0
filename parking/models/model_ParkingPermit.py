@@ -96,8 +96,18 @@ class ParkingPermit(models.Model):
         base_url = getattr(settings, "BASE_URL", "").rstrip("/")
         return f"{base_url}/parking/verify/{self.qr_token}/"
 
-    def generate_qr_image(self):
-        return generate_permit_verification_qr(self)
+    def generate_qr_image(self, request=None):
+        """
+        Generate QR code image for parking permit verification.
+        
+        Args:
+            request: Optional Django request object to build absolute URL 
+                    based on the current host. If not provided, uses BASE_URL setting.
+        
+        Returns:
+            ContentFile with PNG image data
+        """
+        return generate_permit_verification_qr(self, request=request)
 
     def save(self, *args, **kwargs):
         self.full_clean()

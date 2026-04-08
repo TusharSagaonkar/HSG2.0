@@ -20,6 +20,15 @@
     <a href="{% url 'accounting:voucher-posting' %}" class="btn btn-outline-success"><i class="fas fa-check-circle me-1"></i>{% translate "Voucher Posting" %}</a>
   </div>
 
+  {% if scope_fallback_active %}
+    <div class="alert alert-info py-2">
+      {% translate "No vouchers were found in the selected financial year, so vouchers for the selected society are shown instead." %}
+      {% if selected_financial_year %}
+        <strong>{{ selected_financial_year.name }}</strong>
+      {% endif %}
+    </div>
+  {% endif %}
+
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
       <thead>
@@ -37,7 +46,7 @@
           <tr>
             <td>
               <a
-                href="#"
+                href="{% url 'accounting:voucher-detail' voucher.pk %}"
                 class="text-decoration-none fw-semibold"
                 data-voucher-detail-url="{% url 'accounting:voucher-detail' voucher.pk %}"
                 data-voucher-label="{{ voucher.display_number }}"

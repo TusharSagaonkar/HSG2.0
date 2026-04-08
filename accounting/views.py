@@ -299,7 +299,7 @@ class VoucherListView(LoginRequiredMixin, ListView):
 
     def get_queryset(self):
         selected_society, selected_financial_year = get_selected_scope(self.request)
-        queryset = (
+        base_queryset = (
             Voucher.objects.select_related("society", "reversal_of")
             .annotate(
                 has_reversal=Exists(
@@ -308,14 +308,30 @@ class VoucherListView(LoginRequiredMixin, ListView):
             )
             .order_by("-voucher_date", "-id")
         )
+        self.scope_fallback_active = False
+
+        queryset = base_queryset
         if selected_society:
             queryset = queryset.filter(society=selected_society)
+
         if selected_financial_year:
-            queryset = queryset.filter(
+            scoped_queryset = queryset.filter(
                 voucher_date__gte=selected_financial_year.start_date,
                 voucher_date__lte=selected_financial_year.end_date,
             )
+            if selected_society and not scoped_queryset.exists() and queryset.exists():
+                self.scope_fallback_active = True
+                return queryset
+            queryset = scoped_queryset
         return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        selected_society, selected_financial_year = get_selected_scope(self.request)
+        context["scope_fallback_active"] = getattr(self, "scope_fallback_active", False)
+        context["selected_society"] = selected_society
+        context["selected_financial_year"] = selected_financial_year
+        return context
 
 
 voucher_list_view = VoucherListView.as_view()
@@ -569,17 +585,20 @@ class VoucherDetailView(LoginRequiredMixin, View):
         total_debit = sum((entry.debit for entry in entries), start=Decimal("0.00"))
         total_credit = sum((entry.credit for entry in entries), start=Decimal("0.00"))
 
-        return render(
-            request,
-            "accounting/partials/voucher_detail_body.html",
-            {
-                "voucher": voucher,
-                "entries": entries,
-                "total_debit": total_debit,
-                "total_credit": total_credit,
-                "reversal_voucher": reversal_voucher,
-            },
+        context = {
+            "voucher": voucher,
+            "entries": entries,
+            "total_debit": total_debit,
+            "total_credit": total_credit,
+            "reversal_voucher": reversal_voucher,
+        }
+        is_ajax = request.headers.get("X-Requested-With") == "XMLHttpRequest"
+        template_name = (
+            "accounting/partials/voucher_detail_body.html"
+            if is_ajax
+            else "accounting/voucher_detail.html"
         )
+        return render(request, template_name, context)
 
 
 voucher_detail_view = VoucherDetailView.as_view()

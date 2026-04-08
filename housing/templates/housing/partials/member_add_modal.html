@@ -1,0 +1,261 @@
+{% load i18n %}
+
+<!-- Member Add Modal -->
+<div class="modal fade" id="memberAddModal" tabindex="-1" aria-labelledby="memberAddModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h1 class="modal-title fs-5" id="memberAddModalLabel">
+          {% translate "Add Member" %}
+        </h1>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% translate 'Close' %}"></button>
+      </div>
+      <form id="memberAddForm" method="post" action="{% url 'housing:member-add' %}">
+        {% csrf_token %}
+        <div class="modal-body">
+          <div id="memberFormErrors" class="alert alert-danger d-none" role="alert">
+            <!-- Error messages will be displayed here -->
+          </div>
+
+          <!-- Hidden fields for society and unit -->
+          <input type="hidden" id="id_society_modal" name="society">
+          <input type="hidden" id="id_unit_modal" name="unit">
+
+          <!-- Full Name -->
+          <div class="mb-3">
+            <label for="id_full_name" class="form-label">
+              {% translate "Full Name" %} <span class="text-danger">*</span>
+            </label>
+            <input type="text" class="form-control" id="id_full_name" name="full_name" required>
+            <small class="text-muted">{% translate "Member's full name" %}</small>
+          </div>
+
+          <!-- Role -->
+          <div class="mb-3">
+            <label for="id_role" class="form-label">
+              {% translate "Role" %} <span class="text-danger">*</span>
+            </label>
+            <select class="form-select" id="id_role" name="role" required>
+              <option value="">{% translate "Select role" %}</option>
+              <option value="OWNER">{% translate "Owner" %}</option>
+              <option value="TENANT">{% translate "Tenant" %}</option>
+              <option value="NOMINEE">{% translate "Nominee" %}</option>
+            </select>
+          </div>
+
+          <!-- Email -->
+          <div class="mb-3">
+            <label for="id_email" class="form-label">{% translate "Email" %}</label>
+            <input type="email" class="form-control" id="id_email" name="email">
+          </div>
+
+          <!-- Phone -->
+          <div class="mb-3">
+            <label for="id_phone" class="form-label">{% translate "Phone" %}</label>
+            <input type="tel" class="form-control" id="id_phone" name="phone">
+          </div>
+
+          <!-- Status -->
+          <div class="mb-3">
+            <label for="id_status" class="form-label">{% translate "Status" %}</label>
+            <select class="form-select" id="id_status" name="status">
+              <option value="ACTIVE">{% translate "Active" %}</option>
+              <option value="INACTIVE">{% translate "Inactive" %}</option>
+            </select>
+          </div>
+
+          <!-- Unit Display (Read-only) -->
+          <div class="mb-3">
+            <label class="form-label">{% translate "Unit" %}</label>
+            <div class="form-control-plaintext bg-light p-2 rounded">
+              <span id="unitDisplayName" class="text-muted">{% translate "Loading..." %}</span>
+            </div>
+          </div>
+
+          <!-- Receivable Account -->
+          <div class="mb-3">
+            <label for="id_receivable_account" class="form-label">{% translate "Receivable Account" %}</label>
+            <select class="form-select" id="id_receivable_account" name="receivable_account">
+              <option value="">{% translate "Not assigned" %}</option>
+            </select>
+            <small class="text-muted">{% translate "Select the receivable account for billing" %}</small>
+          </div>
+
+          <!-- Start Date -->
+          <div class="mb-3">
+            <label for="id_start_date" class="form-label">{% translate "Start Date" %}</label>
+            <input type="date" class="form-control" id="id_start_date" name="start_date">
+          </div>
+
+          <!-- End Date -->
+          <div class="mb-3">
+            <label for="id_end_date" class="form-label">{% translate "End Date" %}</label>
+            <input type="date" class="form-control" id="id_end_date" name="end_date">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">
+            {% translate "Cancel" %}
+          </button>
+          <button type="submit" id="memberAddSubmitBtn" class="btn btn-primary" disabled>
+            {% translate "Add Member" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  'use strict';
+
+  const memberModal = document.getElementById('memberAddModal');
+  const memberForm = document.getElementById('memberAddForm');
+  const unitDisplay = document.getElementById('unitDisplayName');
+  const receivableAccountSelect = document.getElementById('id_receivable_account');
+  const submitBtn = document.getElementById('memberAddSubmitBtn');
+  const societyInput = document.getElementById('id_society_modal');
+  const unitInput = document.getElementById('id_unit_modal');
+  const errorAlert = document.getElementById('memberFormErrors');
+
+  // Initialize modal when member-add link is clicked
+  document.addEventListener('click', function(e) {
+    if (e.target.closest('[data-member-add-modal]')) {
+      e.preventDefault();
+      const link = e.target.closest('[data-member-add-modal]');
+      const societyId = link.dataset.societyId;
+      const unitId = link.dataset.unitId;
+      const unitIdentifier = link.dataset.unitIdentifier;
+
+      openMemberModal(societyId, unitId, unitIdentifier);
+    }
+  });
+
+  function openMemberModal(societyId, unitId, unitIdentifier) {
+    // Set form values
+    societyInput.value = societyId;
+    unitInput.value = unitId || '';
+    unitDisplay.textContent = unitIdentifier || '{% translate "Not specified" %}';
+    submitBtn.disabled = false;
+
+    // Load receivable accounts via API
+    loadReceivableAccounts(societyId);
+
+    // Show modal
+    const modal = new bootstrap.Modal(memberModal, { keyboard: false, backdrop: 'static' });
+    modal.show();
+
+    // Focus on first input
+    setTimeout(() => {
+      document.getElementById('id_full_name').focus();
+    }, 500);
+  }
+
+  function loadReceivableAccounts(societyId) {
+    // OPTIMIZATION: Load accounts via API instead of including all in initial page load
+    fetch(`/housing/members/api/form-options/?society_id=${societyId}`)
+      .then(response => response.json())
+      .then(data => {
+        if (data.success && data.accounts) {
+          receivableAccountSelect.innerHTML = '<option value="">{% translate "Not assigned" %}</option>';
+          data.accounts.forEach(account => {
+            const option = document.createElement('option');
+            option.value = account.id;
+            option.textContent = account.name;
+            receivableAccountSelect.appendChild(option);
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Error loading accounts:', error);
+      });
+  }
+
+  // Handle form submission via AJAX
+  memberForm.addEventListener('submit', function(e) {
+    e.preventDefault();
+    errorAlert.classList.add('d-none');
+    submitBtn.disabled = true;
+
+    const formData = new FormData(memberForm);
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+
+    fetch(memberForm.action, {
+      method: 'POST',
+      headers: {
+        'X-CSRFToken': csrfToken,
+      },
+      body: formData,
+    })
+      .then(response => {
+        if (response.ok && !response.url.includes('/members/add/')) {
+          // Success - close modal and reload page
+          bootstrap.Modal.getInstance(memberModal).hide();
+          location.reload();
+        } else {
+          // Error or form validation failed - parse response
+          return response.text().then(html => {
+            parseAndShowErrors(html);
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Error submitting form:', error);
+        showError('{% translate "An error occurred. Please try again." %}');
+      })
+      .finally(() => {
+        submitBtn.disabled = false;
+      });
+  });
+
+  function parseAndShowErrors(html) {
+    // Extract error messages from the response HTML
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, 'text/html');
+    const errors = doc.querySelectorAll('[role="alert"] .alert-message, .errorlist li');
+
+    if (errors.length > 0) {
+      let errorHTML = '<ul>';
+      errors.forEach(error => {
+        errorHTML += `<li>${error.textContent}</li>`;
+      });
+      errorHTML += '</ul>';
+      errorAlert.innerHTML = errorHTML;
+      errorAlert.classList.remove('d-none');
+    } else {
+      showError('{% translate "Form submission failed. Please check your input." %}');
+    }
+  }
+
+  function showError(message) {
+    errorAlert.innerHTML = `<p>${message}</p>`;
+    errorAlert.classList.remove('d-none');
+  }
+
+  // Reset form when modal closes
+  memberModal.addEventListener('hidden.bs.modal', function() {
+    memberForm.reset();
+    errorAlert.classList.add('d-none');
+    receivableAccountSelect.innerHTML = '<option value="">{% translate "Not assigned" %}</option>';
+  });
+})();
+</script>
+
+<style>
+#memberAddModal .modal-body {
+  max-height: 70vh;
+  overflow-y: auto;
+}
+
+#memberAddModal .form-label {
+  font-weight: 500;
+  margin-bottom: 0.5rem;
+}
+
+#memberAddModal .form-control:focus,
+#memberAddModal .form-select:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+}
+</style>

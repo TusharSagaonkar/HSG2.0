@@ -6,6 +6,7 @@ from housing.views import housing_dashboard_view
 from housing.views import member_create_view
 from housing.views import member_list_view
 from housing.views import member_update_view
+from housing.views import member_form_options_api_view
 from housing.views import outstanding_dashboard_view
 from housing.views import receipt_post_view
 from housing.views import reminder_schedule_view
@@ -44,6 +45,7 @@ urlpatterns = [
     path("occupancies/add/", view=unit_occupancy_create_view, name="occupancy-add"),
     path("members/", view=member_list_view, name="member-list"),
     path("members/add/", view=member_create_view, name="member-add"),
+    path("members/api/form-options/", view=member_form_options_api_view, name="member-form-options-api"),
     path("members/<int:pk>/edit/", view=member_update_view, name="member-edit"),
     path(
         "billing/templates/add/",

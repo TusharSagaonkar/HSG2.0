@@ -17,6 +17,7 @@ urlpatterns = [
     path("accounts/", include("allauth.urls")),
     path("housing/", include("housing.urls", namespace="housing")),
     path("accounting/", include("accounting.urls", namespace="accounting")),
+    path("reports/", include("reports.urls", namespace="reports")),
     path("billing/", include("billing.urls", namespace="billing")),
     path("parking/", include("parking.urls", namespace="parking")),
     path("vehicle/verify/<uuid:token>/", view=verify_vehicle, name="vehicle_verify"),

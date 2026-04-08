@@ -102,8 +102,18 @@ class Vehicle(models.Model):
         base_url = getattr(settings, "BASE_URL", "").rstrip("/")
         return f"{base_url}/vehicle/verify/{self.verification_token}/"
 
-    def generate_qr_image(self):
-        return generate_vehicle_verification_qr(self)
+    def generate_qr_image(self, request=None):
+        """
+        Generate QR code image for vehicle verification.
+        
+        Args:
+            request: Optional Django request object to build absolute URL 
+                    based on the current host. If not provided, uses BASE_URL setting.
+        
+        Returns:
+            ContentFile with PNG image data
+        """
+        return generate_vehicle_verification_qr(self, request=request)
 
     def save(self, *args, **kwargs):
         if self.is_active:
@@ -115,10 +125,13 @@ class Vehicle(models.Model):
             super().save(*args, **kwargs)
 
             from parking.services.recalculate_vehicle_rule_status import (
-                recalculate_vehicle_rule_status,
+                recalculate_single_vehicle_rule_status_optimized,
             )
 
-            recalculate_vehicle_rule_status(self.society_id)
+            # OPTIMIZATION: Avoid redundant database fetch - pass self directly
+            # The instance already has id set after save(), and related objects
+            # will be fetched by recalculate_single_vehicle_rule_status_optimized if needed
+            recalculate_single_vehicle_rule_status_optimized(self)
 
     def __str__(self):
         return f"{self.vehicle_number} ({self.vehicle_type})"

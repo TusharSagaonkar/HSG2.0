@@ -259,6 +259,222 @@
   padding-right: 10px;
 }
 
+.financial-statement-sheet {
+  background: linear-gradient(180deg, #fbfcfe 0%, #ffffff 100%);
+  border: 1px solid #dce3ef;
+  border-radius: 16px;
+  box-shadow: 0 18px 45px rgba(24, 39, 75, 0.06);
+  padding: 1.5rem;
+}
+
+.statement-header {
+  border-bottom: 2px solid #dbe4f0;
+  margin-bottom: 1.25rem;
+  padding-bottom: 1rem;
+  text-align: center;
+}
+
+.statement-kicker {
+  color: #6b7a90;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  margin-bottom: 0.35rem;
+  text-transform: uppercase;
+}
+
+.statement-entity {
+  color: #172033;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.65rem;
+  font-weight: 700;
+  margin-bottom: 0.15rem;
+}
+
+.statement-title {
+  color: #2e405f;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.1rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin-bottom: 0.35rem;
+  text-transform: uppercase;
+}
+
+.statement-period,
+.statement-period-detail {
+  color: #55657f;
+  font-size: 0.9rem;
+  margin-bottom: 0.15rem;
+}
+
+.statement-print-date {
+  color: #6b7a90;
+  font-size: 0.82rem;
+  margin-bottom: 0;
+}
+
+.statement-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.statement-panel {
+  background: #fff;
+  border: 1px solid #dde5f1;
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.statement-panel-header {
+  background: #eaf0f8;
+  color: #32425f;
+  display: flex;
+  font-size: 0.76rem;
+  font-weight: 700;
+  justify-content: space-between;
+  letter-spacing: 0.08em;
+  padding: 0.8rem 1rem;
+  text-transform: uppercase;
+}
+
+.statement-table {
+  border-collapse: collapse;
+  width: 100%;
+}
+
+.statement-table-head th {
+  background: #eef3f9;
+  border-bottom: 1px solid #dde5f1;
+  color: #4d5f7c;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 0.8rem 1rem;
+  text-transform: uppercase;
+}
+
+.statement-table td {
+  border-bottom: 1px solid #edf1f7;
+  color: #23314d;
+  padding: 0.78rem 1rem;
+  vertical-align: top;
+}
+
+.statement-table tbody tr:last-child td {
+  border-bottom: 1px solid #edf1f7;
+}
+
+.statement-subsection td {
+  background: #f7f9fc;
+  color: #50617e;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.statement-subtotal td,
+.statement-table tfoot td {
+  background: #f3f6fb;
+  color: #172033;
+  font-weight: 700;
+}
+
+.statement-summary {
+  align-items: center;
+  background: #f3f6fb;
+  border: 1px solid #dde5f1;
+  border-radius: 12px;
+  color: #172033;
+  display: flex;
+  justify-content: space-between;
+  margin-top: 1rem;
+  padding: 0.95rem 1rem;
+}
+
+@media (max-width: 991.98px) {
+  .statement-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media print {
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+  }
+
+  .main-header,
+  .sidebar,
+  .nav-toggle,
+  .navbar-header,
+  .page-actions,
+  .footer,
+  .custom-template,
+  .btn,
+  .form-control,
+  .form-select,
+  .alert,
+  .breadcrumb,
+  .sidebar-wrapper,
+  .logo-header {
+    display: none !important;
+  }
+
+  .wrapper,
+  .main-panel,
+  .content,
+  .page-inner {
+    background: #ffffff !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+  }
+
+  .dashboard-heading,
+  .dashboard-title,
+  .dashboard-subtitle {
+    display: none !important;
+  }
+
+  .financial-statement-sheet,
+  .statement-panel {
+    border: 0 !important;
+    box-shadow: none !important;
+  }
+
+  .financial-statement-sheet {
+    background: linear-gradient(180deg, #fbfcfe 0%, #ffffff 100%) !important;
+    padding: 0 !important;
+  }
+
+  .statement-panel-header,
+  .statement-subsection td,
+  .statement-subtotal td,
+  .statement-table tfoot td,
+  .statement-table-head th {
+    background: inherit;
+  }
+
+  .statement-header {
+    border-bottom: 1px solid #cfd8e3 !important;
+    margin-bottom: 0.75rem !important;
+    padding-bottom: 0.75rem !important;
+  }
+
+  .statement-table td,
+  .statement-table-head th {
+    padding: 0.45rem 0.55rem !important;
+  }
+}
+
 .page-action-group .btn-plus:hover,
 .page-action-group .btn-plus:focus {
   background: var(--bs-primary);
@@ -498,5 +714,134 @@
   .member-filter-actions .btn,
   .structure-filter-actions .btn {
     flex: 1 1 auto;
+  }
+}
+
+/* Enhanced navbar toggle buttons - easier to press */
+.nav-toggle {
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.btn.btn-toggle {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #6b778c;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease-in-out;
+}
+
+.btn.btn-toggle:hover {
+  background: rgba(23, 125, 255, 0.08);
+  color: #177dff;
+}
+
+.btn.btn-toggle:active,
+.btn.btn-toggle.toggled {
+  background: rgba(23, 125, 255, 0.12);
+  color: #177dff;
+}
+
+.btn.btn-toggle i {
+  font-size: 1.25rem;
+}
+
+/* Hide mobile toggle on desktop */
+.btn.btn-toggle.sidenav-toggler {
+  display: none;
+}
+
+/* Show mobile toggle on mobile screens */
+@media (max-width: 991px) {
+  .btn.btn-toggle.toggle-sidebar {
+    display: none;
+  }
+
+  .btn.btn-toggle.sidenav-toggler {
+    display: inline-flex;
+  }
+}
+
+/* Topbar toggle button */
+.topbar-toggler {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #6b778c;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease-in-out;
+}
+
+.topbar-toggler:hover {
+  background: rgba(23, 125, 255, 0.08);
+  color: #177dff;
+}
+
+.topbar-toggler:active,
+.topbar-toggler.toggled {
+  background: rgba(23, 125, 255, 0.12);
+  color: #177dff;
+}
+
+.topbar-toggler i {
+  font-size: 1.25rem;
+}
+
+/* Submenu hover effects */
+.submenu-link {
+  position: relative;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.submenu-link:hover {
+  background: rgba(23, 125, 255, 0.05);
+  color: #177dff;
+}
+
+.submenu-link .submenu-caret {
+  transition: all 0.2s ease-in-out;
+}
+
+.submenu-link:hover .submenu-caret {
+  color: #177dff;
+  transform: scale(1.15);
+}
+
+.submenu-link[aria-expanded="true"] .submenu-caret {
+  color: #177dff;
+}
+
+/* Smooth collapse/expand animation */
+.collapse {
+  transition: all 0.3s ease-in-out;
+}
+
+.nav-collapse {
+  animation: slideDown 0.2s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }

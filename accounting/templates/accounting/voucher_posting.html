@@ -15,7 +15,9 @@
 
 {% block content %}
   <div class="page-actions">
-    <a href="{% url 'accounting:voucher-entry' %}" class="btn btn-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "New Voucher Entry" %}</a>
+    <form method="get" action="{% url 'accounting:voucher-entry' %}" class="m-0">
+      <button type="submit" class="btn btn-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "New Voucher Entry" %}</button>
+    </form>
     <a href="{% url 'accounting:voucher-list' %}" class="btn btn-outline-secondary"><i class="fas fa-eye me-1"></i>{% translate "All Vouchers" %}</a>
   </div>
 
@@ -37,7 +39,7 @@
           <tr>
             <td>
               <a
-                href="#"
+                href="{% url 'accounting:voucher-detail' voucher.pk %}"
                 class="text-decoration-none fw-semibold"
                 data-voucher-detail-url="{% url 'accounting:voucher-detail' voucher.pk %}"
                 data-voucher-label="{{ voucher.display_number }}"

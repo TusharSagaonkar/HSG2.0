@@ -13,18 +13,9 @@ from .base import env
 # https://docs.djangoproject.com/en/dev/ref/settings/#debug
 DEBUG = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#secret-key
-SECRET_KEY = env(
-    "DJANGO_SECRET_KEY",
-    default="Zg4nsHPBxs1fcLULFUjaL1dTb3xIsfAbaxZHj4xgip042lf769nnJjuHUuinhhEG",
-)
+SECRET_KEY = env("DJANGO_SECRET_KEY")
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
-ALLOWED_HOSTS = [
-    "localhost",
-    "0.0.0.0",  # noqa: S104
-    "127.0.0.1",
-    "TusharSagaonkar.pythonanywhere.com",
-    "hsg2-0.onrender.com",
-]
+ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS")
 
 # CACHES
 # ------------------------------------------------------------------------------
@@ -42,6 +33,11 @@ CACHES = {
 EMAIL_BACKEND = env(
     "DJANGO_EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend",
 )
+if (
+    EMAIL_BACKEND == "django.core.mail.backends.smtp.EmailBackend"
+    and not env("DJANGO_EMAIL_HOST", default="").strip()
+):
+    EMAIL_BACKEND = "django.core.mail.backends.console.EmailBackend"
 
 # WhiteNoise
 # ------------------------------------------------------------------------------

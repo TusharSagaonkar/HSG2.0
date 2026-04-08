@@ -13,10 +13,10 @@ BASE_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
 APPS_DIR = BASE_DIR / "housing_accounting"
 env = environ.Env()
 
-READ_DOT_ENV_FILE = env.bool("DJANGO_READ_DOT_ENV_FILE", default=False)
-if READ_DOT_ENV_FILE:
+default_env_file = BASE_DIR / ".env"
+if default_env_file.exists():
     # OS environment variables take precedence over variables from .env
-    env.read_env(str(BASE_DIR / ".env"))
+    env.read_env(str(default_env_file))
 
 local_env_file = BASE_DIR / ".env.local"
 if local_env_file.exists():
@@ -33,10 +33,7 @@ DEBUG = env.bool("DJANGO_DEBUG", False)
 TIME_ZONE = "Asia/Kolkata"
 # https://docs.djangoproject.com/en/dev/ref/settings/#language-code
 LANGUAGE_CODE = "en-us"
-CSRF_TRUSTED_ORIGINS = os.getenv(
-    "CSRF_TRUSTED_ORIGINS",
-    "http://localhost",
-).split(",")
+CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS")
 # https://docs.djangoproject.com/en/dev/ref/settings/#languages
 # from django.utils.translation import gettext_lazy as _
 # LANGUAGES = [
@@ -94,7 +91,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 ROOT_URLCONF = "config.urls"
 # https://docs.djangoproject.com/en/dev/ref/settings/#wsgi-application
 WSGI_APPLICATION = "config.wsgi.application"
-BASE_URL = env.str("BASE_URL", default="http://localhost:8000")
+BASE_URL = env.str("BASE_URL")
 
 # APPS
 # ------------------------------------------------------------------------------
@@ -128,6 +125,7 @@ LOCAL_APPS = [
     "notifications",
     "auditlog",
     "reconciliation",
+    "reports",
     "housing",
     "accounting",
     "parking",
@@ -286,7 +284,7 @@ EMAIL_SETTINGS_ENCRYPTION_KEY = env("DJANGO_EMAIL_SETTINGS_ENCRYPTION_KEY", defa
 # ADMIN
 # ------------------------------------------------------------------------------
 # Django Admin URL.
-ADMIN_URL = "admin/"
+ADMIN_URL = env("DJANGO_ADMIN_URL")
 # https://docs.djangoproject.com/en/dev/ref/settings/#admins
 ADMINS = [("""Tushar Sagoankar""", "admin@localhost")]
 # https://docs.djangoproject.com/en/dev/ref/settings/#managers
@@ -318,7 +316,7 @@ LOGGING = {
     "root": {"level": "INFO", "handlers": ["console"]},
 }
 
-REDIS_URL = env("REDIS_URL", default="redis://localhost:6379/0")
+REDIS_URL = env("REDIS_URL", default="")
 REDIS_SSL = REDIS_URL.startswith("rediss://")
 
 

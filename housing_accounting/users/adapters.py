@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import smtplib
 import typing
 
 from allauth.account.adapter import DefaultAccountAdapter
@@ -32,7 +33,7 @@ class AccountAdapter(DefaultAccountAdapter):
                 message,
                 email_type=EmailQueue.EmailType.AUTHENTICATION,
             )
-        except EmailConfigurationError:
+        except (EmailConfigurationError, smtplib.SMTPException, OSError):
             logger.exception(
                 "Falling back to Django email backend for authentication email delivery.",
             )

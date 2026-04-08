@@ -8,6 +8,13 @@ from members.models import Unit
 
 
 class LedgerEntry(models.Model):
+    class ReferenceType(models.TextChoices):
+        NONE = "NONE", "None"
+        MEMBER = "MEMBER", "Member"
+        VENDOR = "VENDOR", "Vendor"
+        UNIT = "UNIT", "Unit"
+        OTHER = "OTHER", "Other"
+
     voucher = models.ForeignKey(
         Voucher,
         on_delete=models.CASCADE,
@@ -38,6 +45,16 @@ class LedgerEntry(models.Model):
         max_digits=12,
         decimal_places=2,
         default=Decimal("0.00"),
+    )
+    reference_type = models.CharField(
+        max_length=20,
+        choices=ReferenceType.choices,
+        default=ReferenceType.NONE,
+    )
+    reference_id = models.CharField(
+        max_length=64,
+        blank=True,
+        default="",
     )
 
     class Meta:
@@ -88,6 +105,9 @@ class LedgerEntry(models.Model):
             raise ValidationError(
                 {"unit": "Unit must not be set for income, expense, or equity accounts."}
             )
+
+        if self.reference_type == self.ReferenceType.NONE and self.reference_id:
+            raise ValidationError({"reference_id": "Reference ID requires a non-NONE reference type."})
 
     def save(self, *args, **kwargs):
         self.full_clean()

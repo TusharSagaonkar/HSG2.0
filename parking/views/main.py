@@ -429,6 +429,7 @@ class VehicleListView(LoginRequiredMixin, ListView):
         context = super().get_context_data(**kwargs)
         vehicles = context.get("vehicles") or []
         for vehicle in vehicles:
+            # Access prefetched permits (should already be cached from queryset)
             permits = list(vehicle.parking_permits.all())
             active = next((permit for permit in permits if permit.status == ParkingPermit.Status.ACTIVE), None)
             vehicle.current_sold_permit = active or (permits[0] if permits else None)
@@ -535,6 +536,28 @@ class CreateSoldPermitForVehicleView(LoginRequiredMixin, View):
 create_sold_permit_for_vehicle_view = CreateSoldPermitForVehicleView.as_view()
 
 
+class VehicleUnitsByStructureView(LoginRequiredMixin, View):
+    """Get units for a selected structure in vehicle form"""
+    def get(self, request, *args, **kwargs):
+        society_id = request.GET.get("society")
+        structure_id = request.GET.get("structure")
+        units = []
+        if society_id and structure_id:
+            units = list(
+                Unit.objects.filter(
+                    structure__society_id=society_id,
+                    structure_id=structure_id,
+                )
+                .select_related("structure")
+                .order_by("identifier")
+                .values("id", "identifier", "unit_type", "structure__name")
+            )
+        return JsonResponse({"units": units})
+
+
+vehicle_units_by_structure_view = VehicleUnitsByStructureView.as_view()
+
+
 class VehicleMembersByUnitView(LoginRequiredMixin, View):
     def get(self, request, *args, **kwargs):
         society_id = request.GET.get("society")
@@ -558,7 +581,8 @@ vehicle_members_by_unit_view = VehicleMembersByUnitView.as_view()
 class VehicleQRCodeView(LoginRequiredMixin, View):
     def get(self, request, pk, *args, **kwargs):
         vehicle = get_object_or_404(Vehicle, pk=pk)
-        qr_image = vehicle.generate_qr_image()
+        # Pass request to generate QR code with absolute URL based on current host
+        qr_image = vehicle.generate_qr_image(request=request)
         response = HttpResponse(qr_image.read(), content_type="image/png")
         response["Content-Disposition"] = (
             f'inline; filename="vehicle-verification-{vehicle.verification_token}.png"'
@@ -572,7 +596,8 @@ vehicle_qr_code_view = VehicleQRCodeView.as_view()
 class ParkingPermitQRCodeView(LoginRequiredMixin, View):
     def get(self, request, pk, *args, **kwargs):
         permit = get_object_or_404(ParkingPermit, pk=pk)
-        qr_image = permit.generate_qr_image()
+        # Pass request to generate QR code with absolute URL based on current host
+        qr_image = permit.generate_qr_image(request=request)
         response = HttpResponse(qr_image.read(), content_type="image/png")
         response["Content-Disposition"] = (
             f'inline; filename="parking-permit-verification-{permit.qr_token}.png"'

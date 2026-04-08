@@ -10,9 +10,9 @@ from accounting.views import voucher_post_view
 from accounting.views import voucher_posting_menu_view
 from accounting.views import voucher_reverse_view
 from accounting.views import account_ledger_view
-from accounting.views import trial_balance_view
 from accounting.views import account_ledger_export_csv_view
-from accounting.views import trial_balance_export_csv_view
+from reports.views import trial_balance_export_csv_view
+from reports.views import trial_balance_report_view
 
 app_name = "accounting"
 
@@ -25,7 +25,7 @@ urlpatterns = [
         view=account_ledger_export_csv_view,
         name="account-ledger-export-csv",
     ),
-    path("reports/trial-balance/", view=trial_balance_view, name="trial-balance"),
+    path("reports/trial-balance/", view=trial_balance_report_view, name="trial-balance"),
     path(
         "reports/trial-balance/export.csv/",
         view=trial_balance_export_csv_view,

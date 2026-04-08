@@ -9,6 +9,12 @@ from accounting.models import Voucher
 from members.models import Unit
 
 
+class UnitChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        # Avoid Unit.__str__() relation traversal to keep voucher entry rendering fast.
+        return f"{obj.identifier} ({obj.get_unit_type_display()})"
+
+
 class VoucherForm(forms.ModelForm):
     class Meta:
         model = Voucher
@@ -42,7 +48,7 @@ class VoucherForm(forms.ModelForm):
 
 class LedgerEntryRowForm(forms.Form):
     account = forms.ModelChoiceField(queryset=Account.objects.none(), required=False)
-    unit = forms.ModelChoiceField(queryset=Unit.objects.all(), required=False)
+    unit = UnitChoiceField(queryset=Unit.objects.none(), required=False)
     debit = forms.DecimalField(max_digits=12, decimal_places=2, required=False)
     credit = forms.DecimalField(max_digits=12, decimal_places=2, required=False)
 
@@ -56,7 +62,9 @@ class LedgerEntryRowForm(forms.Form):
             else Account.objects.none()
         )
         self.fields["unit"].queryset = (
-            Unit.objects.filter(structure__society=society).order_by("identifier")
+            Unit.objects.filter(structure__society=society)
+            .select_related("structure__society")
+            .order_by("identifier")
             if society
             else Unit.objects.none()
         )

@@ -36,13 +36,24 @@
       <link href="{% static 'css/project.css' %}" rel="stylesheet" />
     {% endblock css %}
 
+    <!-- Load sidebar state early to prevent flickering -->
+    <script>
+      (function() {
+        const SIDEBAR_STATE_KEY = "housing_accounting_sidebar_minimized";
+        const savedState = localStorage.getItem(SIDEBAR_STATE_KEY);
+        if (savedState === "true") {
+          document.documentElement.setAttribute("data-sidebar-minimized", "true");
+        }
+      })();
+    </script>
+
     {% block javascript %}
       <script defer src="{% static 'vendor/kaiadmin-lite/assets/js/core/jquery-3.7.1.min.js' %}"></script>
       <script defer src="{% static 'vendor/kaiadmin-lite/assets/js/core/popper.min.js' %}"></script>
       <script defer src="{% static 'vendor/kaiadmin-lite/assets/js/core/bootstrap.min.js' %}"></script>
       <script defer src="{% static 'vendor/kaiadmin-lite/assets/js/plugin/jquery-scrollbar/jquery.scrollbar.min.js' %}"></script>
       <script defer src="{% static 'vendor/kaiadmin-lite/assets/js/kaiadmin.min.js' %}"></script>
-      <script defer src="{% static 'js/project.js' %}?v=20260303b"></script>
+      <script defer src="{% static 'js/project.js' %}?v=20260408i"></script>
     {% endblock javascript %}
   </head>
   <body class="ka-body {% block bodyclass %}{% endblock bodyclass %}">
@@ -74,7 +85,7 @@
               <ul class="nav nav-secondary">
                 <li class="nav-section">
                   <span class="sidebar-mini-icon"><i class="fa fa-ellipsis-h"></i></span>
-                  <h4 class="text-section">{% translate "Navigation" %}</h4>
+                  <h4 class="text-section">{% translate "Main" %}</h4>
                 </li>
 
                 {% with current_namespace=request.resolver_match.namespace current_url_name=request.resolver_match.url_name %}
@@ -85,11 +96,16 @@
                     </a>
                   </li>
 
+                <li class="nav-section">
+                  <span class="sidebar-mini-icon"><i class="fa fa-rectangle-landscape"></i></span>
+                  <h4 class="text-section">{% translate "Core Operations" %}</h4>
+                </li>
+
                   <li class="nav-item {% if current_namespace == 'housing' and current_url_name == 'society-list' or current_namespace == 'housing' and current_url_name == 'society-detail' or current_namespace == 'housing' and current_url_name == 'society-add' %}active{% endif %}">
                     <a class="submenu-link"
                        data-toggle="collapse"
                        data-submenu-target="societyMenu"
-                       href="{% url 'housing:society-list' %}"
+                       href="{% if selected_society %}{% url 'housing:society-detail' selected_society.pk %}{% else %}{% url 'housing:society-list' %}{% endif %}"
                        aria-expanded="false">
                       <i class="fas fa-building"></i>
                       <p>{% translate "Society" %}</p>
@@ -97,7 +113,12 @@
                     </a>
                     <div class="collapse" id="societyMenu">
                       <ul class="nav nav-collapse">
-                        <li class="{% if current_namespace == 'housing' and current_url_name == 'society-list' or current_namespace == 'housing' and current_url_name == 'society-detail' %}active{% endif %}">
+                        <li class="{% if current_namespace == 'housing' and current_url_name == 'society-detail' %}active{% endif %}">
+                          <a href="{% if selected_society %}{% url 'housing:society-detail' selected_society.pk %}{% endif %}">
+                            <span class="sub-item">{% translate "Dashboard" %}</span>
+                          </a>
+                        </li>
+                        <li class="{% if current_namespace == 'housing' and current_url_name == 'society-list' %}active{% endif %}">
                           <a href="{% url 'housing:society-list' %}">
                             <span class="sub-item">{% translate "Society Tab" %}</span>
                           </a>
@@ -204,6 +225,71 @@
                     </div>
                   </li>
 
+                <li class="nav-section">
+                  <h4 class="text-section">{% translate "Administration" %}</h4>
+                </li>
+
+                  <li class="nav-item {% if current_namespace == 'accounting' or current_namespace == 'reports' %}active{% endif %}">
+                    <a class="submenu-link"
+                       data-toggle="collapse"
+                       data-submenu-target="accountingMenu"
+                       href="{% url 'accounting:dashboard' %}"
+                       aria-expanded="false">
+                      <i class="fas fa-calculator"></i>
+                      <p>{% translate "Accounting" %}</p>
+                      <span class="caret submenu-caret"></span>
+                    </a>
+                    <div class="collapse" id="accountingMenu">
+                      <ul class="nav nav-collapse">
+                        <li class="{% if current_namespace == 'accounting' and current_url_name == 'dashboard' %}active{% endif %}">
+                          <a href="{% url 'accounting:dashboard' %}"><span class="sub-item">{% translate "Dashboard" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'reports' %}active{% endif %}">
+                          <a href="{% url 'reports:index' %}"><span class="sub-item">{% translate "Reports" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'accounting' and current_url_name == 'account-list' or current_namespace == 'accounting' and current_url_name == 'account-ledger' or current_namespace == 'accounting' and current_url_name == 'account-ledger-export-csv' %}active{% endif %}">
+                          <a href="{% url 'accounting:account-list' %}"><span class="sub-item">{% translate "Accounts" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'accounting' and current_url_name == 'voucher-list' or current_namespace == 'accounting' and current_url_name == 'voucher-detail' or current_namespace == 'accounting' and current_url_name == 'voucher-post' or current_namespace == 'accounting' and current_url_name == 'voucher-delete-draft' or current_namespace == 'accounting' and current_url_name == 'voucher-reverse' %}active{% endif %}">
+                          <a href="{% url 'accounting:voucher-list' %}"><span class="sub-item">{% translate "Vouchers" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'accounting' and current_url_name == 'voucher-entry' %}active{% endif %}">
+                          <a href="{% url 'accounting:voucher-entry' %}"><span class="sub-item">{% translate "Voucher Entry" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'accounting' and current_url_name == 'voucher-posting' %}active{% endif %}">
+                          <a href="{% url 'accounting:voucher-posting' %}"><span class="sub-item">{% translate "Voucher Posting" %}</span></a>
+                        </li>
+                      </ul>
+                    </div>
+                  </li>
+
+                  <li class="nav-item {% if current_namespace == 'notifications' and current_url_name == 'reminder-list' or current_namespace == 'housing' and current_url_name == 'reminder-schedule' %}active{% endif %}">
+                    <a class="submenu-link"
+                       data-toggle="collapse"
+                       data-submenu-target="reminderMenu"
+                       href="{% url 'notifications:reminder-list' %}"
+                       aria-expanded="false">
+                      <i class="fas fa-bell"></i>
+                      <p>{% translate "Reminders" %}</p>
+                      <span class="caret submenu-caret"></span>
+                    </a>
+                    <div class="collapse" id="reminderMenu">
+                      <ul class="nav nav-collapse">
+                        <li class="{% if current_namespace == 'notifications' and current_url_name == 'reminder-list' %}active{% endif %}">
+                          <a href="{% url 'notifications:reminder-list' %}"><span class="sub-item">{% translate "Reminder List" %}</span></a>
+                        </li>
+                        <li class="{% if current_namespace == 'housing' and current_url_name == 'reminder-schedule' %}active{% endif %}">
+                          <a href="{% url 'housing:reminder-schedule' %}"><span class="sub-item">{% translate "Schedule Reminder" %}</span></a>
+                        </li>
+                      </ul>
+                    </div>
+                  </li>
+
+                <li class="nav-section">
+                  <span class="sidebar-mini-icon"><i class="fa fa-money"></i></span>
+                  <h4 class="text-section">{% translate "Financial Management" %}</h4>
+                </li>
+
                   <li class="nav-item {% if current_namespace == 'billing' and current_url_name == 'charge-template-list' or current_namespace == 'billing' and current_url_name == 'bill-list' or current_namespace == 'billing' and current_url_name == 'bill-detail' or current_namespace == 'housing' and current_url_name == 'charge-template-add' or current_namespace == 'housing' and current_url_name == 'billing-generate' or current_namespace == 'housing' and current_url_name == 'outstanding-dashboard' %}active{% endif %}">
                     <a class="submenu-link"
                        data-toggle="collapse"
@@ -257,85 +343,13 @@
                     </div>
                   </li>
 
-                  <li class="nav-item {% if current_namespace == 'notifications' and current_url_name == 'reminder-list' or current_namespace == 'housing' and current_url_name == 'reminder-schedule' %}active{% endif %}">
-                    <a class="submenu-link"
-                       data-toggle="collapse"
-                       data-submenu-target="reminderMenu"
-                       href="{% url 'notifications:reminder-list' %}"
-                       aria-expanded="false">
-                      <i class="fas fa-bell"></i>
-                      <p>{% translate "Reminders" %}</p>
-                      <span class="caret submenu-caret"></span>
-                    </a>
-                    <div class="collapse" id="reminderMenu">
-                      <ul class="nav nav-collapse">
-                        <li class="{% if current_namespace == 'notifications' and current_url_name == 'reminder-list' %}active{% endif %}">
-                          <a href="{% url 'notifications:reminder-list' %}"><span class="sub-item">{% translate "Reminder List" %}</span></a>
-                        </li>
-                        <li class="{% if current_namespace == 'housing' and current_url_name == 'reminder-schedule' %}active{% endif %}">
-                          <a href="{% url 'housing:reminder-schedule' %}"><span class="sub-item">{% translate "Schedule Reminder" %}</span></a>
-                        </li>
-                      </ul>
-                    </div>
-                  </li>
-
-                  <li class="nav-item {% if current_namespace == 'accounting' %}active{% endif %}">
-                    <a class="submenu-link"
-                       data-toggle="collapse"
-                       data-submenu-target="accountingMenu"
-                       href="{% url 'accounting:dashboard' %}"
-                       aria-expanded="false">
-                      <i class="fas fa-calculator"></i>
-                      <p>{% translate "Accounting" %}</p>
-                      <span class="caret submenu-caret"></span>
-                    </a>
-                    <div class="collapse" id="accountingMenu">
-                      <ul class="nav nav-collapse">
-                        <li class="{% if current_namespace == 'accounting' and current_url_name == 'dashboard' %}active{% endif %}">
-                          <a href="{% url 'accounting:dashboard' %}"><span class="sub-item">{% translate "Dashboard" %}</span></a>
-                        </li>
-                        <li class="{% if current_namespace == 'accounting' and current_url_name == 'account-list' or current_namespace == 'accounting' and current_url_name == 'account-ledger' or current_namespace == 'accounting' and current_url_name == 'account-ledger-export-csv' %}active{% endif %}">
-                          <a href="{% url 'accounting:account-list' %}"><span class="sub-item">{% translate "Accounts" %}</span></a>
-                        </li>
-                        <li class="{% if current_namespace == 'accounting' and current_url_name == 'voucher-list' or current_namespace == 'accounting' and current_url_name == 'voucher-detail' or current_namespace == 'accounting' and current_url_name == 'voucher-post' or current_namespace == 'accounting' and current_url_name == 'voucher-delete-draft' or current_namespace == 'accounting' and current_url_name == 'voucher-reverse' %}active{% endif %}">
-                          <a href="{% url 'accounting:voucher-list' %}"><span class="sub-item">{% translate "Vouchers" %}</span></a>
-                        </li>
-                        <li class="{% if current_namespace == 'accounting' and current_url_name == 'voucher-entry' %}active{% endif %}">
-                          <a href="{% url 'accounting:voucher-entry' %}"><span class="sub-item">{% translate "Voucher Entry" %}</span></a>
-                        </li>
-                        <li class="{% if current_namespace == 'accounting' and current_url_name == 'voucher-posting' %}active{% endif %}">
-                          <a href="{% url 'accounting:voucher-posting' %}"><span class="sub-item">{% translate "Voucher Posting" %}</span></a>
-                        </li>
-                        <li class="{% if current_namespace == 'accounting' and current_url_name == 'trial-balance' or current_namespace == 'accounting' and current_url_name == 'trial-balance-export-csv' %}active{% endif %}">
-                          <a href="{% url 'accounting:trial-balance' %}"><span class="sub-item">{% translate "Trial Balance" %}</span></a>
-                        </li>
-                      </ul>
-                    </div>
-                  </li>
-
-                  {% if request.user.is_authenticated %}
-                    <li class="nav-item {% if current_namespace == 'users' %}active{% endif %}">
-                      <a href="{% url 'users:detail' request.user.pk %}">
-                        <i class="fas fa-user"></i>
-                        <p>{% translate "My Profile" %}</p>
-                      </a>
-                    </li>
-                  {% endif %}
                 {% endwith %}
 
-                <li class="nav-section">
-                  <span class="sidebar-mini-icon"><i class="fa fa-user-circle"></i></span>
-                  <h4 class="text-section">{% translate "Account" %}</h4>
-                </li>
-
-                {% if request.user.is_authenticated %}
-                  <li class="nav-item">
-                    <a href="{% url 'account_logout' %}">
-                      <i class="fas fa-sign-out-alt"></i>
-                      <p>{% translate "Sign Out" %}</p>
-                    </a>
+                {% if not request.user.is_authenticated %}
+                  <li class="nav-section">
+                    <span class="sidebar-mini-icon"><i class="fa fa-user-circle"></i></span>
+                    <h4 class="text-section">{% translate "Account" %}</h4>
                   </li>
-                {% else %}
                   {% if ACCOUNT_ALLOW_REGISTRATION %}
                     <li class="nav-item">
                       <a id="sign-up-link" href="{% url 'account_signup' %}">
@@ -387,11 +401,11 @@
                 <ul class="navbar-nav topbar-nav ms-md-auto align-items-center">
                   {% if request.user.is_authenticated %}
                     <li class="nav-item">
-                      <form method="post" action="{% url 'users:selection-update' %}" class="selection-form">
+                      <form method="post" action="{% url 'users:selection-update' %}" class="selection-form" id="societySelectionForm">
                         {% csrf_token %}
-                        <input type="hidden" name="next" value="{{ request.get_full_path }}" />
+                        <input type="hidden" name="next" value="{{ request.get_full_path }}" id="nextUrlField" />
                         <label class="small mb-0" for="id_selected_society">{% translate "Society" %}</label>
-                        <select id="id_selected_society" name="selected_society_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                        <select id="id_selected_society" name="selected_society_id" class="form-select form-select-sm" onchange="handleSocietySelection(this)">
                           {% for society in selection_societies %}
                             <option value="{{ society.id }}" {% if selected_society and selected_society.id == society.id %}selected{% endif %}>{{ society.name }}</option>
                           {% empty %}
@@ -418,7 +432,19 @@
                       </button>
                     </li>
                     <li class="nav-item ms-2">
-                      <span class="badge badge-info user-chip">{{ request.user.get_username }}</span>
+                      <div class="d-flex align-items-center gap-2">
+                        <a href="{% url 'users:detail' request.user.pk %}" class="btn btn-sm btn-info user-chip">
+                          <i class="fas fa-user me-1"></i>{{ request.user.get_username }}
+                        </a>
+                        <button
+                          type="button"
+                          class="btn btn-sm btn-danger user-chip"
+                          data-bs-toggle="modal"
+                          data-bs-target="#signOutConfirmModal"
+                        >
+                          <i class="fas fa-sign-out-alt me-1"></i>{% translate "Sign Out" %}
+                        </button>
+                      </div>
                     </li>
                     {% if request.user.is_superuser %}
                       <li class="nav-item ms-2">
@@ -489,6 +515,31 @@
     {% endblock body %}
 
     {% if request.user.is_authenticated %}
+      <div class="modal fade" id="signOutConfirmModal" tabindex="-1" aria-labelledby="signOutConfirmModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h5 class="modal-title" id="signOutConfirmModalLabel">{% translate "Confirm Sign Out" %}</h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% translate 'Close' %}"></button>
+            </div>
+            <div class="modal-body">
+              {% translate "Are you sure you want to sign out?" %}
+            </div>
+            <div class="modal-footer">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                {% translate "Cancel" %}
+              </button>
+              <form method="post" action="{% url 'account_logout' %}" class="m-0">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger">
+                  <i class="fas fa-sign-out-alt me-1"></i>{% translate "Sign Out" %}
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div class="modal fade" id="periodsModal" tabindex="-1" aria-labelledby="periodsModalLabel" aria-hidden="true">
         <div class="modal-dialog modal-lg modal-dialog-scrollable">
           <div class="modal-content">

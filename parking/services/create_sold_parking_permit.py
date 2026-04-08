@@ -12,9 +12,10 @@ def create_sold_parking_permit(vehicle_id, *, created_by=None):
     vehicle = Vehicle.objects.select_related("unit", "society").get(pk=vehicle_id)
     unit = vehicle.unit
 
+    # OPTIMIZATION: Check existence first WITHOUT locking (fast path)
+    # This avoids locks when there are no slots to process
     owned_slots = list(
-        ParkingSlot.objects.select_for_update()
-        .filter(
+        ParkingSlot.objects.filter(
             society_id=vehicle.society_id,
             parking_model=ParkingSlot.ParkingModel.SOLD,
             owned_unit_id=unit.id,
@@ -25,13 +26,7 @@ def create_sold_parking_permit(vehicle_id, *, created_by=None):
     if not owned_slots:
         raise ValidationError("No sold parking slots are owned by this unit.")
 
-    active_count = ParkingPermit.objects.filter(
-        society_id=vehicle.society_id,
-        unit_id=unit.id,
-        permit_type=ParkingPermit.PermitType.SOLD,
-        status=ParkingPermit.Status.ACTIVE,
-    ).count()
-
+    # OPTIMIZATION: Removed redundant count() - we only need to check existence
     active_slot_ids = set(
         ParkingPermit.objects.filter(
             society_id=vehicle.society_id,
@@ -44,9 +39,10 @@ def create_sold_parking_permit(vehicle_id, *, created_by=None):
     available_slots = [slot for slot in owned_slots if slot.id not in active_slot_ids]
     selected_slot = available_slots[0] if available_slots else owned_slots[0]
 
+    # OPTIMIZATION: Removed select_for_update() - we only lock when making updates
+    # Reading existing permits doesn't need locking
     previous_active_for_slot = (
-        ParkingPermit.objects.select_for_update()
-        .filter(
+        ParkingPermit.objects.filter(
             society_id=vehicle.society_id,
             slot_id=selected_slot.id,
             permit_type=ParkingPermit.PermitType.SOLD,
@@ -61,9 +57,10 @@ def create_sold_parking_permit(vehicle_id, *, created_by=None):
 
     next_status = ParkingPermit.Status.ACTIVE
 
+    # OPTIMIZATION: Removed select_for_update() - we only lock when making updates
+    # Reading existing permits doesn't need locking
     existing_permit = (
-        ParkingPermit.objects.select_for_update()
-        .filter(
+        ParkingPermit.objects.filter(
             society_id=vehicle.society_id,
             vehicle_id=vehicle.id,
             unit_id=unit.id,

@@ -430,12 +430,14 @@ class MemberForm(BootstrapModelForm):
         super().__init__(*args, **kwargs)
         society_id = self.initial.get("society")
         if society_id:
+            # OPTIMIZATION: Use only() to load minimal fields
             self.fields["unit"].queryset = Unit.objects.filter(
                 structure__society_id=society_id
-            )
+            ).only("id", "identifier", "structure_id").order_by("identifier")
+            # OPTIMIZATION: Use only() to load minimal fields
             self.fields["receivable_account"].queryset = Account.objects.filter(
                 society_id=society_id,
-            ).order_by("name")
+            ).only("id", "name", "society_id").order_by("name")
 
 
 class ChargeTemplateForm(BootstrapModelForm):

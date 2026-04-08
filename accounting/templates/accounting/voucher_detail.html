@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {{ voucher.display_number }} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Voucher Detail" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {{ voucher.display_number }} - {{ voucher.get_voucher_type_display }}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'accounting:voucher-list' %}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left me-1"></i>{% translate "Back to Vouchers" %}
+    </a>
+  </div>
+  <div class="quick-card">
+    {% include "accounting/partials/voucher_detail_body.html" %}
+  </div>
+{% endblock content %}

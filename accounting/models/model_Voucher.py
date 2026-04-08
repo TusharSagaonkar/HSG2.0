@@ -26,6 +26,8 @@ class Voucher(models.Model):
         PAYMENT = "PAYMENT", "Payment"
         ADJUSTMENT = "ADJUSTMENT", "Adjustment"
         OPENING = "OPENING", "Opening Balance"
+        JOURNAL = "JOURNAL", "Journal"
+        BILL = "BILL", "Bill"
 
     society = models.ForeignKey(
         Society,
@@ -110,6 +112,7 @@ class Voucher(models.Model):
                 )
 
         self._validate_voucher_type_policy(entries)
+        self._validate_gst_policy(entries)
 
     @staticmethod
     def _is_cash_or_bank_account(account):
@@ -150,6 +153,47 @@ class Voucher(models.Model):
 
         if self.voucher_type == self.VoucherType.PAYMENT and not has_cash_bank_credit:
             raise ValidationError("Payment voucher must credit a cash/bank account.")
+
+    def _validate_gst_policy(self, entries):
+        direct_gst_payable_used = any((entry.account.name or "").strip().lower() == "gst payable" for entry in entries)
+        if direct_gst_payable_used:
+            raise ValidationError("Direct posting to 'GST Payable' is deprecated. Use Output CGST/SGST/IGST.")
+
+        gst_entries = []
+        non_gst_entries = []
+        for entry in entries:
+            account = entry.account
+            if not getattr(account, "is_gst", False):
+                non_gst_entries.append(entry)
+                continue
+            gst_entries.append(entry)
+            if account.gst_type == "NONE":
+                raise ValidationError("GST account must be mapped to INPUT or OUTPUT.")
+            if account.gst_type == "INPUT" and entry.credit > 0:
+                raise ValidationError("Input GST accounts should be debited, not credited.")
+            if account.gst_type == "OUTPUT" and entry.debit > 0:
+                raise ValidationError("Output GST accounts should be credited, not debited.")
+            if account.account_type in {"INCOME", "EXPENSE"}:
+                raise ValidationError("GST must never be posted to income or expense accounts.")
+
+        if not gst_entries:
+            return
+
+        # GST usage should be tied to taxable base lines (income/expense/receivable/payable),
+        # not isolated GST-only journals.
+        def _is_tax_base_account(account):
+            name_l = (account.name or "").lower()
+            return (
+                account.account_type in {"INCOME", "EXPENSE"}
+                or getattr(account, "is_member_related", False)
+                or getattr(account, "is_vendor_related", False)
+                or "receivable" in name_l
+                or "payable" in name_l
+            )
+
+        has_taxable_base_line = any(_is_tax_base_account(entry.account) for entry in non_gst_entries)
+        if not has_taxable_base_line:
+            raise ValidationError("GST lines require at least one non-GST taxable base line in the voucher.")
 
     def post(self):
         if self.posted_at:

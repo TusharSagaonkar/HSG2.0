@@ -13,6 +13,8 @@ Use this as the first stop before planning or implementing major changes.
 | `CHALLENGES_AND_DECISIONS.md` | Problem register with root cause, impact, and mitigations. | Any blocker, production issue, or recurring defect pattern. |
 | `STRATEGY_CHANGELOG.md` | Why strategy changed, expected impact, and rollback approach. | Product or technical strategy adjustments. |
 | `DATABASE_SWITCHING.md` | Safe temporary DB switch and rollback runbook for local operations. | Any database environment switch or connection-strategy update. |
+| `FINANCIAL_REPORTING_PHASE_PLAN.md` | Phased rollout plan for financial reports and Test Society validation dataset. | Any reporting scope, prioritization, or report-validation change. |
+| `VOUCHER_ENTRY_PERFORMANCE.md` | Voucher entry page performance root cause, measurements, and mitigation notes. | Any voucher-entry latency investigation or optimization change. |
 | `RENDER_DEPLOY.md` | Render deployment workflow, required env vars, and first-deploy verification steps. | Any Render topology or deployment-process update. |
 | `templates/` | Standard templates for consistent documentation updates. | Use whenever adding a new entry. |
 

@@ -7,6 +7,8 @@ from accounting.models import AccountCategory
 from accounting.models import FinancialYear
 from accounting.services.standard_accounts import DEFAULT_ACCOUNT_DEFINITIONS
 from accounting.services.standard_accounts import DEFAULT_CATEGORY_DEFINITIONS
+from accounting.services.standard_accounts import GROUP_ACCOUNT_DEFINITIONS
+from accounting.services.standard_accounts import LEAF_PARENT_MAP
 from housing.models import Society
 
 pytestmark = pytest.mark.django_db
@@ -67,3 +69,32 @@ def test_society_creation_uses_same_financial_year_name_across_societies():
     fy_2 = FinancialYear.objects.get(society=society_2)
 
     assert fy_1.name == fy_2.name
+
+
+def test_default_asset_hierarchy_groups_and_parents_are_assigned():
+    society = Society.objects.create(name="Hierarchy Society")
+
+    expected_group_names = {name for name, _, _, _ in GROUP_ACCOUNT_DEFINITIONS}
+    group_accounts = {
+        account.name: account
+        for account in Account.objects.filter(
+            society=society,
+            name__in=expected_group_names,
+        )
+    }
+    assert expected_group_names.issubset(group_accounts.keys())
+
+    for name, _, _, parent_name in GROUP_ACCOUNT_DEFINITIONS:
+        account = group_accounts[name]
+        expected_parent = group_accounts.get(parent_name) if parent_name else None
+        assert account.parent_id == (expected_parent.id if expected_parent else None)
+
+    for leaf_name, parent_name in LEAF_PARENT_MAP.items():
+        leaf = (
+            Account.objects.filter(society=society, name=leaf_name)
+            .order_by("id")
+            .first()
+        )
+        assert leaf is not None
+        assert leaf.parent is not None
+        assert leaf.parent.name == parent_name

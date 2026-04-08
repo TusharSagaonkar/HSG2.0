@@ -117,7 +117,12 @@
                 {% endif %}
               </div>
               <div class="small mt-1">
-                <a href="{% url 'housing:member-add' %}?society={{ society.pk }}" class="text-decoration-none">
+                <a href="{% url 'housing:member-add' %}?society={{ society.pk }}&unit={{ unit.pk }}"
+                   class="text-decoration-none"
+                   data-member-add-modal
+                   data-society-id="{{ society.pk }}"
+                   data-unit-id="{{ unit.pk }}"
+                   data-unit-identifier="{{ unit.identifier }}">
                   {% translate "Add Member" %}
                 </a>
               </div>

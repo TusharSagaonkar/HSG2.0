@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% load static %}
 
 {% block title %}
   {{ form_title }} | Housing Accounting System
@@ -73,4 +74,12 @@
       </div>
     </form>
   </div>
+
+  <!-- Parking-specific form enhancements -->
+  {% if 'parking' in request.path %}
+    <link rel="stylesheet" href="{% static 'parking/css/forms.css' %}">
+    {% if 'vehicle' in request.path %}
+      <script defer src="{% static 'parking/js/vehicle_form.js' %}"></script>
+    {% endif %}
+  {% endif %}
 {% endblock content %}

@@ -1,0 +1,1010 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load tz %}
+
+{% block title %}
+  {{ page_title }} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {{ page_title }}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {{ page_subtitle }}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'reports:index' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Reports" %}</a>
+    <button type="button" class="btn btn-outline-primary" onclick="window.print()">
+      <i class="fas fa-print me-1"></i>{% translate "Print" %}
+    </button>
+    {% if report_data and report_data.mode == "trial_balance" %}
+      <a href="{% url 'reports:trial-balance-export-csv' %}?to_date={{ to_date|date:'Y-m-d' }}" class="btn btn-outline-success"><i class="fas fa-file-csv me-1"></i>{% translate "Export CSV" %}</a>
+    {% endif %}
+  </div>
+
+  {% if report_data %}
+      {% if report_data.mode != "balance_sheet" %}
+        <section class="financial-statement-sheet">
+          <header class="statement-header">
+            <p class="statement-kicker">{% translate "Financial Report" %}</p>
+            <h2 class="statement-entity">
+              {% if selected_society %}{{ selected_society.name }}{% else %}{% translate "Selected Society" %}{% endif %}
+            </h2>
+            <h3 class="statement-title">{{ page_title }}</h3>
+            <p class="statement-period">
+              {% if report_data.mode == "trial_balance" or report_data.mode == "bank_reconciliation" %}
+                {% translate "As at" %}
+              {% else %}
+                {% translate "Reported up to" %}
+              {% endif %}
+              {% if statement_as_of_date %}
+                {{ statement_as_of_date|date:"F d, Y" }}
+              {% else %}
+                {% translate "selected reporting date" %}
+              {% endif %}
+            </p>
+            {% if selected_financial_year %}
+              <p class="statement-period-detail">
+                {% translate "Reporting Period" %}: {{ selected_financial_year.name }}
+                ({{ selected_financial_year.start_date|date:"F d, Y" }} - {{ selected_financial_year.end_date|date:"F d, Y" }})
+              </p>
+            {% endif %}
+            <p class="statement-print-date">
+              {% translate "Printed On" %}: {% now "F d, Y H:i" %}
+            </p>
+          </header>
+
+      {% endif %}
+
+    {% if report_data.mode == "trial_balance" %}
+      {% with trial_balance=report_data.trial_balance %}
+        {% if trial_balance.is_balanced %}
+          <div class="alert alert-success py-2">{% translate "Integrity check passed: total debit equals total credit." %}</div>
+        {% else %}
+          <div class="alert alert-danger py-2">{% translate "Integrity check failed: debit and credit totals do not match." %}</div>
+        {% endif %}
+        <div class="statement-panel">
+          <div class="statement-panel-header">
+            <span>{% translate "Trial Balance" %}</span>
+            <span>{% translate "Balances" %}</span>
+          </div>
+          <table class="statement-table">
+            <thead class="statement-table-head">
+              <tr>
+                <th>{% translate "Account" %}</th>
+                <th>{% translate "Type" %}</th>
+                <th class="text-end">{% translate "Total Debit" %}</th>
+                <th class="text-end">{% translate "Total Credit" %}</th>
+                <th class="text-end">{% translate "Balance Debit" %}</th>
+                <th class="text-end">{% translate "Balance Credit" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in trial_balance.rows %}
+                <tr>
+                  <td>
+                    <a href="{% url 'accounting:account-ledger' row.account_id %}">{{ row.account_name }}</a>
+                  </td>
+                  <td>{{ row.account_type }}</td>
+                  <td class="text-end">{{ row.total_debit }}</td>
+                  <td class="text-end">{{ row.total_credit }}</td>
+                  <td class="text-end">{{ row.balance_debit }}</td>
+                  <td class="text-end">{{ row.balance_credit }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2">{% translate "Totals" %}</td>
+                <td class="text-end">{{ trial_balance.grand_total_debit }}</td>
+                <td class="text-end">{{ trial_balance.grand_total_credit }}</td>
+                <td class="text-end">{{ trial_balance.total_balance_debit }}</td>
+                <td class="text-end">{{ trial_balance.total_balance_credit }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      {% endwith %}
+    {% elif report_data.mode == "profit_and_loss" %}
+      {% with pnl=report_data.profit_and_loss %}
+        <div class="statement-grid">
+          <section class="statement-panel">
+            <div class="statement-panel-header">
+              <span>{% translate "Income" %}</span>
+              <span>{% translate "Amount" %}</span>
+            </div>
+            <table class="statement-table">
+              <tbody>
+                {% for row in pnl.income_rows %}
+                  <tr><td>{{ row.account_name }}</td><td class="text-end">{{ row.amount }}</td></tr>
+                {% empty %}
+                  <tr><td colspan="2" class="text-muted">{% translate "No income rows." %}</td></tr>
+                {% endfor %}
+              </tbody>
+              <tfoot><tr><td>{% translate "Total Income" %}</td><td class="text-end">{{ pnl.total_income }}</td></tr></tfoot>
+            </table>
+          </section>
+          <section class="statement-panel">
+            <div class="statement-panel-header">
+              <span>{% translate "Expenses" %}</span>
+              <span>{% translate "Amount" %}</span>
+            </div>
+            <table class="statement-table">
+              <tbody>
+                {% for row in pnl.expense_rows %}
+                  <tr><td>{{ row.account_name }}</td><td class="text-end">{{ row.amount }}</td></tr>
+                {% empty %}
+                  <tr><td colspan="2" class="text-muted">{% translate "No expense rows." %}</td></tr>
+                {% endfor %}
+              </tbody>
+              <tfoot><tr><td>{% translate "Total Expenses" %}</td><td class="text-end">{{ pnl.total_expenses }}</td></tr></tfoot>
+            </table>
+          </section>
+        </div>
+        <div class="statement-summary">
+          <span>{% translate "Net Profit / Loss" %}</span>
+          <strong>{{ pnl.net_profit }}</strong>
+        </div>
+      {% endwith %}
+    {% elif report_data.mode == "cash_flow" %}
+      {% with cash_flow=report_data.cash_flow %}
+        <div class="statement-grid">
+          <section class="statement-panel">
+            <div class="statement-panel-header">
+              <span>{% translate "Operating Activities" %}</span>
+              <span>{% translate "Cash Impact" %}</span>
+            </div>
+            <table class="statement-table">
+              <thead class="statement-table-head">
+                <tr>
+                  <th>{% translate "Date" %}</th>
+                  <th>{% translate "Voucher" %}</th>
+                  <th>{% translate "Narration" %}</th>
+                  <th>{% translate "Direction" %}</th>
+                  <th class="text-end">{% translate "Amount" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in cash_flow.operating_rows %}
+                  <tr>
+                    <td>{{ row.voucher_date }}</td>
+                    <td>
+                      <a
+                        href="#"
+                        class="text-decoration-none fw-semibold"
+                        data-voucher-detail-url="{% url 'accounting:voucher-detail' row.voucher_id %}"
+                        data-voucher-label="{{ row.voucher_number }}"
+                      >
+                        {{ row.voucher_number }}
+                      </a>
+                    </td>
+                    <td>{{ row.narration }}</td>
+                    <td>{{ row.direction|title }}</td>
+                    <td class="text-end">{{ row.amount }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="5" class="text-muted">{% translate "No operating cash movement." %}</td></tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr><td colspan="4">{% translate "Net Operating Cash Flow" %}</td><td class="text-end">{{ cash_flow.operating_totals.net }}</td></tr>
+              </tfoot>
+            </table>
+          </section>
+          <section class="statement-panel">
+            <div class="statement-panel-header">
+              <span>{% translate "Investing Activities" %}</span>
+              <span>{% translate "Cash Impact" %}</span>
+            </div>
+            <table class="statement-table">
+              <thead class="statement-table-head">
+                <tr>
+                  <th>{% translate "Date" %}</th>
+                  <th>{% translate "Voucher" %}</th>
+                  <th>{% translate "Narration" %}</th>
+                  <th>{% translate "Direction" %}</th>
+                  <th class="text-end">{% translate "Amount" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in cash_flow.investing_rows %}
+                  <tr>
+                    <td>{{ row.voucher_date }}</td>
+                    <td>
+                      <a
+                        href="#"
+                        class="text-decoration-none fw-semibold"
+                        data-voucher-detail-url="{% url 'accounting:voucher-detail' row.voucher_id %}"
+                        data-voucher-label="{{ row.voucher_number }}"
+                      >
+                        {{ row.voucher_number }}
+                      </a>
+                    </td>
+                    <td>{{ row.narration }}</td>
+                    <td>{{ row.direction|title }}</td>
+                    <td class="text-end">{{ row.amount }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="5" class="text-muted">{% translate "No investing cash movement." %}</td></tr>
+                {% endfor %}
+              </tbody>
+              <tfoot>
+                <tr><td colspan="4">{% translate "Net Investing Cash Flow" %}</td><td class="text-end">{{ cash_flow.investing_totals.net }}</td></tr>
+              </tfoot>
+            </table>
+          </section>
+        </div>
+        <section class="statement-panel">
+          <div class="statement-panel-header">
+            <span>{% translate "Financing Activities" %}</span>
+            <span>{% translate "Cash Impact" %}</span>
+          </div>
+          <table class="statement-table">
+            <thead class="statement-table-head">
+              <tr>
+                <th>{% translate "Date" %}</th>
+                <th>{% translate "Voucher" %}</th>
+                <th>{% translate "Narration" %}</th>
+                <th>{% translate "Direction" %}</th>
+                <th class="text-end">{% translate "Amount" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in cash_flow.financing_rows %}
+                <tr>
+                  <td>{{ row.voucher_date }}</td>
+                  <td>
+                    <a
+                      href="#"
+                      class="text-decoration-none fw-semibold"
+                      data-voucher-detail-url="{% url 'accounting:voucher-detail' row.voucher_id %}"
+                      data-voucher-label="{{ row.voucher_number }}"
+                    >
+                      {{ row.voucher_number }}
+                    </a>
+                  </td>
+                  <td>{{ row.narration }}</td>
+                  <td>{{ row.direction|title }}</td>
+                  <td class="text-end">{{ row.amount }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="5" class="text-muted">{% translate "No financing cash movement." %}</td></tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr><td colspan="4">{% translate "Net Financing Cash Flow" %}</td><td class="text-end">{{ cash_flow.financing_totals.net }}</td></tr>
+            </tfoot>
+          </table>
+        </section>
+        <div class="statement-summary">
+          <span>{% translate "Net Change in Cash and Cash Equivalents" %}</span>
+          <strong>{{ cash_flow.net_change_in_cash }}</strong>
+        </div>
+        <div class="statement-summary">
+          <span>{% translate "Opening to Closing Reconciliation" %}</span>
+          <strong>
+            {% if cash_flow.is_reconciled %}
+              {% translate "Reconciled" %}
+            {% else %}
+              {% translate "Mismatch" %}
+            {% endif %}
+          </strong>
+        </div>
+      {% endwith %}
+    {% elif report_data.mode == "bank_reconciliation" %}
+      {% with brs=report_data.bank_reconciliation %}
+        {% if brs.status_note %}
+          <div class="alert alert-warning py-2">{{ brs.status_note }}</div>
+        {% endif %}
+        <div class="statement-grid">
+          <section class="statement-panel">
+            <div class="statement-panel-header">
+              <span>{% translate "BRS Summary" %}</span>
+              <span>{% if brs.bank_account_name %}{{ brs.bank_account_name }}{% else %}{% translate "Bank Account" %}{% endif %}</span>
+            </div>
+            <table class="statement-table">
+              <tbody>
+                <tr>
+                  <td>{% translate "Book Balance as per Ledger" %}</td>
+                  <td class="text-end">{{ brs.book_balance }}</td>
+                </tr>
+                <tr>
+                  <td>{% translate "Add: Reconciling Items" %}</td>
+                  <td class="text-end">{{ brs.add_total }}</td>
+                </tr>
+                <tr>
+                  <td>{% translate "Less: Reconciling Items" %}</td>
+                  <td class="text-end">{{ brs.less_total }}</td>
+                </tr>
+              </tbody>
+              <tfoot>
+                <tr>
+                  <td>{% translate "Adjusted Bank Balance" %}</td>
+                  <td class="text-end">{{ brs.adjusted_bank_balance }}</td>
+                </tr>
+              </tfoot>
+            </table>
+            <div class="small text-muted mt-2">
+              {% translate "Reconciling Items Count" %}: {{ brs.reconciling_count }}
+              {% if brs.is_fully_reconciled %}
+                • {% translate "Fully Reconciled" %}
+              {% endif %}
+            </div>
+          </section>
+          <section class="statement-panel">
+            <div class="statement-panel-header">
+              <span>{% translate "Reconciling Items" %}</span>
+              <span>{% translate "Detail" %}</span>
+            </div>
+            <table class="statement-table">
+              <thead class="statement-table-head">
+                <tr>
+                  <th>{% translate "Date" %}</th>
+                  <th>{% translate "Voucher" %}</th>
+                  <th>{% translate "Reference" %}</th>
+                  <th>{% translate "Narration" %}</th>
+                  <th>{% translate "Type" %}</th>
+                  <th class="text-end">{% translate "Amount" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in brs.reconciling_rows %}
+                  <tr>
+                    <td>{{ row.voucher_date }}</td>
+                    <td>
+                      <a
+                        href="#"
+                        class="text-decoration-none fw-semibold"
+                        data-voucher-detail-url="{% url 'accounting:voucher-detail' row.voucher_id %}"
+                        data-voucher-label="{{ row.voucher_number }}"
+                      >
+                        {{ row.voucher_number }}
+                      </a>
+                    </td>
+                    <td>{{ row.reference|default:"-" }}</td>
+                    <td>{{ row.narration }}</td>
+                    <td>{{ row.direction }}</td>
+                    <td class="text-end">{{ row.amount }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="6" class="text-muted">{% translate "No reconciling items." %}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </section>
+        </div>
+      {% endwith %}
+    {% elif report_data.mode == "fixed_assets" %}
+      {% with fixed_assets=report_data.fixed_assets %}
+        {% if fixed_assets.status_note %}
+          <div class="alert alert-warning py-2">{{ fixed_assets.status_note }}</div>
+        {% endif %}
+        <div class="statement-panel">
+          <div class="statement-panel-header">
+            <span>{% translate "Fixed Assets Register" %}</span>
+            <span>{% translate "Asset Movement" %}</span>
+          </div>
+          <table class="statement-table">
+            <thead class="statement-table-head">
+              <tr>
+                <th>{% translate "Asset Account" %}</th>
+                <th class="text-end">{% translate "Opening" %}</th>
+                <th class="text-end">{% translate "Additions" %}</th>
+                <th class="text-end">{% translate "Reductions" %}</th>
+                <th class="text-end">{% translate "Closing" %}</th>
+                <th>{% translate "Latest Voucher" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in fixed_assets.rows %}
+                <tr>
+                  <td><a href="{% url 'accounting:account-ledger' row.account_id %}">{{ row.account_name }}</a></td>
+                  <td class="text-end">{{ row.opening_balance }}</td>
+                  <td class="text-end">{{ row.additions }}</td>
+                  <td class="text-end">{{ row.reductions }}</td>
+                  <td class="text-end">{{ row.closing_balance }}</td>
+                  <td>
+                    {% if row.latest_voucher_id %}
+                      <a
+                        href="#"
+                        class="text-decoration-none fw-semibold"
+                        data-voucher-detail-url="{% url 'accounting:voucher-detail' row.latest_voucher_id %}"
+                        data-voucher-label="{{ row.latest_voucher_number }}"
+                      >
+                        {{ row.latest_voucher_number }}
+                      </a>
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="6" class="text-muted">{% translate "No fixed-asset movement found." %}</td></tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>{% translate "Totals" %}</td>
+                <td class="text-end">{{ fixed_assets.totals.opening }}</td>
+                <td class="text-end">{{ fixed_assets.totals.additions }}</td>
+                <td class="text-end">{{ fixed_assets.totals.reductions }}</td>
+                <td class="text-end">{{ fixed_assets.totals.closing }}</td>
+                <td>-</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      {% endwith %}
+    {% elif report_data.mode == "transaction_reconciliation" %}
+      {% with trx=report_data.transaction_reconciliation %}
+        {% if trx.status_note %}
+          <div class="alert alert-warning py-2">{{ trx.status_note }}</div>
+        {% endif %}
+        <div class="statement-grid">
+          <section class="statement-panel">
+            <div class="statement-panel-header">
+              <span>{% translate "Lifecycle Summary" %}</span>
+              <span>{% translate "Counts" %}</span>
+            </div>
+            <table class="statement-table">
+              <tbody>
+                <tr>
+                  <td>{% translate "Matched" %}</td>
+                  <td class="text-end">{{ trx.summary.matched_count }}</td>
+                </tr>
+                <tr>
+                  <td>{% translate "Unmatched" %}</td>
+                  <td class="text-end">{{ trx.summary.unmatched_count }}</td>
+                </tr>
+                <tr>
+                  <td>{% translate "Exception" %}</td>
+                  <td class="text-end">{{ trx.summary.exception_count }}</td>
+                </tr>
+              </tbody>
+            </table>
+          </section>
+          <section class="statement-panel">
+            <div class="statement-panel-header">
+              <span>{% translate "Reference Lifecycle" %}</span>
+              <span>{% translate "Detail" %}</span>
+            </div>
+            <table class="statement-table">
+              <thead class="statement-table-head">
+                <tr>
+                  <th>{% translate "Reference" %}</th>
+                  <th>{% translate "Status" %}</th>
+                  <th>{% translate "Reason" %}</th>
+                  <th class="text-end">{% translate "Voucher Count" %}</th>
+                  <th>{% translate "Latest Voucher" %}</th>
+                  <th class="text-end">{% translate "Bank Debit" %}</th>
+                  <th class="text-end">{% translate "Bank Credit" %}</th>
+                  <th class="text-end">{% translate "Difference" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in trx.rows %}
+                  <tr>
+                    <td>{{ row.reference }}</td>
+                    <td>{{ row.status }}</td>
+                    <td>{{ row.status_reason }}</td>
+                    <td class="text-end">{{ row.voucher_count }}</td>
+                    <td>
+                      <a
+                        href="#"
+                        class="text-decoration-none fw-semibold"
+                        data-voucher-detail-url="{% url 'accounting:voucher-detail' row.voucher_id %}"
+                        data-voucher-label="{{ row.voucher_number }}"
+                      >
+                        {{ row.voucher_number }}
+                      </a>
+                    </td>
+                    <td class="text-end">{{ row.bank_debit }}</td>
+                    <td class="text-end">{{ row.bank_credit }}</td>
+                    <td class="text-end">{{ row.difference }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="8" class="text-muted">{% translate "No transaction references found." %}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </section>
+        </div>
+      {% endwith %}
+    {% elif report_data.mode == "balance_sheet" %}
+      {% with balance_sheet=report_data.balance_sheet %}
+        <section class="financial-statement-sheet">
+          <header class="statement-header">
+            <p class="statement-kicker">{% translate "Financial Statement" %}</p>
+            <h2 class="statement-entity">
+              {% if selected_society %}{{ selected_society.name }}{% else %}{% translate "Selected Society" %}{% endif %}
+            </h2>
+            <h3 class="statement-title">{% translate "Balance Sheet" %}</h3>
+            <p class="statement-period">
+              {% translate "As at" %}
+              {% if statement_as_of_date %}
+                {{ statement_as_of_date|date:"F d, Y" }}
+              {% else %}
+                {% translate "selected reporting date" %}
+              {% endif %}
+            </p>
+            {% if selected_financial_year %}
+              <p class="statement-period-detail">
+                {% translate "Reporting Period" %}: {{ selected_financial_year.name }}
+                ({{ selected_financial_year.start_date|date:"F d, Y" }} - {{ selected_financial_year.end_date|date:"F d, Y" }})
+              </p>
+            {% endif %}
+            <p class="statement-print-date">
+              {% translate "Printed On" %}: {% now "F d, Y H:i" %}
+            </p>
+          </header>
+
+          {% if balance_sheet.is_balanced %}
+            <div class="alert alert-success py-2">{% translate "Balance sheet is aligned: assets equal liabilities plus equity." %}</div>
+          {% else %}
+            <div class="alert alert-warning py-2">{% translate "Balance sheet is still being built: totals are not aligned yet." %}</div>
+          {% endif %}
+
+          <div class="statement-grid">
+            <section class="statement-panel">
+              <div class="statement-panel-header">
+                <span>{% translate "Assets" %}</span>
+                <span>{% translate "Amount" %}</span>
+              </div>
+              <table class="statement-table">
+                <tbody>
+                  {% for row in balance_sheet.asset_rows %}
+                    <tr>
+                      <td>{{ row.account_name }}</td>
+                      <td class="text-end">{{ row.amount }}</td>
+                    </tr>
+                  {% empty %}
+                    <tr>
+                      <td colspan="2" class="text-muted">{% translate "No asset balances." %}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td>{% translate "Total Assets" %}</td>
+                    <td class="text-end">{{ balance_sheet.total_assets }}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </section>
+
+            <section class="statement-panel">
+              <div class="statement-panel-header">
+                <span>{% translate "Liabilities and Equity" %}</span>
+                <span>{% translate "Amount" %}</span>
+              </div>
+              <table class="statement-table">
+                <tbody>
+                  <tr class="statement-subsection">
+                    <td colspan="2">{% translate "Liabilities" %}</td>
+                  </tr>
+                  {% for row in balance_sheet.liability_rows %}
+                    <tr>
+                      <td>{{ row.account_name }}</td>
+                      <td class="text-end">{{ row.amount }}</td>
+                    </tr>
+                  {% empty %}
+                    <tr>
+                      <td colspan="2" class="text-muted">{% translate "No liability balances." %}</td>
+                    </tr>
+                  {% endfor %}
+                  <tr class="statement-subtotal">
+                    <td>{% translate "Total Liabilities" %}</td>
+                    <td class="text-end">{{ balance_sheet.total_liabilities }}</td>
+                  </tr>
+                  <tr class="statement-subsection">
+                    <td colspan="2">{% translate "Equity" %}</td>
+                  </tr>
+                  {% for row in balance_sheet.equity_rows %}
+                    <tr>
+                      <td>{{ row.account_name }}</td>
+                      <td class="text-end">{{ row.amount }}</td>
+                    </tr>
+                  {% empty %}
+                    <tr>
+                      <td colspan="2" class="text-muted">{% translate "No equity balances." %}</td>
+                    </tr>
+                  {% endfor %}
+                  <tr class="statement-subtotal">
+                    <td>{% translate "Total Equity" %}</td>
+                    <td class="text-end">{{ balance_sheet.total_equity }}</td>
+                  </tr>
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td>{% translate "Total Liabilities and Equity" %}</td>
+                    <td class="text-end">{{ balance_sheet.total_liabilities_and_equity }}</td>
+                  </tr>
+                </tfoot>
+              </table>
+            </section>
+          </div>
+        </section>
+      {% endwith %}
+    {% elif report_data.mode == "aging" %}
+      {% with aging=report_data.aging %}
+        <div class="statement-panel">
+          <div class="statement-panel-header">
+            <span>{{ report_data.aging_title }}</span>
+            <span>{% translate "Outstanding Summary" %}</span>
+          </div>
+          <table class="statement-table">
+            <thead class="statement-table-head">
+              <tr>
+                <th>{% translate "Party" %}</th>
+                <th>{% translate "Reference" %}</th>
+                <th class="text-end">{% translate "0-30" %}</th>
+                <th class="text-end">{% translate "31-60" %}</th>
+                <th class="text-end">{% translate "61-90" %}</th>
+                <th class="text-end">{% translate "90+" %}</th>
+                <th class="text-end">{% translate "Total" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in aging.rows %}
+                <tr>
+                  <td>{{ row.party_name }}</td>
+                  <td>{{ row.reference }}</td>
+                  <td class="text-end">{{ row.bucket_0_30 }}</td>
+                  <td class="text-end">{{ row.bucket_31_60 }}</td>
+                  <td class="text-end">{{ row.bucket_61_90 }}</td>
+                  <td class="text-end">{{ row.bucket_90_plus }}</td>
+                  <td class="text-end">{{ row.total }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="7" class="text-muted">{% translate "No outstanding items found." %}</td></tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td colspan="2">{% translate "Totals" %}</td>
+                <td class="text-end">{{ aging.bucket_totals.bucket_0_30 }}</td>
+                <td class="text-end">{{ aging.bucket_totals.bucket_31_60 }}</td>
+                <td class="text-end">{{ aging.bucket_totals.bucket_61_90 }}</td>
+                <td class="text-end">{{ aging.bucket_totals.bucket_90_plus }}</td>
+                <td class="text-end">{{ aging.grand_total }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      {% endwith %}
+    {% elif report_data.mode == "exceptions" %}
+      {% with exceptions=report_data.exceptions %}
+        <div class="statement-panel">
+          <div class="statement-panel-header">
+            <span>{% translate "Exception Register" %}</span>
+            <span>{% translate "Items Requiring Review" %}</span>
+          </div>
+          <table class="statement-table">
+            <thead class="statement-table-head">
+              <tr>
+                <th>{% translate "Exception Type" %}</th>
+                <th>{% translate "Reference" %}</th>
+                <th>{% translate "Date" %}</th>
+                <th class="text-end">{% translate "Amount" %}</th>
+                <th>{% translate "Details" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in exceptions.rows %}
+                <tr>
+                  <td>{{ row.exception_type }}</td>
+                  <td>{{ row.reference }}</td>
+                  <td>{{ row.date }}</td>
+                  <td class="text-end">{{ row.amount }}</td>
+                  <td>{{ row.details }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="5" class="text-muted">{% translate "No exceptions found." %}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% endwith %}
+    {% elif report_data.mode == "gst" %}
+      {% with gst=report_data.gst %}
+        {% if gst.status_note %}
+          <div class="alert alert-warning py-2">{{ gst.status_note }}</div>
+        {% endif %}
+        <div class="statement-grid">
+          <section class="statement-panel">
+            <div class="statement-panel-header">
+              <span>{% translate "GST Summary" %}</span>
+              <span>{% translate "Return Figures" %}</span>
+            </div>
+            <table class="statement-table">
+              <tbody>
+                <tr><td>{% translate "GSTR-1 Sales" %}</td><td class="text-end">{{ gst.summary.gstr1_sales }}</td></tr>
+                <tr><td>{% translate "GSTR-3B Output Tax" %}</td><td class="text-end">{{ gst.summary.gstr3b_output }}</td></tr>
+                <tr><td>{% translate "Input Tax Credit" %}</td><td class="text-end">{{ gst.summary.input_tax_credit }}</td></tr>
+                <tr><td>{% translate "Unmapped GST Rows" %}</td><td class="text-end">{{ gst.summary.unmapped_total }}</td></tr>
+              </tbody>
+              <tfoot>
+                <tr><td>{% translate "Net GST Payable" %}</td><td class="text-end">{{ gst.summary.net_payable }}</td></tr>
+              </tfoot>
+            </table>
+          </section>
+          <section class="statement-panel">
+            <div class="statement-panel-header">
+              <span>{% translate "GST Ledger Rows" %}</span>
+              <span>{% translate "Detail" %}</span>
+            </div>
+            <table class="statement-table">
+              <thead class="statement-table-head">
+                <tr>
+                  <th>{% translate "Date" %}</th>
+                  <th>{% translate "Voucher" %}</th>
+                  <th>{% translate "Section" %}</th>
+                  <th>{% translate "Account" %}</th>
+                  <th class="text-end">{% translate "Amount" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in gst.rows %}
+                  <tr>
+                    <td>{{ row.voucher_date }}</td>
+                    <td>
+                      <a href="#" class="text-decoration-none fw-semibold" data-voucher-detail-url="{% url 'accounting:voucher-detail' row.voucher_id %}" data-voucher-label="{{ row.voucher_number }}">{{ row.voucher_number }}</a>
+                    </td>
+                    <td>{{ row.section }}</td>
+                    <td>{{ row.account_name }}</td>
+                    <td class="text-end">{{ row.amount }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="5" class="text-muted">{% translate "No GST rows found." %}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </section>
+        </div>
+      {% endwith %}
+    {% elif report_data.mode == "tds" %}
+      {% with tds=report_data.tds %}
+        {% if tds.status_note %}
+          <div class="alert alert-warning py-2">{{ tds.status_note }}</div>
+        {% endif %}
+        <div class="statement-grid">
+          <section class="statement-panel">
+            <div class="statement-panel-header">
+              <span>{% translate "TDS Summary" %}</span>
+              <span>{% translate "Compliance Totals" %}</span>
+            </div>
+            <table class="statement-table">
+              <tbody>
+                <tr><td>{% translate "TDS Deducted" %}</td><td class="text-end">{{ tds.summary.deducted }}</td></tr>
+                <tr><td>{% translate "Paid / Adjusted" %}</td><td class="text-end">{{ tds.summary.paid_or_adjusted }}</td></tr>
+                <tr><td>{% translate "Unmapped TDS Rows" %}</td><td class="text-end">{{ tds.summary.unmapped_total }}</td></tr>
+              </tbody>
+              <tfoot>
+                <tr><td>{% translate "TDS Payable" %}</td><td class="text-end">{{ tds.summary.payable }}</td></tr>
+              </tfoot>
+            </table>
+          </section>
+          <section class="statement-panel">
+            <div class="statement-panel-header">
+              <span>{% translate "TDS Ledger Rows" %}</span>
+              <span>{% translate "Detail" %}</span>
+            </div>
+            <table class="statement-table">
+              <thead class="statement-table-head">
+                <tr>
+                  <th>{% translate "Date" %}</th>
+                  <th>{% translate "Voucher" %}</th>
+                  <th>{% translate "Account" %}</th>
+                  <th>{% translate "Mapping" %}</th>
+                  <th class="text-end">{% translate "Debit" %}</th>
+                  <th class="text-end">{% translate "Credit" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in tds.rows %}
+                  <tr>
+                    <td>{{ row.voucher_date }}</td>
+                    <td><a href="#" class="text-decoration-none fw-semibold" data-voucher-detail-url="{% url 'accounting:voucher-detail' row.voucher_id %}" data-voucher-label="{{ row.voucher_number }}">{{ row.voucher_number }}</a></td>
+                    <td>{{ row.account_name }}</td>
+                    <td>{{ row.mapping }}</td>
+                    <td class="text-end">{{ row.debit }}</td>
+                    <td class="text-end">{{ row.credit }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="6" class="text-muted">{% translate "No TDS rows found." %}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </section>
+        </div>
+      {% endwith %}
+    {% elif report_data.mode == "inventory_costing" %}
+      {% with inv=report_data.inventory_costing %}
+        {% if inv.status_note %}
+          <div class="alert alert-warning py-2">{{ inv.status_note }}</div>
+        {% endif %}
+        <div class="statement-panel">
+          <div class="statement-panel-header">
+            <span>{% translate "Inventory Valuation" %}</span>
+            <span>{% translate "Costing Snapshot" %}</span>
+          </div>
+          <table class="statement-table">
+            <thead class="statement-table-head">
+              <tr>
+                <th>{% translate "Inventory Account" %}</th>
+                <th class="text-end">{% translate "Opening" %}</th>
+                <th class="text-end">{% translate "Inward" %}</th>
+                <th class="text-end">{% translate "Outward" %}</th>
+                <th class="text-end">{% translate "Valuation" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in inv.rows %}
+                <tr>
+                  <td><a href="{% url 'accounting:account-ledger' row.account_id %}">{{ row.account_name }}</a></td>
+                  <td class="text-end">{{ row.opening }}</td>
+                  <td class="text-end">{{ row.inward }}</td>
+                  <td class="text-end">{{ row.outward }}</td>
+                  <td class="text-end">{{ row.valuation }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="5" class="text-muted">{% translate "No inventory accounts found." %}</td></tr>
+              {% endfor %}
+            </tbody>
+            <tfoot>
+              <tr>
+                <td>{% translate "Totals" %}</td>
+                <td class="text-end">{{ inv.summary.opening_total }}</td>
+                <td class="text-end">{{ inv.summary.inward_total }}</td>
+                <td class="text-end">{{ inv.summary.outward_total }}</td>
+                <td class="text-end">{{ inv.summary.valuation_total }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      {% endwith %}
+    {% elif report_data.mode == "management_analytics" %}
+      {% with mgt=report_data.management_analytics %}
+        <div class="statement-grid">
+          <section class="statement-panel">
+            <div class="statement-panel-header">
+              <span>{% translate "KPI Summary" %}</span>
+              <span>{% translate "Management View" %}</span>
+            </div>
+            <table class="statement-table">
+              <tbody>
+                <tr><td>{% translate "Revenue" %}</td><td class="text-end">{{ mgt.summary.revenue }}</td></tr>
+                <tr><td>{% translate "Expenses" %}</td><td class="text-end">{{ mgt.summary.expenses }}</td></tr>
+                <tr><td>{% translate "Net Profit" %}</td><td class="text-end">{{ mgt.summary.net_profit }}</td></tr>
+                <tr><td>{% translate "Expense Ratio %" %}</td><td class="text-end">{{ mgt.summary.expense_ratio }}</td></tr>
+                <tr><td>{% translate "Profit Margin %" %}</td><td class="text-end">{{ mgt.summary.profit_margin }}</td></tr>
+                <tr><td>{% translate "Budget Baseline" %}</td><td class="text-end">{{ mgt.summary.budget }}</td></tr>
+                <tr><td>{% translate "Variance" %}</td><td class="text-end">{{ mgt.summary.variance }}</td></tr>
+              </tbody>
+            </table>
+            <div class="small text-muted mt-2">{{ mgt.status_note }}</div>
+          </section>
+          <section class="statement-panel">
+            <div class="statement-panel-header">
+              <span>{% translate "Top Income Accounts" %}</span>
+              <span>{% translate "Balances" %}</span>
+            </div>
+            <table class="statement-table">
+              <tbody>
+                {% for row in mgt.top_income %}
+                  <tr><td>{{ row.account_name }}</td><td class="text-end">{{ row.balance_amount }}</td></tr>
+                {% empty %}
+                  <tr><td colspan="2" class="text-muted">{% translate "No income rows." %}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </section>
+        </div>
+      {% endwith %}
+    {% elif report_data.mode == "control_risk" %}
+      {% with cr=report_data.control_risk %}
+        <div class="statement-grid">
+          <section class="statement-panel">
+            <div class="statement-panel-header">
+              <span>{% translate "Risk Summary" %}</span>
+              <span>{% translate "Control Totals" %}</span>
+            </div>
+            <table class="statement-table">
+              <tbody>
+                <tr><td>{% translate "Duplicate References" %}</td><td class="text-end">{{ cr.summary.duplicate_reference_count }}</td></tr>
+                <tr><td>{% translate "Suspense Balance" %}</td><td class="text-end">{{ cr.summary.suspense_balance }}</td></tr>
+                <tr><td>{% translate "Unreferenced Settlements" %}</td><td class="text-end">{{ cr.summary.unreferenced_settlement_count }}</td></tr>
+              </tbody>
+            </table>
+          </section>
+          <section class="statement-panel">
+            <div class="statement-panel-header">
+              <span>{% translate "Duplicate Reference Tracker" %}</span>
+              <span>{% translate "Detail" %}</span>
+            </div>
+            <table class="statement-table">
+              <thead class="statement-table-head">
+                <tr>
+                  <th>{% translate "Reference" %}</th>
+                  <th class="text-end">{% translate "Count" %}</th>
+                  <th>{% translate "Latest Voucher" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in cr.duplicate_rows %}
+                  <tr>
+                    <td>{{ row.reference }}</td>
+                    <td class="text-end">{{ row.count }}</td>
+                    <td>
+                      {% if row.latest_voucher_id %}
+                        <a href="#" class="text-decoration-none fw-semibold" data-voucher-detail-url="{% url 'accounting:voucher-detail' row.latest_voucher_id %}" data-voucher-label="{{ row.latest_voucher_number }}">{{ row.latest_voucher_number }}</a>
+                      {% else %}
+                        -
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="3" class="text-muted">{% translate "No duplicate references." %}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </section>
+        </div>
+      {% endwith %}
+    {% elif report_data.mode == "advanced_regulatory" %}
+      {% with ar=report_data.advanced_regulatory %}
+        {% if ar.status_note %}
+          <div class="alert alert-info py-2">{{ ar.status_note }}</div>
+        {% endif %}
+        <div class="statement-panel">
+          <div class="statement-panel-header">
+            <span>{% translate "Advanced Regulatory Summary" %}</span>
+            <span>{% translate "Operational Metrics" %}</span>
+          </div>
+          <table class="statement-table">
+            <tbody>
+              <tr><td>{% translate "Total Posted Vouchers" %}</td><td class="text-end">{{ ar.summary.total_posted_vouchers }}</td></tr>
+              <tr><td>{% translate "Settlement Voucher Count" %}</td><td class="text-end">{{ ar.summary.settlement_voucher_count }}</td></tr>
+              <tr><td>{% translate "Unsettled Suspense" %}</td><td class="text-end">{{ ar.summary.unsettled_suspense }}</td></tr>
+              <tr><td>{% translate "Liquid Balance (Cash+Bank)" %}</td><td class="text-end">{{ ar.summary.liquid_balance }}</td></tr>
+            </tbody>
+          </table>
+        </div>
+      {% endwith %}
+    {% elif report_data.mode == "planned" %}
+      {% with planned=report_data.planned %}
+        <div class="statement-panel">
+          <div class="statement-panel-header">
+            <span>{% translate "Implementation Status" %}</span>
+            <span>{{ planned.status }}</span>
+          </div>
+          <table class="statement-table">
+            <tbody>
+              <tr>
+                <td>{% translate "Planned Phase" %}</td>
+                <td class="text-end">{{ planned.phase }}</td>
+              </tr>
+              <tr>
+                <td>{% translate "Scope" %}</td>
+                <td class="text-end">{{ planned.scope }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      {% endwith %}
+    {% endif %}
+
+      {% if report_data.mode != "balance_sheet" %}
+        </section>
+      {% endif %}
+  {% else %}
+    <div class="alert alert-warning py-2">{% translate "Select a society to generate this report." %}</div>
+  {% endif %}
+{% endblock content %}
+
+{% block modal %}
+  {% include "accounting/partials/voucher_detail_modal.html" %}
+{% endblock modal %}

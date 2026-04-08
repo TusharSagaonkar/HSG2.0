@@ -22,6 +22,7 @@ from .main import parking_vehicle_limit_list_view
 from .main import vehicle_create_view
 from .main import vehicle_list_view
 from .main import vehicle_members_by_unit_view
+from .main import vehicle_units_by_structure_view
 from .main import vehicle_qr_code_view
 from .main import vehicle_sticker_view
 from .verification import verify_parking_permit
@@ -54,6 +55,7 @@ __all__ = [
     "vehicle_create_view",
     "vehicle_list_view",
     "vehicle_members_by_unit_view",
+    "vehicle_units_by_structure_view",
     "vehicle_qr_code_view",
     "vehicle_sticker_view",
 ]

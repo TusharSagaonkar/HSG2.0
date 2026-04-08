@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Reports" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Reports" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Central home for financial, aging, and exception reporting." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="row g-3">
+    {% for report in report_links %}
+      <div class="col-12 col-md-6 col-xl-4">
+        <div class="card h-100 shadow-sm">
+          <div class="card-body">
+            <h5 class="card-title mb-2">{{ report.title }}</h5>
+            <p class="text-muted mb-3">{{ report.description }}</p>
+            <a href="{% url report.url_name %}" class="btn btn-outline-primary">
+              <i class="fas fa-chart-bar me-1"></i>{% translate "Open Report" %}
+            </a>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endblock content %}
+

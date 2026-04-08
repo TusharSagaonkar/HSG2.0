@@ -16,6 +16,7 @@ from django.views.generic import FormView
 from django.views import View
 from django.shortcuts import redirect
 from django.utils import timezone
+from django.http import JsonResponse
 
 from housing.forms import SocietyForm
 from housing.forms import SocietyEmailSettingsForm
@@ -38,6 +39,7 @@ from billing.models import ChargeTemplate
 from billing.services import generate_bills_for_period
 from billing.reports import build_member_outstanding
 from receipts.services import post_receipt_for_bill
+from accounting.models import Account
 from notifications.services import schedule_payment_reminders
 from notifications.models import GlobalEmailSettings
 from notifications.models import SocietyEmailSettings
@@ -661,20 +663,29 @@ class MemberCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
     def get_initial(self):
         initial = super().get_initial()
         society_id = self.request.GET.get("society")
+        unit_id = self.request.GET.get("unit")
         if not society_id:
             selected_society, _ = get_selected_scope(self.request)
             if selected_society:
                 society_id = selected_society.pk
         if society_id:
             initial["society"] = society_id
+        if unit_id:
+            initial["unit"] = unit_id
         return initial
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        # OPTIMIZATION: Pass society and unit IDs to template for modal usage
+        society_id = self.request.GET.get("society") or self.request.POST.get("society")
+        unit_id = self.request.GET.get("unit") or self.request.POST.get("unit")
         context["form_title"] = _("Add Member")
         context["form_subtitle"] = _("Create owner, tenant, or nominee membership.")
         context["cancel_url"] = reverse("housing:member-list")
         context["cancel_label"] = _("Back to Members")
+        context["society_id"] = society_id
+        context["unit_id"] = unit_id
+        context["is_modal"] = self.request.GET.get("modal") or self.request.POST.get("modal")
         return context
 
     def get_success_url(self):
@@ -703,6 +714,52 @@ class MemberUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
 
 
 member_update_view = MemberUpdateView.as_view()
+
+
+class MemberFormOptionsAPIView(LoginRequiredMixin, View):
+    """
+    API endpoint that returns member form options in JSON format.
+    Used by modal dialogs to load accounts and other options without a page reload.
+    
+    OPTIMIZATION: Minimal query - only loads necessary fields via select_related and only()
+    """
+    def get(self, request):
+        society_id = request.GET.get("society_id")
+        unit_id = request.GET.get("unit_id")
+        
+        if not society_id:
+            return JsonResponse({"error": "society_id required"}, status=400)
+        
+        # OPTIMIZATION: Load only necessary fields
+        accounts = list(
+            Account.objects.filter(society_id=society_id)
+            .only("id", "name")
+            .order_by("name")
+            .values("id", "name")
+        )
+        
+        unit_data = None
+        if unit_id:
+            # OPTIMIZATION: Minimal query with select_related
+            unit = Unit.objects.select_related("structure").only(
+                "id", "identifier", "structure__name", "structure_id"
+            ).get(pk=unit_id, structure__society_id=society_id)
+            unit_data = {
+                "id": unit.id,
+                "identifier": unit.identifier,
+                "structure_name": unit.structure.name,
+            }
+        
+        return JsonResponse({
+            "success": True,
+            "accounts": accounts,
+            "unit": unit_data,
+            "member_roles": list(Member.MemberRole.choices),
+            "member_statuses": list(Member.MemberStatus.choices),
+        })
+
+
+member_form_options_api_view = MemberFormOptionsAPIView.as_view()
 
 
 class ChargeTemplateCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):

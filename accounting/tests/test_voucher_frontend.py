@@ -29,6 +29,24 @@ def test_voucher_posting_menu_requires_authentication(client):
     assert response.status_code == HTTPStatus.FOUND
 
 
+def test_voucher_posting_menu_has_new_voucher_entry_get_action(client, user):
+    society = Society.objects.create(name="Posting Menu Society")
+    client.force_login(user)
+    session = client.session
+    session[SESSION_SELECTED_SOCIETY_ID] = society.id
+    session.save()
+
+    response = client.get(reverse("accounting:voucher-posting"))
+
+    assert response.status_code == HTTPStatus.OK
+    content = response.content.decode()
+    assert (
+        f'<form method="get" action="{reverse("accounting:voucher-entry")}" class="m-0">'
+        in content
+    )
+    assert "New Voucher Entry" in content
+
+
 def test_voucher_detail_requires_authentication(client):
     society = Society.objects.create(name="Auth Society")
     voucher = Voucher.objects.create(

@@ -1,6 +1,6 @@
 # Challenges and Decisions Register
 
-Last updated: `2026-02-24`
+Last updated: `2026-04-07`
 
 ## Register
 
@@ -28,6 +28,7 @@ Last updated: `2026-02-24`
 | CH-020 | 2026-02-25 | Local Startup Reliability | `runserver` failed in fresh shells because Supabase password env var was missing even though topology was intentionally Supabase-primary. | Repeated developer startup failures and command-history risk from inline password exports. | Added auto-load of project `.env.local` (if present), created secure local secret file with restricted permissions, and documented safe workflow. | Resolved | Platform | Replace static password secret with rotated credential and secret-manager integration when available. |
 | CH-021 | 2026-03-17 | Config Drift | Local settings code no longer matched the documented Supabase-primary testing topology. | Developers could believe Supabase was primary while Django still connected to localhost by default, causing misleading test results. | Updated `config/settings/local.py` so Supabase is the enforced `default` database, localhost remains a read-only `local` alias, and startup fails fast if Supabase env is missing. | Resolved | Platform | Add a lightweight settings smoke test if DB topology drift becomes a recurring issue. |
 | CH-022 | 2026-03-17 | Render Readiness | Render deployment config was missing production-specific env wiring and assumed optional infrastructure such as Redis would always exist. | First deployment could fail due to wrong settings module, CSRF host mismatch, or cache connection issues. | Updated `render.yaml`, added production support for `DJANGO_CSRF_TRUSTED_ORIGINS`, and made Redis optional with a locmem fallback documented in a Render runbook. | Resolved | Platform | Validate the Blueprint in Render after first sync and add a custom-domain variant once DNS is finalized. |
+| CH-023 | 2026-04-07 | Accounting Performance | Voucher entry page was slow for societies with larger unit sets. | Operators faced multi-second page loads and perceived UI unresponsiveness. | Identified N+1 query pattern from unit option labels calling `Unit.__str__()` across multiple form rows, introduced `UnitChoiceField` to avoid relation traversal in labels, and documented before/after performance with DB-latency guidance. | Resolved | Accounting | Monitor latency in production and consider async/unit autocomplete if unit volume grows significantly. |
 
 ## Classification Guide
 
