@@ -1,5 +1,6 @@
 import pytest
 from django.core import mail
+from django.contrib.auth import get_user_model
 
 from notifications.models import EmailLog
 from notifications.models import EmailQueue
@@ -9,6 +10,7 @@ from notifications.crypto import decrypt_email_secret
 from notifications.services import process_email_queue
 from notifications.services import queue_email
 from notifications.services import resolve_email_config
+from notifications.services import send_direct_email_message
 from societies.models import Society
 
 
@@ -149,15 +151,16 @@ def test_process_email_queue_sends_email_and_logs_delivery(settings):
     assert processed == 1
     assert queue_item.status == EmailQueue.Status.SENT
     assert queue_item.smtp_used["source"] == "global"
+    assert queue_item.template is not None
     assert len(mail.outbox) == 1
     assert mail.outbox[0].to == ["member@example.com"]
-    assert (
-        EmailLog.objects.filter(
-            email_queue=queue_item,
-            status=EmailQueue.Status.SENT,
-        ).count()
-        == 1
-    )
+    assert list(
+        EmailLog.objects.filter(email_queue=queue_item).order_by("created_at", "id").values_list("status", flat=True),
+    ) == [
+        EmailQueue.Status.PENDING,
+        EmailQueue.Status.PROCESSING,
+        EmailQueue.Status.SENT,
+    ]
 
 
 @pytest.mark.django_db
@@ -180,21 +183,87 @@ def test_process_email_queue_retries_when_no_global_config():
 
 
 @pytest.mark.django_db
-def test_resolve_email_config_falls_back_to_django_settings(settings):
-    settings.EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
-    settings.EMAIL_HOST = "smtp.render.test"
-    settings.EMAIL_PORT = 587
-    settings.EMAIL_HOST_USER = "render-user"
-    settings.EMAIL_HOST_PASSWORD = "render-secret"
-    settings.EMAIL_USE_TLS = True
-    settings.EMAIL_USE_SSL = False
-    settings.DEFAULT_FROM_EMAIL = "Housing Accounting <noreply@example.com>"
-    settings.SERVER_EMAIL = "support@example.com"
+def test_queue_email_registers_template_when_subject_and_body_are_provided():
+    queue_item = queue_email(
+        recipient_email="member@example.com",
+        subject="Welcome",
+        body="Hello from template registration.",
+        email_type=EmailQueue.EmailType.OTHER,
+    )
 
-    config = resolve_email_config(email_type=EmailQueue.EmailType.AUTHENTICATION)
+    assert queue_item.template is not None
+    assert queue_item.template.template_name.startswith("auto.other.")
+    assert queue_item.template.subject_template == "Welcome"
+    assert queue_item.template.body_template == "Hello from template registration."
+    assert list(
+        EmailLog.objects.filter(email_queue=queue_item).order_by("created_at", "id").values_list("status", flat=True),
+    ) == [EmailQueue.Status.PENDING]
 
-    assert config.source == "django_settings"
-    assert config.smtp_host == "smtp.render.test"
-    assert config.smtp_username == "render-user"
-    assert config.from_email == "Housing Accounting <noreply@example.com>"
-    assert config.reply_to_email == "support@example.com"
+
+@pytest.mark.django_db
+def test_send_direct_email_message_queues_and_sends_immediately(settings):
+    locmem_backend = "django.core.mail.backends.locmem.EmailBackend"
+    settings.EMAIL_QUEUE_DELIVERY_BACKEND = locmem_backend
+    settings.EMAIL_BACKEND = locmem_backend
+    global_settings = GlobalEmailSettings.objects.create(
+        smtp_host="smtp.global.test",
+        smtp_port=587,
+        smtp_username="global-user",
+        use_tls=True,
+        use_ssl=False,
+        default_from_email="Global <global@example.com>",
+        default_reply_to="reply@example.com",
+        active=True,
+    )
+    global_settings.set_smtp_password("global-secret")
+    global_settings.save(update_fields=["smtp_password_encrypted"])
+
+    from django.core.mail import EmailMultiAlternatives
+
+    send_direct_email_message(
+        EmailMultiAlternatives(
+            subject="Verify your account",
+            body="Hello from auth mail.",
+            to=["member@example.com"],
+        ),
+        email_type=EmailQueue.EmailType.AUTHENTICATION,
+        template_name="account/email/email_confirmation",
+        template_subject_template="Verify your account",
+        template_body_template="Hello from auth mail.",
+    )
+
+    queue_item = EmailQueue.objects.get(recipient_email="member@example.com")
+    assert queue_item.status == EmailQueue.Status.SENT
+    assert queue_item.template.template_name == "account/email/email_confirmation"
+    assert len(mail.outbox) == 1
+    assert list(
+        EmailLog.objects.filter(email_queue=queue_item).order_by("created_at", "id").values_list("status", flat=True),
+    ) == [
+        EmailQueue.Status.PENDING,
+        EmailQueue.Status.PROCESSING,
+        EmailQueue.Status.SENT,
+    ]
+
+
+@pytest.mark.django_db
+def test_queue_email_serializes_non_json_context_values():
+    user = get_user_model().objects.create_user(
+        email="member@example.com",
+        password="test-pass-123",
+    )
+
+    queue_item = queue_email(
+        recipient_email="member@example.com",
+        subject="Welcome",
+        body="Hello from auth mail.",
+        context={"user": user},
+        email_type=EmailQueue.EmailType.AUTHENTICATION,
+    )
+
+    assert queue_item.context == {
+        "user": {
+            "model": user._meta.label_lower,
+            "pk": user.pk,
+            "str": str(user),
+        },
+    }

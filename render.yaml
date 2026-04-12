@@ -24,20 +24,6 @@ services:
         value: "https://housing-accounting.onrender.com,https://hsg2-0.onrender.com"
       - key: DJANGO_ADMIN_URL
         value: "admin/"
-      - key: DJANGO_DEFAULT_FROM_EMAIL
-        value: "Housing Accounting <noreply@localhost>"
-      - key: DJANGO_EMAIL_HOST
-        sync: false
-      - key: DJANGO_EMAIL_PORT
-        value: "587"
-      - key: DJANGO_EMAIL_HOST_USER
-        sync: false
-      - key: DJANGO_EMAIL_HOST_PASSWORD
-        sync: false
-      - key: DJANGO_EMAIL_USE_TLS
-        value: "true"
-      - key: DJANGO_EMAIL_USE_SSL
-        value: "false"
       - key: WEB_CONCURRENCY
         value: "2"
       - key: DJANGO_SECRET_KEY
@@ -53,6 +39,35 @@ services:
         sync: false
       # On the first Blueprint creation, Render prompts for values of any vars with `sync: false`.
       # If you upgrade to a paid plan later, you can move migrations to `preDeployCommand`.
+
+  - type: cron
+    name: housing-accounting-email-queue
+    runtime: python
+    plan: starter
+    schedule: "* * * * *"
+    buildCommand: pip install -r requirement.txt
+    startCommand: python manage.py process_email_queue --limit 50
+    envVars:
+      - key: DJANGO_SETTINGS_MODULE
+        value: config.settings.production
+      - key: DJANGO_DEBUG
+        value: "False"
+      - key: DJANGO_ALLOWED_HOSTS
+        value: "housing-accounting.onrender.com,hsg2-0.onrender.com"
+      - key: DJANGO_CSRF_TRUSTED_ORIGINS
+        value: "https://housing-accounting.onrender.com,https://hsg2-0.onrender.com"
+      - key: DJANGO_ADMIN_URL
+        value: "admin/"
+      - key: DJANGO_SECRET_KEY
+        sync: false
+      - key: USE_SUPABASE_DB
+        value: "true"
+      - key: SUPABASE_DATABASE_URL
+        sync: false
+      - key: SUPABASE_POOLER_URL
+        sync: false
+      - key: REDIS_URL
+        sync: false
 
 # Note: Render will provide DATABASE_URL and REDIS_URL automatically if you add
 # a Postgres/Redis addon from the Render dashboard.

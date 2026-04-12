@@ -183,6 +183,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "societies.middleware.SocietyMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "allauth.account.middleware.AccountMiddleware",
@@ -266,12 +267,6 @@ EMAIL_BACKEND = env(
     "DJANGO_EMAIL_BACKEND",
     default="django.core.mail.backends.smtp.EmailBackend",
 )
-EMAIL_HOST = env("DJANGO_EMAIL_HOST", default="")
-EMAIL_PORT = env.int("DJANGO_EMAIL_PORT", default=587)
-EMAIL_HOST_USER = env("DJANGO_EMAIL_HOST_USER", default="")
-EMAIL_HOST_PASSWORD = env("DJANGO_EMAIL_HOST_PASSWORD", default="")
-EMAIL_USE_TLS = env.bool("DJANGO_EMAIL_USE_TLS", default=True)
-EMAIL_USE_SSL = env.bool("DJANGO_EMAIL_USE_SSL", default=False)
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-timeout
 EMAIL_TIMEOUT = 5
 EMAIL_QUEUE_DELIVERY_BACKEND = env(

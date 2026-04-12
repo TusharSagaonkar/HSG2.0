@@ -5,6 +5,7 @@ Last updated: `2026-03-17`
 ## Target Topology
 
 - Web app: Render web service
+- Email queue automation: Render cron job running every minute
 - Primary database: Supabase Postgres
 - Cache: optional Render Key Value (`REDIS_URL`) or in-memory cache fallback
 
@@ -17,7 +18,9 @@ Last updated: `2026-03-17`
 
 1. Push the repository to GitHub/GitLab.
 2. In Render, create a new Blueprint and point it at this repository.
-3. Render will read `render.yaml` and create the `housing-accounting` web service.
+3. Render will read `render.yaml` and create:
+   - the `housing-accounting` web service
+   - the `housing-accounting-email-queue` cron job
 4. When prompted for environment variables marked `sync: false`, provide:
 
 ```text
@@ -54,7 +57,10 @@ Render auto-generates:
 
 - Build command installs dependencies and runs `collectstatic`.
 - Start command runs `migrate` and then starts Gunicorn.
+- The cron job runs `python manage.py process_email_queue --limit 50` every minute.
+- Render cron schedules use UTC.
 - On the free plan, migrations remain in `startCommand` because Render reserves `preDeployCommand` for paid web services.
+- Render cron jobs do not support the `free` plan, so the email scheduler is configured on `starter`.
 
 ## Custom Domain Checklist
 
@@ -72,4 +78,7 @@ After the first deploy:
 1. Open the Render service URL.
 2. Open `/admin/`.
 3. Confirm database-backed pages load successfully.
-4. Review Render logs to confirm migrations completed cleanly.
+4. Review web service logs to confirm migrations completed cleanly.
+5. Open the `housing-accounting-email-queue` cron job in Render.
+6. Trigger a manual run once to verify `Processed ... queued emails.` appears in the logs.
+7. Confirm new `PENDING` or `RETRY` emails move forward automatically on the next scheduled minute.

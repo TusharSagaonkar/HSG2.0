@@ -1,0 +1,14 @@
+ROLE_SUPER_ADMIN = "super_admin"
+ROLE_OWNER = "owner"
+ROLE_ADMIN = "admin"
+ROLE_ACCOUNTANT = "accountant"
+ROLE_MEMBER = "member"
+ROLE_VIEWER = "viewer"
+
+ROLE_HIERARCHY = {
+    ROLE_OWNER: 100,
+    ROLE_ADMIN: 80,
+    ROLE_ACCOUNTANT: 60,
+    ROLE_MEMBER: 40,
+    ROLE_VIEWER: 20,
+}

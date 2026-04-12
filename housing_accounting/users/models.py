@@ -2,6 +2,7 @@
 from typing import ClassVar
 
 from django.contrib.auth.models import AbstractUser
+from django.db import models
 from django.db.models import CharField
 from django.db.models import EmailField
 from django.urls import reverse
@@ -23,11 +24,13 @@ class User(AbstractUser):
     last_name = None  # type: ignore[assignment]
     email = EmailField(_("email address"), unique=True)
     username = None  # type: ignore[assignment]
+    email_verified = models.BooleanField(_("email verified"), default=False)
 
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = []
 
     objects: ClassVar[UserManager] = UserManager()
+    is_super_admin = models.BooleanField(default=False)
 
     def get_absolute_url(self) -> str:
         """Get URL for user's detail view.

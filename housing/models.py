@@ -19,6 +19,7 @@ from members.models import UnitOwnership
 from notifications.models import EmailLog
 from notifications.models import EmailQueue
 from notifications.models import EmailTemplate
+from notifications.models import EmailVerificationToken
 from notifications.models import GlobalEmailSettings
 from notifications.models import ReminderLog
 from notifications.models import SocietyEmailSettings
@@ -33,6 +34,7 @@ __all__ = [
     "EmailLog",
     "EmailQueue",
     "EmailTemplate",
+    "EmailVerificationToken",
     "GlobalEmailSettings",
     "Member",
     "PaymentReceipt",

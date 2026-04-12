@@ -118,6 +118,11 @@
                             <span class="sub-item">{% translate "Dashboard" %}</span>
                           </a>
                         </li>
+                        <li class="{% if current_namespace == 'housing' and current_url_name == 'society-admin' %}active{% endif %}">
+                          <a href="{% if selected_society %}{% url 'housing:society-admin' selected_society.pk %}{% endif %}">
+                            <span class="sub-item">{% translate "Admin" %}</span>
+                          </a>
+                        </li>
                         <li class="{% if current_namespace == 'housing' and current_url_name == 'society-list' %}active{% endif %}">
                           <a href="{% url 'housing:society-list' %}">
                             <span class="sub-item">{% translate "Society Tab" %}</span>
@@ -401,26 +406,41 @@
                 <ul class="navbar-nav topbar-nav ms-md-auto align-items-center">
                   {% if request.user.is_authenticated %}
                     <li class="nav-item">
-                      <form method="post" action="{% url 'users:selection-update' %}" class="selection-form" id="societySelectionForm">
-                        {% csrf_token %}
-                        <input type="hidden" name="next" value="{{ request.get_full_path }}" id="nextUrlField" />
-                        <label class="small mb-0" for="id_selected_society">{% translate "Society" %}</label>
-                        <select id="id_selected_society" name="selected_society_id" class="form-select form-select-sm" onchange="handleSocietySelection(this)">
-                          {% for society in selection_societies %}
-                            <option value="{{ society.id }}" {% if selected_society and selected_society.id == society.id %}selected{% endif %}>{{ society.name }}</option>
-                          {% empty %}
-                            <option value="">{% translate "No Society" %}</option>
-                          {% endfor %}
-                        </select>
-                        <label class="small mb-0" for="id_selected_financial_year">{% translate "FY" %}</label>
-                        <select id="id_selected_financial_year" name="selected_financial_year_id" class="form-select form-select-sm" onchange="this.form.submit()">
-                          {% for financial_year in selection_financial_years %}
-                            <option value="{{ financial_year.id }}" {% if selected_financial_year and selected_financial_year.id == financial_year.id %}selected{% endif %}>{{ financial_year.name }}</option>
-                          {% empty %}
-                            <option value="">{% translate "No Financial Year" %}</option>
-                          {% endfor %}
-                        </select>
-                      </form>
+                      <div class="selection-shell">
+                        <div class="selection-shell-meta">
+                          <span class="selection-shell-kicker">{% translate "Tenant Context" %}</span>
+                          <div class="selection-shell-badges">
+                            {% if request.user.is_super_admin %}
+                              <span class="context-badge context-badge-super">{% translate "Super Admin" %}</span>
+                            {% endif %}
+                            {% if current_membership %}
+                              <span class="context-badge context-badge-role">{{ current_membership.get_role_display }}</span>
+                            {% elif selected_society %}
+                              <span class="context-badge context-badge-empty">{% translate "No Role" %}</span>
+                            {% endif %}
+                          </div>
+                        </div>
+                        <form method="post" action="{% url 'users:selection-update' %}" class="selection-form" id="societySelectionForm">
+                          {% csrf_token %}
+                          <input type="hidden" name="next" value="{{ request.get_full_path }}" id="nextUrlField" />
+                          <label class="small mb-0" for="id_selected_society">{% translate "Society" %}</label>
+                          <select id="id_selected_society" name="selected_society_id" class="form-select form-select-sm" onchange="handleSocietySelection(this)">
+                            {% for society in selection_societies %}
+                              <option value="{{ society.id }}" {% if selected_society and selected_society.id == society.id %}selected{% endif %}>{{ society.name }}</option>
+                            {% empty %}
+                              <option value="">{% translate "No Society" %}</option>
+                            {% endfor %}
+                          </select>
+                          <label class="small mb-0" for="id_selected_financial_year">{% translate "FY" %}</label>
+                          <select id="id_selected_financial_year" name="selected_financial_year_id" class="form-select form-select-sm" onchange="this.form.submit()">
+                            {% for financial_year in selection_financial_years %}
+                              <option value="{{ financial_year.id }}" {% if selected_financial_year and selected_financial_year.id == financial_year.id %}selected{% endif %}>{{ financial_year.name }}</option>
+                            {% empty %}
+                              <option value="">{% translate "No Financial Year" %}</option>
+                            {% endfor %}
+                          </select>
+                        </form>
+                      </div>
                     </li>
                     <li class="nav-item">
                       <button class="btn periods-chip"
@@ -446,11 +466,6 @@
                         </button>
                       </div>
                     </li>
-                    {% if request.user.is_superuser %}
-                      <li class="nav-item ms-2">
-                        <span class="badge badge-warning user-chip">{% translate "Superuser" %}</span>
-                      </li>
-                    {% endif %}
                   {% endif %}
                 </ul>
               </div>

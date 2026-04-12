@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {{ society.name }} - {% translate "Admin" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Society Administration" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {{ society.name }} - {% translate "Manage members and roles" %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'housing:society-detail' society.pk %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}</a>
+  </div>
+
+  <div class="card">
+    <div class="card-header">
+      <div class="card-title">
+        <i class="fas fa-users me-2"></i>{% translate "Society Members" %}
+      </div>
+    </div>
+    <div class="card-body">
+      {% if memberships %}
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>{% translate "User" %}</th>
+                <th>{% translate "Email" %}</th>
+                <th>{% translate "Role" %}</th>
+                <th>{% translate "Status" %}</th>
+                <th>{% translate "Added On" %}</th>
+                <th>{% translate "Actions" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for membership in memberships %}
+                <tr>
+                  <td>
+                    <strong>{{ membership.user.name|default:membership.user.email }}</strong>
+                  </td>
+                  <td>
+                    {{ membership.user.email }}
+                  </td>
+                  <td>
+                    <span class="badge bg-info">
+                      {{ membership.role_label }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="badge {{ membership.status_badge_class }}">
+                      <i class="{{ membership.status_icon }} me-1"></i>{{ membership.status_display }}
+                    </span>
+                  </td>
+                  <td>
+                    <small class="text-muted">
+                      {{ membership.joined_at|date:"SHORT_DATE_FORMAT" }}
+                    </small>
+                  </td>
+                  <td>
+                    <div class="d-flex gap-2">
+                      {% if not membership.user.email_verified and membership.is_active %}
+                        <form method="post" action="{% url 'housing:resend-verification-email' society.pk membership.user.id %}" style="display: inline;">
+                          {% csrf_token %}
+                          <button type="submit" class="btn btn-sm btn-warning" title="{% translate 'Resend verification email' %}">
+                            <i class="fas fa-redo me-1"></i>{% translate "Resend Email" %}
+                          </button>
+                        </form>
+                      {% endif %}
+                      <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#updateMembershipModal{{ membership.id }}" title="{% translate 'Edit member' %}">
+                        <i class="fas fa-edit me-1"></i>{% translate "Edit" %}
+                      </button>
+                    </div>
+
+                    <!-- Update Membership Modal -->
+                    <div class="modal fade" id="updateMembershipModal{{ membership.id }}" tabindex="-1">
+                      <div class="modal-dialog">
+                        <div class="modal-content">
+                          <div class="modal-header">
+                            <h5 class="modal-title">
+                              {% translate "Edit Member" %}: {{ membership.user.name|default:membership.user.email }}
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                          </div>
+                          <form method="post" action="{% url 'housing:update-membership' society.pk membership.user.id %}">
+                            {% csrf_token %}
+                            <div class="modal-body">
+                              <div class="mb-3">
+                                <label for="id_role_{{ membership.id }}" class="form-label">{% translate "Role" %}</label>
+                                <select name="role" id="id_role_{{ membership.id }}" class="form-select" required>
+                                  <option value="viewer" {% if membership.role == 'viewer' %}selected{% endif %}>
+                                    {% translate "Viewer - Read-only access" %}
+                                  </option>
+                                  <option value="member" {% if membership.role == 'member' %}selected{% endif %}>
+                                    {% translate "Member - Participate with limited change access" %}
+                                  </option>
+                                  <option value="accountant" {% if membership.role == 'accountant' %}selected{% endif %}>
+                                    {% translate "Accountant - Handle accounting and billing" %}
+                                  </option>
+                                  <option value="admin" {% if membership.role == 'admin' %}selected{% endif %}>
+                                    {% translate "Admin - Manage society users and operations" %}
+                                  </option>
+                                  <option value="owner" {% if membership.role == 'owner' %}selected{% endif %}>
+                                    {% translate "Owner - Full control and governance" %}
+                                  </option>
+                                </select>
+                              </div>
+                              <div class="mb-3">
+                                <div class="form-check">
+                                  <input type="checkbox" name="is_active" id="id_is_active_{{ membership.id }}" class="form-check-input" {% if membership.is_active %}checked{% endif %}>
+                                  <label class="form-check-label" for="id_is_active_{{ membership.id }}">
+                                    {% translate "Active" %}
+                                  </label>
+                                </div>
+                                <small class="text-muted">
+                                  {% translate "Uncheck to deactivate the user's access." %}
+                                </small>
+                              </div>
+                            </div>
+                            <div class="modal-footer">
+                              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% translate "Cancel" %}</button>
+                              <button type="submit" class="btn btn-primary">{% translate "Save Changes" %}</button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="alert alert-info" role="alert">
+          <i class="fas fa-info-circle me-2"></i>
+          {% translate "No members found for this society." %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card mt-3">
+    <div class="card-header">
+      <div class="card-title">
+        <i class="fas fa-shield-alt me-2"></i>{% translate "Role Hierarchy" %}
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        {% for role in role_summary %}
+          <div class="col-12 col-md-6 mb-3">
+            <div class="role-info-card">
+              <div class="role-badge-large">
+                <span class="badge bg-primary p-2">
+                  <i class="fas fa-lock-open"></i> {{ role.label }}
+                </span>
+              </div>
+              <p class="small text-muted mt-2 mb-0">
+                {{ role.description }}
+              </p>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  {% if current_user_role %}
+    <div class="alert alert-secondary mt-3" role="alert">
+      <i class="fas fa-user-check me-2"></i>
+      {% blocktranslate %}Your role: <strong>{{ current_user_role|title }}</strong>{% endblocktranslate %}
+    </div>
+  {% endif %}
+{% endblock content %}

@@ -20,6 +20,7 @@ from django.http import JsonResponse
 
 from housing.forms import SocietyForm
 from housing.forms import SocietyEmailSettingsForm
+from housing.forms import SocietyUserCreationForm
 from housing.forms import StructureForm
 from housing.forms import BulkUnitCreateForm
 from housing.forms import UnitForm
@@ -30,6 +31,8 @@ from housing.forms import ChargeTemplateForm
 from housing.forms import BillingGenerationForm
 from housing.forms import ReceiptPostingForm
 from societies.models import Society
+from societies.models import Membership
+from notifications.models import EmailVerificationToken
 from members.models import Member
 from members.models import Structure
 from members.models import Unit
@@ -44,6 +47,8 @@ from notifications.services import schedule_payment_reminders
 from notifications.models import GlobalEmailSettings
 from notifications.models import SocietyEmailSettings
 from housing_accounting.selection import get_selected_scope
+from societies.services import create_society
+from societies.utils import get_user_role
 
 
 class HousingDashboardView(LoginRequiredMixin, TemplateView):
@@ -155,10 +160,14 @@ class SocietyListView(LoginRequiredMixin, ListView):
         queryset = Society.objects.annotate(
             structure_count=Count("structures", distinct=True),
             unit_count=Count("structures__units", distinct=True),
+            membership_count=Count("memberships", filter=Q(memberships__is_active=True), distinct=True),
         ).order_by("name")
         if selected_society:
             queryset = queryset.filter(pk=selected_society.pk)
-        return queryset
+        societies = list(queryset.select_related("created_by"))
+        for society in societies:
+            society.current_user_role = get_user_role(self.request.user, society)
+        return societies
 
 
 society_list_view = SocietyListView.as_view()
@@ -273,6 +282,15 @@ class SocietyDetailView(LoginRequiredMixin, DetailView):
 
         context["root_structures"] = children_map.get(None, [])
         context["total_units"] = len(units)
+        context["active_membership_count"] = society.memberships.filter(is_active=True).count()
+        context["current_user_role"] = get_user_role(self.request.user, society)
+        context["role_summary"] = [
+            {"key": "owner", "label": _("Owner"), "description": _("Full control, ownership transfer, and admin governance.")},
+            {"key": "admin", "label": _("Admin"), "description": _("Manage society users, operations, and day-to-day administration.")},
+            {"key": "accountant", "label": _("Accountant"), "description": _("Handle accounting workflows, billing, and receipts.")},
+            {"key": "member", "label": _("Member"), "description": _("Participate in society operations with limited change access.")},
+            {"key": "viewer", "label": _("Viewer"), "description": _("Read-only access to society data and reports.")},
+        ]
         return context
 
 
@@ -355,6 +373,15 @@ class SocietyCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
 
     def get_success_url(self):
         return reverse("housing:society-detail", kwargs={"pk": self.object.pk})
+
+    def form_valid(self, form):
+        self.object = create_society(
+            user=self.request.user,
+            name=form.cleaned_data["name"],
+            registration_number=form.cleaned_data.get("registration_number") or "",
+            address=form.cleaned_data.get("address") or "",
+        )
+        return redirect(self.get_success_url())
 
 
 society_create_view = SocietyCreateView.as_view()
@@ -964,6 +991,380 @@ class OutstandingDashboardView(LoginRequiredMixin, TemplateView):
 
 
 outstanding_dashboard_view = OutstandingDashboardView.as_view()
+
+
+class SocietyAdminView(LoginRequiredMixin, DetailView):
+    """View for managing society memberships and user roles."""
+    model = Society
+    template_name = "housing/society_admin.html"
+    context_object_name = "society"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        society = self.object
+        
+        # Get all memberships for this society with user details
+        memberships = Membership.objects.filter(
+            society=society
+        ).select_related('user').order_by('-is_active', '-joined_at')
+        
+        # Role labels mapping
+        role_labels = {
+            "owner": _("Owner"),
+            "admin": _("Admin"),
+            "accountant": _("Accountant"),
+            "member": _("Member"),
+            "viewer": _("Viewer"),
+        }
+        
+        # Enrich memberships with role info and computed status
+        for membership in memberships:
+            membership.role_label = role_labels.get(membership.role, membership.role)
+            
+            # Compute combined status
+            if not membership.is_active:
+                membership.status_display = "Inactive"
+                membership.status_badge_class = "bg-secondary"
+                membership.status_icon = "fas fa-times-circle"
+            elif not membership.user.email_verified:
+                membership.status_display = "Pending Email Verification"
+                membership.status_badge_class = "bg-warning"
+                membership.status_icon = "fas fa-envelope"
+            else:
+                membership.status_display = "Active & Verified"
+                membership.status_badge_class = "bg-success"
+                membership.status_icon = "fas fa-check-circle"
+        
+        context['memberships'] = memberships
+        context['role_summary'] = [
+            {"key": "owner", "label": _("Owner"), "description": _("Full control, ownership transfer, and admin governance.")},
+            {"key": "admin", "label": _("Admin"), "description": _("Manage society users, operations, and day-to-day administration.")},
+            {"key": "accountant", "label": _("Accountant"), "description": _("Handle accounting workflows, billing, and receipts.")},
+            {"key": "member", "label": _("Member"), "description": _("Participate in society operations with limited change access.")},
+            {"key": "viewer", "label": _("Viewer"), "description": _("Read-only access to society data and reports.")},
+        ]
+        context['current_user_role'] = get_user_role(self.request.user, society)
+        return context
+
+
+society_admin_view = SocietyAdminView.as_view()
+
+
+class SocietyUserCreateView(LoginRequiredMixin, FormView):
+    """View for creating a new user and granting them access to a society."""
+    form_class = SocietyUserCreationForm
+    template_name = "housing/form.html"
+
+    def get_society(self):
+        return Society.objects.get(pk=self.kwargs["pk"])
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs['society'] = self.get_society()
+        kwargs['current_user'] = self.request.user
+        return kwargs
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        society = self.get_society()
+        context["society"] = society
+        context["form_title"] = _("Create User & Grant Access")
+        context["form_subtitle"] = _("Create a new user account and assign their role in this society.")
+        context["cancel_url"] = reverse("housing:society-admin", kwargs={"pk": society.pk})
+        context["cancel_label"] = _("Back to Admin")
+        context["submit_label"] = _("Create User")
+        context["submit_icon"] = "fas fa-user-plus"
+        return context
+
+    def form_valid(self, form):
+        from societies.services import create_user_by_admin
+        from notifications.services import queue_email
+        from django.core.exceptions import PermissionDenied
+        from django.urls import reverse
+        
+        society = self.get_society()
+        try:
+            # Construct full name from first and last name
+            first_name = form.cleaned_data.get('first_name', '').strip()
+            last_name = form.cleaned_data.get('last_name', '').strip()
+            full_name = f"{first_name} {last_name}".strip() if first_name or last_name else form.cleaned_data['email']
+            
+            user = create_user_by_admin(
+                admin_user=self.request.user,
+                society=society,
+                email=form.cleaned_data['email'],
+                password=form.cleaned_data['password'],
+                role=form.cleaned_data['role'],
+                name=full_name,
+            )
+            
+            # Create email verification token
+            verification_token = EmailVerificationToken.create_token(user, expires_in_hours=24)
+            
+            # Build verification link
+            verification_link = self.request.build_absolute_uri(
+                reverse("housing:email-verify", kwargs={"token": verification_token.token})
+            )
+            
+            # Queue verification email
+            queue_email(
+                recipient_email=user.email,
+                society=society,
+                template_name="authentication.user_created",
+                template_subject_template="Welcome to Housing Accounting System",
+                template_body_template=(
+                    "Hello {{ user_name }},\n\n"
+                    "Your account has been created in Housing Accounting System.\n\n"
+                    "Society: {{ society_name }}\n"
+                    "Email: {{ user_email }}\n"
+                    "Role: {{ user_role }}\n\n"
+                    "Please verify your email by clicking the link below:\n"
+                    "{{ verification_link }}\n\n"
+                    "This link will expire in 24 hours.\n\n"
+                    "You can then login with your email and password.\n\n"
+                    "Regards,\n"
+                    "{{ society_name }}\n"
+                ),
+                template_variables=[
+                    "user_name",
+                    "society_name",
+                    "user_email",
+                    "user_role",
+                    "verification_link",
+                ],
+                context={
+                    "user_name": user.name or user.email,
+                    "society_name": society.name,
+                    "user_email": user.email,
+                    "user_role": form.cleaned_data['role'].title(),
+                    "verification_link": verification_link,
+                },
+                email_type="AUTHENTICATION",
+            )
+            
+            messages.success(
+                self.request,
+                _("User %(email)s created successfully. Verification email sent.") % {
+                    "email": form.cleaned_data['email'],
+                },
+            )
+            return redirect("housing:society-admin", pk=society.pk)
+        except PermissionDenied:
+            form.add_error(None, _("You do not have permission to assign this role."))
+            return self.form_invalid(form)
+
+
+society_user_create_view = SocietyUserCreateView.as_view()
+
+
+class EmailVerificationView(View):
+    """View for verifying email addresses."""
+    
+    def get(self, request, token):
+        """Verify email using token."""
+        try:
+            verification_token = EmailVerificationToken.objects.select_related('user').get(
+                token=token,
+                is_used=False,
+            )
+        except EmailVerificationToken.DoesNotExist:
+            messages.error(request, _("Invalid or expired verification link."))
+            return redirect("account_login")
+        
+        if verification_token.is_expired():
+            messages.error(request, _("Verification link has expired. Please contact the administrator."))
+            return redirect("account_login")
+        
+        if verification_token.verify():
+            messages.success(
+                request,
+                _("Email verified successfully! You can now login."),
+            )
+            return redirect("account_login")
+        else:
+            messages.error(request, _("Email verification failed. Please try again."))
+            return redirect("account_login")
+
+
+email_verification_view = EmailVerificationView.as_view()
+
+
+class ResendVerificationEmailView(LoginRequiredMixin, View):
+    """View for resending verification email to users who haven't verified yet."""
+    
+    def post(self, request, society_pk, user_id):
+        """Resend verification email to user."""
+        from notifications.services import queue_email
+        from django.core.exceptions import PermissionDenied
+        from django.http import Http404
+        from housing_accounting.users.models import User
+        
+        try:
+            society = Society.objects.get(pk=society_pk)
+            
+            # Check if user has permission to resend (Owner or Admin)
+            if not request.user.is_superuser:
+                try:
+                    membership = Membership.objects.get(user=request.user, society=society)
+                    if membership.role not in ['owner', 'admin']:
+                        raise PermissionDenied(_("You don't have permission to resend verification emails."))
+                except Membership.DoesNotExist:
+                    raise PermissionDenied(_("You don't have access to this society."))
+            
+            # Get the user to resend email to (must be member of the society)
+            user = User.objects.get(id=user_id)
+            try:
+                membership = Membership.objects.get(user=user, society=society)
+            except Membership.DoesNotExist:
+                raise Http404(_("User is not a member of this society."))
+            
+            # Check if user's email is not already verified
+            if user.email_verified:
+                messages.warning(request, _("This user's email is already verified."))
+                return redirect("housing:society-admin", pk=society_pk)
+            
+            # Create new verification token
+            verification_token = EmailVerificationToken.create_token(user, expires_in_hours=24)
+            
+            # Build verification link
+            verification_link = request.build_absolute_uri(
+                reverse("housing:email-verify", kwargs={"token": verification_token.token})
+            )
+            
+            # Get user role display name
+            user_role_display = dict(Membership.Role.choices).get(membership.role, membership.role)
+            
+            # Queue verification email
+            queue_email(
+                recipient_email=user.email,
+                society=society,
+                template_name="authentication.user_created",
+                template_subject_template="Email Verification - Housing Accounting System",
+                template_body_template=(
+                    "Hello {{ user_name }},\n\n"
+                    "Please verify your email to activate your account.\n\n"
+                    "Society: {{ society_name }}\n"
+                    "Email: {{ user_email }}\n"
+                    "Role: {{ user_role }}\n\n"
+                    "Click the link below to verify your email:\n"
+                    "{{ verification_link }}\n\n"
+                    "This link will expire in 24 hours.\n\n"
+                    "Regards,\n"
+                    "{{ society_name }}\n"
+                ),
+                template_variables=[
+                    "user_name",
+                    "society_name",
+                    "user_email",
+                    "user_role",
+                    "verification_link",
+                ],
+                context={
+                    "user_name": user.name or user.email,
+                    "society_name": society.name,
+                    "user_email": user.email,
+                    "user_role": user_role_display,
+                    "verification_link": verification_link,
+                },
+                email_type="AUTHENTICATION",
+            )
+            
+            messages.success(
+                request,
+                _("Verification email resent to %(email)s.") % {
+                    "email": user.email,
+                },
+            )
+            return redirect("housing:society-admin", pk=society_pk)
+            
+        except Society.DoesNotExist:
+            raise Http404(_("Society not found."))
+        except User.DoesNotExist:
+            raise Http404(_("User not found."))
+        except PermissionDenied as e:
+            messages.error(request, str(e))
+            return redirect("housing:society-admin", pk=society_pk)
+
+
+resend_verification_email_view = ResendVerificationEmailView.as_view()
+
+
+class UpdateMembershipView(LoginRequiredMixin, View):
+    """View for updating membership role and status."""
+    
+    def post(self, request, society_pk, user_id):
+        """Update membership role and/or status."""
+        from housing.forms import UpdateMembershipForm
+        from django.core.exceptions import PermissionDenied
+        from django.http import Http404
+        from housing_accounting.users.models import User
+        
+        try:
+            society = Society.objects.get(pk=society_pk)
+            
+            # Check if user has permission to update (Owner or Admin)
+            if not request.user.is_superuser:
+                try:
+                    updater_membership = Membership.objects.get(user=request.user, society=society)
+                    if updater_membership.role not in ['owner', 'admin']:
+                        raise PermissionDenied(_("You don't have permission to update memberships."))
+                except Membership.DoesNotExist:
+                    raise PermissionDenied(_("You don't have access to this society."))
+            
+            # Get the user and their membership
+            user = User.objects.get(id=user_id)
+            try:
+                membership = Membership.objects.get(user=user, society=society)
+            except Membership.DoesNotExist:
+                raise Http404(_("User is not a member of this society."))
+            
+            # Process form
+            form = UpdateMembershipForm(request.POST, society=society, current_user=request.user, membership=membership)
+            
+            if form.is_valid():
+                # Prevent deactivating the only owner
+                new_role = form.cleaned_data['role']
+                new_is_active = form.cleaned_data['is_active']
+                
+                if not new_is_active and membership.role == 'owner':
+                    # Check if there are other active owners
+                    other_active_owners = Membership.objects.filter(
+                        society=society,
+                        role='owner',
+                        is_active=True,
+                    ).exclude(id=membership.id).exists()
+                    
+                    if not other_active_owners:
+                        messages.error(request, _("Cannot deactivate the only active owner."))
+                        return redirect("housing:society-admin", pk=society_pk)
+                
+                # Update membership
+                membership.role = new_role
+                membership.is_active = new_is_active
+                membership.save()
+                
+                messages.success(
+                    request,
+                    _("%(name)s updated successfully.") % {
+                        "name": user.name or user.email,
+                    },
+                )
+                return redirect("housing:society-admin", pk=society_pk)
+            else:
+                # Return form errors
+                messages.error(request, _("Please correct the errors in the form."))
+                return redirect("housing:society-admin", pk=society_pk)
+            
+        except Society.DoesNotExist:
+            raise Http404(_("Society not found."))
+        except User.DoesNotExist:
+            raise Http404(_("User not found."))
+        except PermissionDenied as e:
+            messages.error(request, str(e))
+            return redirect("housing:society-admin", pk=society_pk)
+
+
+update_membership_view = UpdateMembershipView.as_view()
 
 
 class ReminderScheduleView(LoginRequiredMixin, View):

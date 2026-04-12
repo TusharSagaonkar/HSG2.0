@@ -1,7 +1,7 @@
 from django.utils import timezone
 
 from accounting.models import FinancialYear
-from societies.models import Society
+from societies.services import get_accessible_societies_qs
 
 SESSION_SELECTED_SOCIETY_ID = "selected_society_id"
 SESSION_SELECTED_FINANCIAL_YEAR_ID = "selected_financial_year_id"
@@ -44,10 +44,11 @@ def _persist_selection(request, *, society, financial_year):
 
 
 def _load_scope_from_session(request):
+    accessible_societies = get_accessible_societies_qs(request.user)
     society_id = request.session.get(SESSION_SELECTED_SOCIETY_ID)
-    society = Society.objects.filter(pk=society_id).first() if society_id else None
+    society = accessible_societies.filter(pk=society_id).first() if society_id else None
     if society is None:
-        society = Society.objects.order_by("name").first()
+        society = accessible_societies.first()
 
     financial_year_id = request.session.get(SESSION_SELECTED_FINANCIAL_YEAR_ID)
     financial_year = None

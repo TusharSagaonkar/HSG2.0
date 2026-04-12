@@ -10,10 +10,10 @@ from django.views.generic import RedirectView
 from django.views.generic import UpdateView
 
 from accounting.models import FinancialYear
-from societies.models import Society
 from housing_accounting.selection import SESSION_SELECTED_FINANCIAL_YEAR_ID
 from housing_accounting.selection import SESSION_SELECTED_SOCIETY_ID
 from housing_accounting.selection import get_default_financial_year_for_society
+from societies.services import get_accessible_societies_qs
 from housing_accounting.users.models import User
 
 
@@ -60,9 +60,14 @@ class GlobalSelectionUpdateView(LoginRequiredMixin, View):
         )
 
         society_id = request.POST.get("selected_society_id")
-        selected_society = None
-        if society_id:
-            selected_society = Society.objects.filter(pk=society_id).first()
+        accessible_societies = get_accessible_societies_qs(request.user)
+        selected_society = (
+            accessible_societies.filter(pk=society_id).first()
+            if society_id
+            else None
+        )
+        if selected_society is None:
+            selected_society = accessible_societies.first()
 
         if selected_society:
             request.session[SESSION_SELECTED_SOCIETY_ID] = selected_society.id
