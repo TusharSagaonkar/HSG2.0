@@ -2,8 +2,9 @@ from django.conf import settings
 
 from accounting.models import AccountingPeriod
 from accounting.models import FinancialYear
-from societies.models import Society
 from housing_accounting.selection import get_selected_scope
+from societies.models import Society
+from societies.services import get_accessible_societies_qs
 
 
 def allauth_settings(request):
@@ -40,9 +41,10 @@ def global_selection(request):
         else AccountingPeriod.objects.none()
     )
     return {
-        "selection_societies": Society.objects.order_by("name"),
+        "selection_societies": get_accessible_societies_qs(request.user),
         "selection_financial_years": financial_years,
         "selection_accounting_periods": accounting_periods,
         "selected_society": selected_society,
         "selected_financial_year": selected_financial_year,
+        "current_membership": getattr(request, "current_membership", None),
     }

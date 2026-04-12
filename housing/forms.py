@@ -552,3 +552,108 @@ class ReceiptPostingForm(BootstrapForm):
         if bill and amount > bill.outstanding_amount:
             raise forms.ValidationError("Receipt amount cannot exceed bill outstanding amount.")
         return cleaned
+
+
+class SocietyUserCreationForm(BootstrapForm):
+    """Form for creating a new user and granting them access to a society."""
+    
+    email = forms.EmailField(
+        label=_("Email"),
+        help_text=_("Email address for the new user."),
+    )
+    password = forms.CharField(
+        label=_("Password"),
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+        help_text=_("Initial password for the user."),
+    )
+    password_confirm = forms.CharField(
+        label=_("Confirm Password"),
+        widget=forms.PasswordInput(attrs={"autocomplete": "new-password"}),
+    )
+    role = forms.ChoiceField(
+        label=_("Role"),
+        choices=[
+            ("viewer", _("Viewer - Read-only access")),
+            ("member", _("Member - Participate with limited change access")),
+            ("accountant", _("Accountant - Handle accounting and billing")),
+            ("admin", _("Admin - Manage society users and operations")),
+            ("owner", _("Owner - Full control and governance")),
+        ],
+        help_text=_("Assign the user's initial role in this society."),
+    )
+    first_name = forms.CharField(
+        label=_("First Name"),
+        required=False,
+        help_text=_("Optional: User's first name."),
+    )
+    last_name = forms.CharField(
+        label=_("Last Name"),
+        required=False,
+        help_text=_("Optional: User's last name."),
+    )
+    
+    def __init__(self, *args, society=None, current_user=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.society = society
+        self.current_user = current_user
+    
+    def clean_email(self):
+        email = self.cleaned_data.get("email", "").lower().strip()
+        from housing_accounting.users.models import User
+        
+        # Check if user already exists
+        existing_user = User.objects.filter(email=email).first()
+        
+        if existing_user and self.society:
+            # Check if user already has membership in this society
+            from societies.models import Membership
+            existing_membership = Membership.objects.filter(
+                user=existing_user,
+                society=self.society,
+            ).exists()
+            if existing_membership:
+                raise forms.ValidationError(
+                    _("This user already has access to this society.")
+                )
+        
+        return email
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        password = cleaned_data.get("password")
+        password_confirm = cleaned_data.get("password_confirm")
+        
+        if password and password_confirm and password != password_confirm:
+            self.add_error("password_confirm", _("Passwords do not match."))
+        
+        if password and len(password) < 8:
+            self.add_error("password", _("Password must be at least 8 characters."))
+        
+        return cleaned_data
+
+
+class UpdateMembershipForm(BootstrapForm):
+    """Form for updating membership role and status."""
+    
+    role = forms.ChoiceField(
+        label=_("Role"),
+        choices=[
+            ("viewer", _("Viewer - Read-only access")),
+            ("member", _("Member - Participate with limited change access")),
+            ("accountant", _("Accountant - Handle accounting and billing")),
+            ("admin", _("Admin - Manage society users and operations")),
+            ("owner", _("Owner - Full control and governance")),
+        ],
+        help_text=_("Update user's role in this society."),
+    )
+    is_active = forms.BooleanField(
+        label=_("Active"),
+        required=False,
+        help_text=_("Uncheck to deactivate the user's access."),
+    )
+    
+    def __init__(self, *args, society=None, current_user=None, membership=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.society = society
+        self.current_user = current_user
+        self.membership = membership

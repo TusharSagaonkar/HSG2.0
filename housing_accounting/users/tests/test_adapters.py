@@ -1,60 +1,37 @@
-import smtplib
-
-import pytest
-
-from allauth.account.adapter import DefaultAccountAdapter
-
 from housing_accounting.users.adapters import AccountAdapter
-from notifications.services import EmailConfigurationError
+from notifications.models import EmailQueue
 
 
-def test_account_adapter_falls_back_to_default_backend_on_email_config_error(monkeypatch):
+def test_account_adapter_sends_auth_email_via_global_email_service(monkeypatch):
     adapter = AccountAdapter()
     rendered_message = object()
-    calls = {"fallback": 0}
+    template = object()
+    calls = {}
 
     def fake_render_mail(template_prefix, email, context):
         return rendered_message
 
-    def fake_send_direct_email_message(message, *, email_type):
-        raise EmailConfigurationError("bad config")
+    def fake_ensure_file_email_template(**kwargs):
+        calls["template_kwargs"] = kwargs
+        return template
 
-    def fake_super_send_mail(self, template_prefix, email, context):
-        calls["fallback"] += 1
+    def fake_send_direct_email_message(message, **kwargs):
+        calls["message"] = message
+        calls["kwargs"] = kwargs
 
     monkeypatch.setattr(adapter, "render_mail", fake_render_mail)
+    monkeypatch.setattr(
+        "housing_accounting.users.adapters.ensure_file_email_template",
+        fake_ensure_file_email_template,
+    )
     monkeypatch.setattr(
         "housing_accounting.users.adapters.send_direct_email_message",
         fake_send_direct_email_message,
     )
-    monkeypatch.setattr(DefaultAccountAdapter, "send_mail", fake_super_send_mail)
 
     adapter.send_mail("account/email/email_confirmation", "member@example.com", {})
 
-    assert calls["fallback"] == 1
-
-
-def test_account_adapter_falls_back_to_default_backend_on_smtp_disconnect(monkeypatch):
-    adapter = AccountAdapter()
-    rendered_message = object()
-    calls = {"fallback": 0}
-
-    def fake_render_mail(template_prefix, email, context):
-        return rendered_message
-
-    def fake_send_direct_email_message(message, *, email_type):
-        raise smtplib.SMTPServerDisconnected("please run connect() first")
-
-    def fake_super_send_mail(self, template_prefix, email, context):
-        calls["fallback"] += 1
-
-    monkeypatch.setattr(adapter, "render_mail", fake_render_mail)
-    monkeypatch.setattr(
-        "housing_accounting.users.adapters.send_direct_email_message",
-        fake_send_direct_email_message,
-    )
-    monkeypatch.setattr(DefaultAccountAdapter, "send_mail", fake_super_send_mail)
-
-    adapter.send_mail("account/email/email_confirmation", "member@example.com", {})
-
-    assert calls["fallback"] == 1
+    assert calls["message"] is rendered_message
+    assert calls["template_kwargs"]["template_name"] == "account/email/email_confirmation"
+    assert calls["kwargs"]["email_type"] == EmailQueue.EmailType.AUTHENTICATION
+    assert calls["kwargs"]["template"] is template

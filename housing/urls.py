@@ -2,6 +2,7 @@ from django.urls import path
 
 from housing.views import billing_generate_view
 from housing.views import charge_template_create_view
+from housing.views import email_verification_view
 from housing.views import housing_dashboard_view
 from housing.views import member_create_view
 from housing.views import member_list_view
@@ -10,6 +11,10 @@ from housing.views import member_form_options_api_view
 from housing.views import outstanding_dashboard_view
 from housing.views import receipt_post_view
 from housing.views import reminder_schedule_view
+from housing.views import resend_verification_email_view
+from housing.views import update_membership_view
+from housing.views import society_admin_view
+from housing.views import society_user_create_view
 from housing.views import society_create_view
 from housing.views import society_detail_view
 from housing.views import society_email_settings_view
@@ -28,6 +33,10 @@ urlpatterns = [
     path("societies/add/", view=society_create_view, name="society-add"),
     path("societies/", view=society_list_view, name="society-list"),
     path("societies/<int:pk>/", view=society_detail_view, name="society-detail"),
+    path("societies/<int:pk>/admin/", view=society_admin_view, name="society-admin"),
+    path("societies/<int:pk>/admin/user/create/", view=society_user_create_view, name="society-user-create"),
+    path("societies/<int:society_pk>/members/<int:user_id>/resend-verification/", view=resend_verification_email_view, name="resend-verification-email"),
+    path("societies/<int:society_pk>/members/<int:user_id>/update/", view=update_membership_view, name="update-membership"),
     path(
         "societies/<int:pk>/email-settings/",
         view=society_email_settings_view,
@@ -56,4 +65,5 @@ urlpatterns = [
     path("receipts/post/", view=receipt_post_view, name="receipt-post"),
     path("outstanding/", view=outstanding_dashboard_view, name="outstanding-dashboard"),
     path("reminders/schedule/", view=reminder_schedule_view, name="reminder-schedule"),
+    path("verify-email/<str:token>/", view=email_verification_view, name="email-verify"),
 ]

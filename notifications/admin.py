@@ -7,7 +7,47 @@ from notifications.models import GlobalEmailSettings
 from notifications.models import SocietyEmailSettings
 
 
-@admin.register(GlobalEmailSettings)
+class AdminGlobalEmailSettings(GlobalEmailSettings):
+    class Meta:
+        proxy = True
+        app_label = "notifications"
+        verbose_name = "Global email settings"
+        verbose_name_plural = "Global email settings"
+
+
+class AdminSocietyEmailSettings(SocietyEmailSettings):
+    class Meta:
+        proxy = True
+        app_label = "notifications"
+        verbose_name = "Society email settings"
+        verbose_name_plural = "Society email settings"
+
+
+class AdminEmailTemplate(EmailTemplate):
+    class Meta:
+        proxy = True
+        app_label = "notifications"
+        verbose_name = "Email template"
+        verbose_name_plural = "Email templates"
+
+
+class AdminEmailQueue(EmailQueue):
+    class Meta:
+        proxy = True
+        app_label = "notifications"
+        verbose_name = "Email queue"
+        verbose_name_plural = "Email queue"
+
+
+class AdminEmailLog(EmailLog):
+    class Meta:
+        proxy = True
+        app_label = "notifications"
+        verbose_name = "Email log"
+        verbose_name_plural = "Email logs"
+
+
+@admin.register(AdminGlobalEmailSettings)
 class GlobalEmailSettingsAdmin(admin.ModelAdmin):
     list_display = (
         "provider_type",
@@ -21,7 +61,7 @@ class GlobalEmailSettingsAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at")
 
 
-@admin.register(SocietyEmailSettings)
+@admin.register(AdminSocietyEmailSettings)
 class SocietyEmailSettingsAdmin(admin.ModelAdmin):
     list_display = (
         "society",
@@ -36,14 +76,14 @@ class SocietyEmailSettingsAdmin(admin.ModelAdmin):
     readonly_fields = ("created_at", "updated_at")
 
 
-@admin.register(EmailTemplate)
+@admin.register(AdminEmailTemplate)
 class EmailTemplateAdmin(admin.ModelAdmin):
     list_display = ("template_name", "is_active", "created_at")
     list_filter = ("is_active",)
     search_fields = ("template_name",)
 
 
-@admin.register(EmailQueue)
+@admin.register(AdminEmailQueue)
 class EmailQueueAdmin(admin.ModelAdmin):
     list_display = (
         "recipient_email",
@@ -65,7 +105,7 @@ class EmailQueueAdmin(admin.ModelAdmin):
     )
 
 
-@admin.register(EmailLog)
+@admin.register(AdminEmailLog)
 class EmailLogAdmin(admin.ModelAdmin):
     list_display = ("email_queue", "attempt_no", "smtp_host", "status", "created_at")
     list_filter = ("status",)

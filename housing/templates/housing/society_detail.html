@@ -62,6 +62,55 @@
         <p class="mb-0"><strong>{% translate "Total units:" %}</strong> {{ total_units }}</p>
       </div>
     </div>
+    <div class="col-12 col-lg-6">
+      <div class="quick-card governance-card">
+        <div class="governance-header">
+          <div>
+            <h3 class="h6 mb-1">{% translate "Access & Governance" %}</h3>
+            <p class="small text-muted mb-0">{% translate "Tenant isolation and role-based permissions for this society." %}</p>
+          </div>
+          {% if current_user_role %}
+            <span class="context-badge context-badge-role">{{ current_user_role|title }}</span>
+          {% endif %}
+        </div>
+        <div class="governance-metrics">
+          <div class="governance-metric">
+            <span class="governance-label">{% translate "Created by" %}</span>
+            <strong>{{ society.created_by.name|default:society.created_by.email|default:"-" }}</strong>
+          </div>
+          <div class="governance-metric">
+            <span class="governance-label">{% translate "Active memberships" %}</span>
+            <strong>{{ active_membership_count }}</strong>
+          </div>
+          <div class="governance-metric">
+            <span class="governance-label">{% translate "Your access" %}</span>
+            <strong>{% if current_user_role %}{{ current_user_role|title }}{% else %}{% translate "No membership" %}{% endif %}</strong>
+          </div>
+          <div class="governance-metric">
+            <span class="governance-label">{% translate "Isolation" %}</span>
+            <strong>{% translate "Membership-only" %}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-lg-6">
+      <div class="quick-card">
+        <h3 class="h6 mb-2">{% translate "Role Hierarchy" %}</h3>
+        <div class="role-stack">
+          {% for role in role_summary %}
+            <div class="role-stack-item">
+              <div class="role-stack-badge-row">
+                <span class="context-badge context-badge-role">{{ role.label }}</span>
+                {% if current_user_role == role.key %}
+                  <span class="context-badge context-badge-count">{% translate "Current" %}</span>
+                {% endif %}
+              </div>
+              <p class="mb-0 text-muted">{{ role.description }}</p>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="quick-card" id="structure-hierarchy">

@@ -18,12 +18,65 @@
     <a href="{% url 'housing:society-add' %}" class="btn btn-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Add Society" %}</a>
   </div>
 
+  <div class="row g-3 mb-3">
+    {% for society in societies %}
+      <div class="col-12 col-xl-6">
+        <div class="quick-card society-overview-card">
+          <div class="society-overview-top">
+            <div>
+              <p class="society-overview-kicker mb-1">{% translate "Accessible Society" %}</p>
+              <h3 class="h5 mb-1">
+                <a href="{% url 'housing:society-detail' society.pk %}" class="text-decoration-none">
+                  {{ society.name }}
+                </a>
+              </h3>
+              <p class="mb-0 text-muted">
+                {% translate "Created by" %} {{ society.created_by.name|default:society.created_by.email|default:"-" }}
+              </p>
+            </div>
+            <div class="society-overview-badges">
+              {% if society.current_user_role %}
+                <span class="context-badge context-badge-role">{{ society.current_user_role|title }}</span>
+              {% endif %}
+              <span class="context-badge context-badge-count">{{ society.membership_count }} {% translate "members" %}</span>
+            </div>
+          </div>
+          <div class="society-overview-grid">
+            <div>
+              <span class="society-overview-label">{% translate "Registration" %}</span>
+              <strong>{{ society.registration_number|default:"-" }}</strong>
+            </div>
+            <div>
+              <span class="society-overview-label">{% translate "Structures" %}</span>
+              <strong>{{ society.structure_count }}</strong>
+            </div>
+            <div>
+              <span class="society-overview-label">{% translate "Units" %}</span>
+              <strong>{{ society.unit_count }}</strong>
+            </div>
+            <div>
+              <span class="society-overview-label">{% translate "Joined Context" %}</span>
+              <strong>{% if selected_society and selected_society.id == society.id %}{% translate "Active" %}{% else %}{% translate "Available" %}{% endif %}</strong>
+            </div>
+          </div>
+          <div class="society-overview-actions">
+            <a href="{% url 'housing:society-detail' society.pk %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-folder-open me-1"></i>{% translate "Open" %}</a>
+            <a href="{% url 'housing:society-email-settings' society.pk %}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-envelope me-1"></i>{% translate "Email Settings" %}</a>
+          </div>
+        </div>
+      </div>
+    {% empty %}
+    {% endfor %}
+  </div>
+
   <div class="table-responsive">
     <table class="table table-hover align-middle mb-0">
       <thead>
         <tr>
           <th>{% translate "Name" %}</th>
+          <th>{% translate "Your Role" %}</th>
           <th>{% translate "Registration" %}</th>
+          <th class="text-center">{% translate "Members" %}</th>
           <th class="text-center">{% translate "Structures" %}</th>
           <th class="text-center">{% translate "Units" %}</th>
           <th class="text-end">{% translate "Action" %}</th>
@@ -37,7 +90,15 @@
                 {{ society.name }}
               </a>
             </td>
+            <td>
+              {% if society.current_user_role %}
+                <span class="context-badge context-badge-role">{{ society.current_user_role|title }}</span>
+              {% else %}
+                <span class="text-muted">-</span>
+              {% endif %}
+            </td>
             <td>{{ society.registration_number|default:"-" }}</td>
+            <td class="text-center">{{ society.membership_count }}</td>
             <td class="text-center">{{ society.structure_count }}</td>
             <td class="text-center">{{ society.unit_count }}</td>
             <td class="text-end">
@@ -47,7 +108,7 @@
           </tr>
         {% empty %}
           <tr>
-            <td colspan="5" class="text-center text-muted py-4">{% translate "No societies available." %}</td>
+            <td colspan="7" class="text-center text-muted py-4">{% translate "No societies available." %}</td>
           </tr>
         {% endfor %}
       </tbody>

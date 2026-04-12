@@ -11,10 +11,13 @@ The delivery flow is:
 
 ::
 
-   Global email settings
+   Email template registration
+       -> email queue
+       -> email lifecycle logs
+       -> Global email settings
        -> optional society override
        -> email configuration resolver
-       -> direct send or queued send
+       -> queued send or queue-immediate send
        -> SMTP backend
 
 There are two configuration layers:
@@ -27,7 +30,14 @@ Resolution rules:
 1. Authentication email always uses global settings
 2. Non-authentication email uses society settings when active
 3. Otherwise the system falls back to global settings
+4. If no active global settings record exists, email delivery fails fast
 
+Queue and log rules:
+
+1. Every email registers or reuses an ``EmailTemplate``
+2. Every email creates an ``EmailQueue`` row first
+3. Even "send now" email is processed through the queue lifecycle
+4. ``EmailLog`` records queue, processing, and terminal delivery events
 
 Data Model
 ----------------------------------------------------------------------
@@ -134,7 +144,8 @@ Use one of the service entry points in ``notifications.services``.
 Direct authentication/global mail
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Use this for authentication-style mail or for immediate global send behavior.
+Use this for authentication-style mail or for immediate send behavior that
+still needs queue and log coverage.
 
 ::
 
@@ -151,6 +162,9 @@ Use this for authentication-style mail or for immediate global send behavior.
    send_direct_email_message(
        message,
        email_type=EmailQueue.EmailType.AUTHENTICATION,
+       template_name="account/email/email_confirmation",
+       template_subject_template="Verify your account",
+       template_body_template="Welcome to GrihaLekha.",
    )
 
 Queued application mail
@@ -194,11 +208,19 @@ Processing Queued Email
 The current repository does not yet have Celery wired in for email processing.
 
 Right now, queued email is processed through the service layer or the
-management command:
+management commands:
 
 ::
 
    uv run python manage.py process_email_queue
+
+   uv run python manage.py bootstrap_email_templates
+
+   uv run python manage.py send_test_email --to you@example.com
+
+For production automation, run ``process_email_queue`` from a scheduler every
+minute. In this repository's Render deployment, that is handled by a dedicated
+cron job service.
 
 Optional limit:
 
@@ -215,13 +237,9 @@ Authentication Email Path
 
 Allauth account email has been integrated with the global email service.
 
-The custom account adapter:
-
-* routes auth mail through the global email resolver
-* falls back to Django's configured email backend if the database-backed
-  configuration is unreadable
-
-This avoids signup hard-failures caused by unreadable stored SMTP secrets.
+The custom account adapter routes auth mail through template registration,
+queue creation, queue-immediate processing, and the global email resolver.
+Authentication email now depends on an active ``GlobalEmailSettings`` record.
 
 
 Operational Notes
@@ -229,17 +247,16 @@ Operational Notes
 
 Queued email:
 
+* writes an initial queue log entry before delivery starts
+* writes processing and terminal delivery log entries
 * creates delivery logs in ``EmailLog``
 * records which SMTP config was used in ``EmailQueue.smtp_used``
 * respects retry status and retry count
 
 Authentication email:
 
-* is sent directly
-* does not currently create queue or delivery log rows
-
-If you need a full audit trail for authentication email as well, extend the
-adapter path to write explicit audit entries.
+* is processed immediately after queue creation
+* still creates queue and delivery log rows
 
 
 Recommended Usage Rules
