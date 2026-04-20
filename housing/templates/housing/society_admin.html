@@ -16,6 +16,15 @@
 {% block content %}
   <div class="page-actions">
     <a href="{% url 'housing:society-detail' society.pk %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}</a>
+    <a href="{% url 'housing:society-voucher-templates' society.pk %}" class="btn btn-outline-primary">
+      <i class="fas fa-file-invoice me-1"></i>{% translate "Voucher Templates" %}
+    </a>
+    <a href="{% url 'housing:society-email-settings' society.pk %}" class="btn btn-outline-info">
+      <i class="fas fa-envelope me-1"></i>{% translate "Email Settings" %}
+    </a>
+    <a href="{% url 'housing:society-user-create' society.pk %}" class="btn btn-primary">
+      <i class="fas fa-user-plus me-1"></i>{% translate "Create User" %}
+    </a>
   </div>
 
   <div class="card">
