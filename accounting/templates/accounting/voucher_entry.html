@@ -13,10 +13,94 @@
   {% translate "Create a draft voucher and add ledger lines." %}
 {% endblock dashboard_subtitle %}
 
+{% block page_id %}accounting:voucher-entry{% endblock page_id %}
+
 {% block content %}
   <div class="page-actions">
     <a href="{% url 'accounting:voucher-posting' %}" class="btn btn-outline-primary"><i class="fas fa-check-circle me-1"></i>{% translate "Voucher Posting Menu" %}</a>
     <a href="{% url 'accounting:voucher-list' %}" class="btn btn-outline-secondary"><i class="fas fa-eye me-1"></i>{% translate "Voucher List" %}</a>
+  </div>
+
+  <div class="voucher-quick-actions mb-4">
+    <h3 class="h6">{% translate "Quick Start" %}</h3>
+    <p class="text-muted small">{% translate "Click a button to pre‑fill common voucher details." %}</p>
+    
+    {% if voucher_templates %}
+      <div class="d-flex flex-wrap gap-2">
+        {% for template in voucher_templates %}
+          <a href="?template_id={{ template.id }}"
+             data-template-quick-button="true"
+             data-template-shortcut-index="{{ forloop.counter }}"
+             class="btn btn-outline-{% cycle 'danger' 'success' 'info' 'warning' 'secondary' 'primary' %}"
+             title="{% if template.name %}{{ template.name }}{% else %}{{ template.get_voucher_type_display }}{% endif %}">
+            <i class="fas
+              {% if template.voucher_type == 'PAYMENT' %}fa-money-bill-wave
+              {% elif template.voucher_type == 'RECEIPT' %}fa-receipt
+              {% elif template.voucher_type == 'GENERAL' %}fa-exchange-alt
+              {% elif template.voucher_type == 'JOURNAL' %}fa-book
+              {% else %}fa-file-invoice{% endif %} me-1"></i>
+            {% if template.name %}
+              {{ template.name }}
+            {% else %}
+              {% if template.voucher_type == 'GENERAL' %}
+                {% translate "Contra" %}
+              {% else %}
+                {{ template.get_voucher_type_display }}
+              {% endif %}
+            {% endif %}
+            {% if forloop.counter <= 9 %}
+              <span class="badge text-bg-light ms-1">Ctrl+{{ forloop.counter }}</span>
+            {% endif %}
+          </a>
+        {% endfor %}
+      </div>
+      {% if selected_template %}
+        <div class="alert alert-info mt-3 small">
+          <i class="fas fa-info-circle me-1"></i>
+          {% if selected_template.voucher_type == 'GENERAL' and not selected_template.name %}
+            {% blocktranslate %}
+              Pre‑filled from template "Contra". You can modify any field before saving.
+            {% endblocktranslate %}
+          {% elif selected_template.name %}
+            {% blocktranslate with template_name=selected_template.name %}
+              Pre‑filled from template "{{ template_name }}". You can modify any field before saving.
+            {% endblocktranslate %}
+          {% else %}
+            {% blocktranslate with template_name=selected_template.get_voucher_type_display %}
+              Pre‑filled from template "{{ template_name }}". You can modify any field before saving.
+            {% endblocktranslate %}
+          {% endif %}
+        </div>
+      {% endif %}
+    {% else %}
+      <div class="alert alert-warning small">
+        <i class="fas fa-exclamation-triangle me-1"></i>
+        {% if selected_society %}
+          {% translate "No voucher templates configured for this society. Use the admin interface to create templates." %}
+        {% else %}
+          {% translate "Select a society to see available voucher templates." %}
+        {% endif %}
+      </div>
+      {# Fallback to basic buttons if no templates #}
+      <div class="d-flex flex-wrap gap-2 mt-2">
+        <a href="?voucher_type=PAYMENT&payment_mode=CASH&narration=Payment+for+expenses"
+           class="btn btn-outline-danger btn-sm">
+           <i class="fas fa-money-bill-wave me-1"></i>{% translate "Payment" %}
+        </a>
+        <a href="?voucher_type=RECEIPT&payment_mode=CASH&narration=Receipt+from+member"
+           class="btn btn-outline-success btn-sm">
+           <i class="fas fa-receipt me-1"></i>{% translate "Receipt" %}
+        </a>
+        <a href="?voucher_type=GENERAL&narration=Transfer+cash+to+bank"
+           class="btn btn-outline-info btn-sm">
+           <i class="fas fa-exchange-alt me-1"></i>{% translate "Contra" %}
+        </a>
+        <a href="?voucher_type=JOURNAL&narration=Adjustment+entry"
+           class="btn btn-outline-warning btn-sm">
+           <i class="fas fa-book me-1"></i>{% translate "Journal" %}
+        </a>
+      </div>
+    {% endif %}
   </div>
 
   <form method="post" novalidate>
@@ -127,6 +211,40 @@
       const rowsContainer = document.getElementById("ledger-entry-rows");
       const totalFormsField = document.getElementById("id_entries-TOTAL_FORMS");
       const emptyRowTemplate = document.getElementById("ledger-entry-empty-row-template");
+      const templateButtons = Array.from(document.querySelectorAll('[data-template-quick-button="true"]'))
+        .filter((button) => Number.parseInt(button.dataset.templateShortcutIndex || "", 10) <= 9);
+
+      document.addEventListener("keydown", (event) => {
+        if (!event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) {
+          return;
+        }
+
+        const activeElement = document.activeElement;
+        if (activeElement) {
+          const tagName = activeElement.tagName;
+          const isContentEditable = activeElement.isContentEditable;
+          if (["INPUT", "TEXTAREA", "SELECT"].includes(tagName) || isContentEditable) {
+            return;
+          }
+        }
+
+        if (!/^[1-9]$/.test(event.key)) {
+          return;
+        }
+
+        const shortcutIndex = Number.parseInt(event.key, 10);
+        const targetButton = templateButtons.find((button) => (
+          Number.parseInt(button.dataset.templateShortcutIndex || "", 10) === shortcutIndex
+        ));
+
+        if (!targetButton || targetButton.offsetParent === null) {
+          return;
+        }
+
+        event.preventDefault();
+        event.stopPropagation();
+        targetButton.click();
+      });
 
       if (societyField) {
         societyField.addEventListener("change", () => {
@@ -138,6 +256,23 @@
           }
           window.location.href = next.toString();
         });
+
+        // Preserve society parameter in quick‑action buttons
+        const societyId = societyField.value;
+        if (societyId) {
+          document.querySelectorAll('.voucher-quick-actions a').forEach(link => {
+            const url = new URL(link.href, window.location.origin);
+            // Only add society parameter if not already in template_id links
+            // For template_id links, we need to preserve the template_id
+            if (url.searchParams.has('template_id')) {
+              url.searchParams.set('society', societyId);
+            } else {
+              // For old-style links with individual parameters
+              url.searchParams.set('society', societyId);
+            }
+            link.href = url.toString();
+          });
+        }
       }
 
       if (!addRowButton || !rowsContainer || !totalFormsField || !emptyRowTemplate) {

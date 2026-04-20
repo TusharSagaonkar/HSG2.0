@@ -1,6 +1,7 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.db.models import F
 from django.db import transaction
 from django.db.models import Exists
 from django.db.models import OuterRef
@@ -14,6 +15,7 @@ from django.http import HttpResponse
 from django.views import View
 from django.views.generic import ListView
 from django.views.generic import TemplateView
+from django.utils import timezone
 from decimal import Decimal
 from datetime import date
 import csv
@@ -25,6 +27,8 @@ from accounting.models import Account
 from accounting.models import AccountingPeriod
 from accounting.models import LedgerEntry
 from accounting.models import Voucher
+from accounting.models import VoucherTemplate
+from accounting.models import VoucherTemplateRow
 from accounting.services.reporting import build_account_ledger
 from accounting.services.reporting import build_trial_balance
 from housing_accounting.selection import get_selected_scope
@@ -353,7 +357,7 @@ class VoucherEntryView(LoginRequiredMixin, TemplateView):
         except (Society.DoesNotExist, TypeError, ValueError):
             return None
 
-    def _build_row_formset(self, data=None, society=None):
+    def _build_row_formset(self, data=None, society=None, initial_data=None):
         if society is None and data:
             society_id = data.get("society")
             if society_id:
@@ -362,11 +366,81 @@ class VoucherEntryView(LoginRequiredMixin, TemplateView):
                     society = voucher_form.cleaned_data["society"]
                 else:
                     society = self._resolve_society(society_id)
+
         return self.row_formset_class(
             data=data,
             prefix="entries",
             form_kwargs={"society": society},
+            initial=initial_data,
         )
+
+    def _get_voucher_templates(self, society, *, active_only=True):
+        if not society:
+            return VoucherTemplate.objects.none()
+        queryset = VoucherTemplate.objects.filter(society=society)
+        if active_only:
+            queryset = queryset.filter(is_active=True)
+        queryset = queryset.select_related("society").prefetch_related("rows__account", "rows__unit")
+        return VoucherTemplate.ordered_for_quick_actions(queryset)
+
+    def _get_selected_template(self, selected_society):
+        template_id = self.request.GET.get("template_id")
+        if not (template_id and selected_society):
+            return None
+        try:
+            selected_template = VoucherTemplate.objects.prefetch_related(
+                "rows__account",
+                "rows__unit",
+            ).get(
+                pk=int(template_id),
+                society=selected_society,
+                is_active=True,
+            )
+        except (VoucherTemplate.DoesNotExist, ValueError, TypeError):
+            return None
+
+        VoucherTemplate.objects.filter(pk=selected_template.pk).update(
+            usage_count=F("usage_count") + 1,
+            last_used_at=timezone.now(),
+        )
+        selected_template.refresh_from_db(fields=["usage_count", "last_used_at"])
+        return selected_template
+
+    def _build_template_row_initial(self, selected_template):
+        row_initial_data = []
+        skipped_labels = []
+        for row in selected_template.rows.all().order_by("order", "id"):
+            if not row.account_id:
+                skipped_labels.append(f"row #{row.id}")
+                continue
+            if not row.account.is_active:
+                skipped_labels.append(row.account.name)
+                continue
+            if row.unit_id and not row.unit.is_active:
+                skipped_labels.append(f"{row.account.name} / {row.unit.identifier}")
+                continue
+
+            row_data = {
+                "account": row.account_id,
+                "unit": row.unit_id if row.unit else None,
+            }
+            if row.default_amount and row.default_amount > 0:
+                if row.side == VoucherTemplateRow.Side.DEBIT:
+                    row_data["debit"] = row.default_amount
+                else:
+                    row_data["credit"] = row.default_amount
+            row_initial_data.append(row_data)
+
+        if skipped_labels:
+            skipped_summary = ", ".join(skipped_labels[:3])
+            if len(skipped_labels) > 3:
+                skipped_summary = f"{skipped_summary}, +{len(skipped_labels) - 3} more"
+            messages.warning(
+                self.request,
+                f'Some template rows were skipped because they reference inactive data: {skipped_summary}.',
+            )
+
+        return row_initial_data
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -377,11 +451,62 @@ class VoucherEntryView(LoginRequiredMixin, TemplateView):
             selected_society = self._resolve_society(self.request.GET.get("society"))
             if selected_society is None:
                 selected_society, _ = get_selected_scope(self.request)
-            initial = {"society": selected_society} if selected_society else None
-            voucher_form = voucher_form or VoucherForm(initial=initial)
+            
+            voucher_templates = self._get_voucher_templates(selected_society)
+            selected_template = self._get_selected_template(selected_society)
+            
+            # Build initial data for voucher form
+            initial = {"society": selected_society} if selected_society else {}
+            
+            # Pre‑fill from template if available
+            if selected_template:
+                initial["voucher_type"] = selected_template.voucher_type
+                if selected_template.payment_mode:
+                    initial["payment_mode"] = selected_template.payment_mode
+                if selected_template.narration:
+                    initial["narration"] = selected_template.narration
+                if selected_template.reference_number_pattern:
+                    # For now, just use the pattern as-is; could generate a sequence later
+                    initial["reference_number"] = selected_template.reference_number_pattern
+            
+            # Also allow query parameters to override (only fields that exist in VoucherForm)
+            allowed_fields = {"voucher_type", "payment_mode", "reference_number", "narration"}
+            for field in allowed_fields:
+                value = self.request.GET.get(field)
+                if value is not None:
+                    initial[field] = value
+            
+            voucher_form = voucher_form or VoucherForm(initial=initial if initial else None)
+            
+            # Build initial data for ledger rows if template is selected
+            row_initial_data = self._build_template_row_initial(selected_template) if selected_template else []
+            
+            # Build the formset with initial data if available
             entry_formset = entry_formset or self._build_row_formset(
-                society=selected_society
+                society=selected_society,
+                initial_data=row_initial_data if row_initial_data else None
             )
+            
+            # Add templates to context
+            context["voucher_templates"] = voucher_templates
+            context["selected_template"] = selected_template
+        else:
+            # If forms are already provided (e.g., from POST with errors), we still need templates
+            selected_society = None
+            if voucher_form and voucher_form.cleaned_data.get("society"):
+                selected_society = voucher_form.cleaned_data["society"]
+            elif voucher_form and voucher_form.data.get("society"):
+                try:
+                    selected_society = Society.objects.get(pk=int(voucher_form.data.get("society")))
+                except (Society.DoesNotExist, ValueError, TypeError):
+                    selected_society = None
+            
+            voucher_templates = []
+            if selected_society:
+                voucher_templates = self._get_voucher_templates(selected_society)
+            
+            context["voucher_templates"] = voucher_templates
+            context["selected_template"] = None
 
         context["voucher_form"] = voucher_form
         context["entry_formset"] = entry_formset

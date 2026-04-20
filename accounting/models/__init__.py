@@ -7,3 +7,4 @@ from .model_Voucher import Voucher
 from .model_voucher_sequence import VoucherSequence
 from .model_PeriodStatusLog import PeriodStatusLog
 from .model_YearEndCloseLog import YearEndCloseLog
+from .model_VoucherTemplate import VoucherTemplate, VoucherTemplateRow

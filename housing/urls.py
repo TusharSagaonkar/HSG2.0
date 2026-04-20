@@ -25,6 +25,7 @@ from housing.views import bulk_unit_create_view
 from housing.views import unit_create_view
 from housing.views import unit_occupancy_create_view
 from housing.views import unit_ownership_create_view
+from housing.views import society_voucher_templates_view
 
 app_name = "housing"
 
@@ -34,6 +35,7 @@ urlpatterns = [
     path("societies/", view=society_list_view, name="society-list"),
     path("societies/<int:pk>/", view=society_detail_view, name="society-detail"),
     path("societies/<int:pk>/admin/", view=society_admin_view, name="society-admin"),
+    path("societies/<int:pk>/admin/voucher-templates/", view=society_voucher_templates_view, name="society-voucher-templates"),
     path("societies/<int:pk>/admin/user/create/", view=society_user_create_view, name="society-user-create"),
     path("societies/<int:society_pk>/members/<int:user_id>/resend-verification/", view=resend_verification_email_view, name="resend-verification-email"),
     path("societies/<int:society_pk>/members/<int:user_id>/update/", view=update_membership_view, name="update-membership"),

@@ -54,9 +54,10 @@
       <script defer src="{% static 'vendor/kaiadmin-lite/assets/js/plugin/jquery-scrollbar/jquery.scrollbar.min.js' %}"></script>
       <script defer src="{% static 'vendor/kaiadmin-lite/assets/js/kaiadmin.min.js' %}"></script>
       <script defer src="{% static 'js/project.js' %}?v=20260408i"></script>
+      <script defer src="{% static 'js/shortcut_engine.js' %}"></script>
     {% endblock javascript %}
   </head>
-  <body class="ka-body {% block bodyclass %}{% endblock bodyclass %}">
+  <body class="ka-body {% block bodyclass %}{% endblock bodyclass %}" data-page="{% block page_id %}{% endblock %}">
     {% block body %}
       <div class="wrapper">
         <div class="sidebar" data-background-color="dark">

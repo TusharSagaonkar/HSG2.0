@@ -1,0 +1,512 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {{ society.name }} - {% translate "Voucher Templates" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Voucher Templates" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {{ society.name }} - {% translate "Configure default voucher settings" %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'housing:society-admin' society.pk %}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left me-1"></i>{% translate "Back to Society Admin" %}
+    </a>
+    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#templateModal">
+      <i class="fas fa-plus me-1"></i>{% translate "New Template" %}
+    </button>
+  </div>
+
+  <div class="alert alert-info">
+    <i class="fas fa-info-circle me-2"></i>
+    {% blocktranslate %}
+      Voucher templates pre-fill the voucher entry page. Use the modal editor to add or update
+      templates, and use the cards to quickly activate, deactivate, delete, or open a template.
+    {% endblocktranslate %}
+  </div>
+
+  {% if templates_by_type %}
+    {% for voucher_type, templates in templates_by_type.items %}
+      <div class="card mb-4 border-0 shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+          <div class="card-title mb-0">
+            <i class="fas
+              {% if voucher_type == 'PAYMENT' %}fa-money-bill-wave
+              {% elif voucher_type == 'RECEIPT' %}fa-receipt
+              {% elif voucher_type == 'GENERAL' %}fa-exchange-alt
+              {% elif voucher_type == 'JOURNAL' %}fa-book
+              {% else %}fa-file-invoice{% endif %} me-2"></i>
+            {% if voucher_type == 'GENERAL' %}
+              {% translate "Contra" %}
+            {% else %}
+              {% for choice_key, choice_label in voucher_type_choices %}
+                {% if choice_key == voucher_type %}{{ choice_label }}{% endif %}
+              {% endfor %}
+            {% endif %}
+          </div>
+          <span class="badge text-bg-secondary">{{ templates|length }}</span>
+        </div>
+        <div class="card-body">
+          <div class="row row-cols-1 row-cols-xl-2 g-3">
+            {% for template in templates %}
+              <div class="col">
+                <div class="card h-100 {% if template.is_pinned %}border-primary{% elif not template.is_active %}border-warning{% else %}border-light{% endif %}">
+                  <div class="card-body d-flex flex-column">
+                    <div class="d-flex justify-content-between align-items-start gap-2">
+                      <div>
+                        <h5 class="card-title mb-1">
+                          {% if template.name %}
+                            {{ template.name }}
+                          {% else %}
+                            {% if template.voucher_type == 'GENERAL' %}
+                              {% translate "Contra" %}
+                            {% else %}
+                              {{ template.get_voucher_type_display }}
+                            {% endif %}
+                          {% endif %}
+                        </h5>
+                        <div class="d-flex flex-wrap gap-2 mb-2">
+                          <span class="badge text-bg-light">{% translate "Used" %}: {{ template.usage_count }}</span>
+                          <span class="badge text-bg-light">{% translate "Order" %}: {{ template.sort_order }}</span>
+                          {% if template.is_pinned %}
+                            <span class="badge text-bg-primary">{% translate "Pinned" %}</span>
+                          {% endif %}
+                          {% if not template.is_active %}
+                            <span class="badge text-bg-warning">{% translate "Inactive" %}</span>
+                          {% endif %}
+                        </div>
+                      </div>
+                      <div class="text-end">
+                        <small class="text-muted d-block">
+                          <i class="fas fa-calendar-alt me-1"></i>{{ template.updated_at|date:"SHORT_DATE_FORMAT" }}
+                        </small>
+                        {% if template.payment_mode %}
+                          <span class="badge text-bg-info mt-1">{{ template.get_payment_mode_display }}</span>
+                        {% endif %}
+                      </div>
+                    </div>
+
+                    {% if template.narration %}
+                      <p class="small text-muted mb-2">{{ template.narration|truncatechars:140 }}</p>
+                    {% endif %}
+
+                    <div class="table-responsive mb-3">
+                      <table class="table table-sm table-borderless mb-0">
+                        <thead>
+                          <tr>
+                            <th class="small text-muted">{% translate "Account" %}</th>
+                            <th class="small text-muted">{% translate "Side" %}</th>
+                            <th class="small text-muted">{% translate "Amount" %}</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {% for row in template.rows.all|slice:":4" %}
+                            <tr>
+                              <td class="small">{{ row.account.name|truncatechars:24 }}</td>
+                              <td class="small">
+                                <span class="badge {% if row.side == 'DEBIT' %}text-bg-danger{% else %}text-bg-success{% endif %}">
+                                  {{ row.get_side_display|slice:":1" }}
+                                </span>
+                              </td>
+                              <td class="small">
+                                {% if row.default_amount %}
+                                  ₹{{ row.default_amount }}
+                                {% else %}
+                                  <span class="text-muted">—</span>
+                                {% endif %}
+                              </td>
+                            </tr>
+                          {% empty %}
+                            <tr>
+                              <td colspan="3" class="small text-muted text-center">{% translate "No rows" %}</td>
+                            </tr>
+                          {% endfor %}
+                          {% if template.rows.all.count > 4 %}
+                            <tr>
+                              <td colspan="3" class="small text-muted text-center">
+                                +{{ template.rows.all.count|add:"-4" }} {% translate "more" %}
+                              </td>
+                            </tr>
+                          {% endif %}
+                        </tbody>
+                      </table>
+                    </div>
+
+                    <div class="mt-auto d-flex flex-wrap gap-2">
+                      {% if template.is_active %}
+                        <a href="{% url 'accounting:voucher-entry' %}?template_id={{ template.id }}&society={{ society.id }}"
+                           class="btn btn-sm btn-primary">
+                          <i class="fas fa-play me-1"></i>{% translate "Use" %}
+                        </a>
+                      {% else %}
+                        <button type="button" class="btn btn-sm btn-outline-secondary" disabled>
+                          <i class="fas fa-ban me-1"></i>{% translate "Inactive" %}
+                        </button>
+                      {% endif %}
+                      <a href="{% url 'housing:society-voucher-templates' society.pk %}?edit={{ template.id }}"
+                         class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-edit me-1"></i>{% translate "Edit" %}
+                      </a>
+                      <a href="{% url 'housing:society-voucher-templates' society.pk %}?copy={{ template.id }}"
+                         class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-copy me-1"></i>{% translate "Copy" %}
+                      </a>
+                      <form method="post" action="{% url 'housing:society-voucher-templates' society.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="template_id" value="{{ template.id }}">
+                        <input type="hidden" name="action" value="toggle_active">
+                        <button type="submit" class="btn btn-sm btn-outline-secondary">
+                          <i class="fas {% if template.is_active %}fa-eye-slash{% else %}fa-eye{% endif %} me-1"></i>
+                          {% if template.is_active %}{% translate "Deactivate" %}{% else %}{% translate "Activate" %}{% endif %}
+                        </button>
+                      </form>
+                      <button type="button"
+                              class="btn btn-sm btn-outline-danger"
+                              data-bs-toggle="modal"
+                              data-bs-target="#deleteTemplateModal{{ template.id }}">
+                        <i class="fas fa-trash me-1"></i>{% translate "Delete" %}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div class="modal fade" id="deleteTemplateModal{{ template.id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content">
+                    <div class="modal-header">
+                      <h5 class="modal-title">{% translate "Delete Template" %}</h5>
+                      <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% translate 'Close' %}"></button>
+                    </div>
+                    <div class="modal-body">
+                      <p class="mb-0">
+                        {% blocktranslate with name=template.name|default:template.get_voucher_type_display %}
+                          Delete "{{ name }}"? This cannot be undone.
+                        {% endblocktranslate %}
+                      </p>
+                    </div>
+                    <div class="modal-footer">
+                      <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                        {% translate "Cancel" %}
+                      </button>
+                      <form method="post" action="{% url 'housing:society-voucher-templates' society.pk %}" class="d-inline">
+                        {% csrf_token %}
+                        <input type="hidden" name="template_id" value="{{ template.id }}">
+                        <input type="hidden" name="action" value="delete">
+                        <button type="submit" class="btn btn-danger">
+                          {% translate "Delete" %}
+                        </button>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  {% else %}
+    <div class="card border-0 shadow-sm">
+      <div class="card-body text-center py-5">
+        <i class="fas fa-file-invoice fa-3x text-muted mb-3"></i>
+        <h4 class="card-title">{% translate "No Voucher Templates" %}</h4>
+        <p class="card-text text-muted">
+          {% translate "This society doesn't have any voucher templates yet. Use the modal editor to create the first one." %}
+        </p>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="card mt-4 border-0 shadow-sm">
+    <div class="card-header">
+      <div class="card-title">
+        <i class="fas fa-question-circle me-2"></i>{% translate "About Voucher Templates" %}
+      </div>
+    </div>
+    <div class="card-body">
+      <div class="row">
+        <div class="col-12 col-md-6">
+          <h6 class="small text-uppercase text-muted">{% translate "What are voucher templates?" %}</h6>
+          <p class="small">
+            {% blocktranslate %}
+              Templates pre-fill the voucher entry form with default accounts, narrations, and payment modes.
+              They save time for recurring transactions like monthly payments, receipts, or transfers.
+            {% endblocktranslate %}
+          </p>
+        </div>
+        <div class="col-12 col-md-6">
+          <h6 class="small text-uppercase text-muted">{% translate "How to use templates" %}</h6>
+          <ul class="small">
+            <li>{% translate "Create or edit a template using the editor at the top" %}</li>
+            <li>{% translate "Pin and sort the most common templates first" %}</li>
+            <li>{% translate "Use the template card actions to activate, deactivate, or delete" %}</li>
+            <li>{% translate "Click Use to prefill the voucher entry page" %}</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal fade" id="templateModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title mb-0">
+              {% if editor_template %}
+                {% translate "Edit Template" %}
+              {% elif copy_source_template %}
+                {% translate "Copy Template" %}
+              {% else %}
+                {% translate "Create Template" %}
+              {% endif %}
+            </h5>
+            <small class="text-muted">
+              {% if editor_template %}
+                {% blocktranslate with name=editor_template.name|default:editor_template.get_voucher_type_display %}
+                  Update "{{ name }}" and its ledger rows.
+                {% endblocktranslate %}
+              {% elif copy_source_template %}
+                {% blocktranslate with name=copy_source_template.name|default:copy_source_template.get_voucher_type_display %}
+                  Create a new template copied from "{{ name }}". You can adjust it before saving.
+                {% endblocktranslate %}
+              {% else %}
+                {% translate "Create a reusable template and define the ledger rows that should be prefilled." %}
+              {% endif %}
+            </small>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% translate 'Close' %}"></button>
+        </div>
+        <div class="modal-body">
+          {% if template_form.non_field_errors %}
+            <div class="alert alert-danger">
+              {% for error in template_form.non_field_errors %}
+                <div>{{ error }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+
+          <form method="post" novalidate>
+            {% csrf_token %}
+            <input type="hidden" name="action" value="save" />
+            {% if editor_template %}
+              <input type="hidden" name="template_id" value="{{ editor_template.id }}" />
+            {% endif %}
+
+            <div class="row g-3">
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="{{ template_form.voucher_type.id_for_label }}">{{ template_form.voucher_type.label }}</label>
+                {{ template_form.voucher_type }}
+                {% for error in template_form.voucher_type.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="{{ template_form.name.id_for_label }}">{{ template_form.name.label }}</label>
+                {{ template_form.name }}
+                {% for error in template_form.name.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="{{ template_form.payment_mode.id_for_label }}">{{ template_form.payment_mode.label }}</label>
+                {{ template_form.payment_mode }}
+                {% for error in template_form.payment_mode.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-12 col-md-4">
+                <label class="form-label" for="{{ template_form.sort_order.id_for_label }}">{{ template_form.sort_order.label }}</label>
+                {{ template_form.sort_order }}
+                {% for error in template_form.sort_order.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-12 col-md-8">
+                <label class="form-label" for="{{ template_form.reference_number_pattern.id_for_label }}">{{ template_form.reference_number_pattern.label }}</label>
+                {{ template_form.reference_number_pattern }}
+                {% for error in template_form.reference_number_pattern.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-12">
+                <label class="form-label" for="{{ template_form.narration.id_for_label }}">{{ template_form.narration.label }}</label>
+                {{ template_form.narration }}
+                {% for error in template_form.narration.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              </div>
+              <div class="col-12">
+                <div class="d-flex flex-wrap gap-4">
+                  <div class="form-check">
+                    {{ template_form.is_active }}
+                    <label class="form-check-label" for="{{ template_form.is_active.id_for_label }}">
+                      {{ template_form.is_active.label }}
+                    </label>
+                  </div>
+                  <div class="form-check">
+                    {{ template_form.is_pinned }}
+                    <label class="form-check-label" for="{{ template_form.is_pinned.id_for_label }}">
+                      {{ template_form.is_pinned.label }}
+                    </label>
+                  </div>
+                </div>
+                {% for error in template_form.is_active.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                {% for error in template_form.is_pinned.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+              </div>
+            </div>
+
+            <hr class="my-4" />
+
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+              <div>
+                <h3 class="h6 mb-0">{% translate "Ledger Rows" %}</h3>
+                <p class="text-muted small mb-0">{% translate "These rows will prefill when a user clicks this template." %}</p>
+              </div>
+              <button type="button" id="add-template-row" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-plus me-1"></i>{% translate "Add Row" %}
+              </button>
+            </div>
+
+            {{ row_formset.management_form }}
+            {% if row_formset.non_form_errors %}
+              <div class="alert alert-danger">
+                {% for error in row_formset.non_form_errors %}
+                  <div>{{ error }}</div>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            <div class="table-responsive">
+              <table class="table table-sm align-middle">
+                <thead>
+                  <tr>
+                    <th>{% translate "Account" %}</th>
+                    <th>{% translate "Unit" %}</th>
+                    <th>{% translate "Side" %}</th>
+                    <th>{% translate "Amount" %}</th>
+                    <th>{% translate "Order" %}</th>
+                    <th class="text-end">{% translate "Remove" %}</th>
+                  </tr>
+                </thead>
+                <tbody id="template-row-container">
+                  {% for form in row_formset %}
+                    <tr>
+                      <td>
+                        {{ form.id }}
+                        {{ form.account }}
+                        {% for error in form.account.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                      </td>
+                      <td>
+                        {{ form.unit }}
+                        {% for error in form.unit.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                      </td>
+                      <td>
+                        {{ form.side }}
+                        {% for error in form.side.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                      </td>
+                      <td>
+                        {{ form.default_amount }}
+                        {% for error in form.default_amount.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                      </td>
+                      <td>
+                        {{ form.order }}
+                        {% for error in form.order.errors %}<div class="text-danger small">{{ error }}</div>{% endfor %}
+                      </td>
+                      <td class="text-end">
+                        {% if form.instance.pk %}
+                          <div class="form-check d-inline-block">
+                            {{ form.DELETE }}
+                            <label class="form-check-label small" for="{{ form.DELETE.id_for_label }}">
+                              {% translate "Delete" %}
+                            </label>
+                          </div>
+                        {% else %}
+                          <span class="text-muted small">{% translate "New row" %}</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                    {% if form.non_field_errors %}
+                      <tr>
+                        <td colspan="6">
+                          {% for error in form.non_field_errors %}
+                            <div class="text-danger small">{{ error }}</div>
+                          {% endfor %}
+                        </td>
+                      </tr>
+                    {% endif %}
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+
+            <template id="template-row-empty-template">
+              <tr>
+                <td>
+                  {{ row_formset.empty_form.id }}
+                  {{ row_formset.empty_form.account }}
+                </td>
+                <td>{{ row_formset.empty_form.unit }}</td>
+                <td>{{ row_formset.empty_form.side }}</td>
+                <td>{{ row_formset.empty_form.default_amount }}</td>
+                <td>{{ row_formset.empty_form.order }}</td>
+                <td class="text-end">
+                  <span class="text-muted small">{% translate "New row" %}</span>
+                </td>
+              </tr>
+            </template>
+
+            <div class="modal-footer px-0 pb-0">
+              <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                {% translate "Cancel" %}
+              </button>
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save me-1"></i>
+                {% if editor_template %}
+                  {% translate "Update Template" %}
+                {% elif copy_source_template %}
+                  {% translate "Save Copy" %}
+                {% else %}
+                  {% translate "Save Template" %}
+                {% endif %}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block inline_javascript %}
+  {{ block.super }}
+  <script>
+    window.addEventListener("DOMContentLoaded", () => {
+      const templateModalEl = document.getElementById("templateModal");
+      const addRowButton = document.getElementById("add-template-row");
+      const rowsContainer = document.getElementById("template-row-container");
+      const totalFormsField = document.getElementById("id_rows-TOTAL_FORMS");
+      const emptyRowTemplate = document.getElementById("template-row-empty-template");
+      const shouldOpenTemplateModal = {{ editor_template|yesno:"true,false" }} || {{ copy_source_template|yesno:"true,false" }} || {{ template_form.errors|yesno:"true,false" }} || {{ row_formset.errors|yesno:"true,false" }};
+
+      if (templateModalEl && shouldOpenTemplateModal) {
+        new bootstrap.Modal(templateModalEl).show();
+      }
+
+      if (addRowButton && rowsContainer && totalFormsField) {
+        addRowButton.addEventListener("click", () => {
+          const currentCount = Number.parseInt(totalFormsField.value, 10);
+          if (Number.isNaN(currentCount)) {
+            return;
+          }
+
+          if (!emptyRowTemplate) {
+            return;
+          }
+
+          const newRowHtml = emptyRowTemplate.innerHTML.replaceAll("__prefix__", String(currentCount));
+          const templateRow = document.createElement("template");
+          templateRow.innerHTML = newRowHtml.trim();
+          const newRow = templateRow.content.firstElementChild.cloneNode(true);
+          rowsContainer.appendChild(newRow);
+          totalFormsField.value = String(currentCount + 1);
+        });
+      }
+    });
+  </script>
+{% endblock inline_javascript %}

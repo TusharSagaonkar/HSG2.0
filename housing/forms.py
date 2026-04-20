@@ -3,6 +3,7 @@ from decimal import Decimal
 from decimal import InvalidOperation
 
 from django import forms
+from django.forms import inlineformset_factory
 from django.utils.translation import gettext_lazy as _
 
 from societies.models import Society
@@ -14,6 +15,8 @@ from members.models import UnitOwnership
 from billing.models import Bill
 from billing.models import ChargeTemplate
 from accounting.models import Account
+from accounting.models import VoucherTemplate
+from accounting.models import VoucherTemplateRow
 from notifications.models import SocietyEmailSettings
 
 
@@ -135,6 +138,88 @@ class SocietyEmailSettingsForm(BootstrapModelForm):
         if commit:
             instance.save()
         return instance
+
+
+class VoucherTemplateForm(BootstrapModelForm):
+    class Meta:
+        model = VoucherTemplate
+        fields = [
+            "voucher_type",
+            "name",
+            "narration",
+            "payment_mode",
+            "reference_number_pattern",
+            "is_active",
+            "is_pinned",
+            "sort_order",
+        ]
+        widgets = {
+            "narration": forms.Textarea(attrs={"rows": 3}),
+            "sort_order": forms.NumberInput(attrs={"min": 0}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["name"].help_text = _("A short label users can scan quickly.")
+        self.fields["is_pinned"].help_text = _("Pinned templates appear first in quick actions.")
+
+
+class VoucherTemplateRowForm(BootstrapModelForm):
+    class Meta:
+        model = VoucherTemplateRow
+        fields = ["account", "unit", "side", "default_amount", "order"]
+        widgets = {
+            "default_amount": forms.NumberInput(attrs={"min": 0, "step": "0.01"}),
+            "order": forms.NumberInput(attrs={"min": 0}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        society = kwargs.pop("society", None)
+        self.society = society
+        super().__init__(*args, **kwargs)
+        self.fields["account"].queryset = (
+            Account.objects.filter(society=society).order_by("name") if society else Account.objects.none()
+        )
+        self.fields["unit"].queryset = (
+            Unit.objects.filter(structure__society=society)
+            .select_related("structure__society")
+            .order_by("identifier")
+            if society
+            else Unit.objects.none()
+        )
+        self.fields["side"].help_text = _("Choose whether this row should prefill on the debit or credit side.")
+        for field in self.fields.values():
+            widget = field.widget
+            css_class = "form-control"
+            if isinstance(widget, (forms.Select, forms.SelectMultiple)):
+                css_class = "form-select"
+            existing = widget.attrs.get("class", "")
+            widget.attrs["class"] = f"{existing} {css_class}".strip()
+
+    def clean(self):
+        cleaned = super().clean()
+        account = cleaned.get("account")
+        unit = cleaned.get("unit")
+
+        if account and not account.is_active:
+            raise forms.ValidationError(_("Selected account is inactive."))
+
+        if self.society and account and account.society_id != self.society.id:
+            raise forms.ValidationError(_("Account must belong to the selected society."))
+
+        if self.society and unit and unit.structure.society_id != self.society.id:
+            raise forms.ValidationError(_("Unit must belong to the selected society."))
+
+        return cleaned
+
+
+VoucherTemplateRowFormSet = inlineformset_factory(
+    VoucherTemplate,
+    VoucherTemplateRow,
+    form=VoucherTemplateRowForm,
+    extra=2,
+    can_delete=True,
+)
 
 
 class StructureForm(BootstrapModelForm):

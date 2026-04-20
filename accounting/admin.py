@@ -9,6 +9,7 @@ from .models.model_LedgerEntry import LedgerEntry
 from .models.model_AccountingPeriod import AccountingPeriod
 from .models.model_PeriodStatusLog import PeriodStatusLog
 from .models.model_YearEndCloseLog import YearEndCloseLog
+from .models.model_VoucherTemplate import VoucherTemplate, VoucherTemplateRow
 from .services.period_workflow import close_period
 from .services.period_workflow import reopen_period
 from .services.year_end import close_financial_year_with_carry_forward
@@ -48,64 +49,56 @@ class AccountingPeriodAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         return False
 
-    # ✅ Allow edit only to toggle is_open (via actions)
-    def has_change_permission(self, request, obj=None):
-        return True
 
-    actions = ["close_selected_period", "reopen_selected_period"]
+class VoucherTemplateRowInline(admin.TabularInline):
+    model = VoucherTemplateRow
+    extra = 1
+    ordering = ("order",)
+    fields = ("account", "unit", "side", "default_amount", "order")
+    raw_id_fields = ("account", "unit")
 
-    @admin.action(description="Close selected period (chronologically safe)")
-    def close_selected_period(self, request, queryset):
-        if queryset.count() != 1:
-            self.message_user(
-                request,
-                "Select exactly ONE period to close.",
-                level=messages.ERROR,
-            )
-            return
 
-        period = queryset.first()
+@admin.register(VoucherTemplate)
+class VoucherTemplateAdmin(admin.ModelAdmin):
+    list_display = (
+        "society",
+        "voucher_type",
+        "name",
+        "is_pinned",
+        "sort_order",
+        "usage_count",
+        "last_used_at",
+        "is_active",
+        "created_at",
+    )
+    list_filter = ("society", "voucher_type", "is_active", "is_pinned")
+    search_fields = ("name", "narration")
+    readonly_fields = ("created_at", "updated_at")
+    inlines = [VoucherTemplateRowInline]
+    fieldsets = (
+        (None, {
+            "fields": ("society", "voucher_type", "name", "is_active", "is_pinned")
+        }),
+        ("Quick Actions", {
+            "fields": ("sort_order", "usage_count", "last_used_at")
+        }),
+        ("Default Values", {
+            "fields": ("narration", "payment_mode", "reference_number_pattern")
+        }),
+        ("Metadata", {
+            "fields": ("created_at", "updated_at"),
+            "classes": ("collapse",)
+        }),
+    )
+    ordering = ("society", "-is_pinned", "-usage_count", "sort_order", "voucher_type", "name")
 
-        try:
-            next_period = close_period(period, performed_by=request.user, reason="Closed from admin action")
-        except ValidationError as exc:
-            self.message_user(request, "; ".join(exc.messages), level=messages.ERROR)
-            return
 
-        if next_period:
-            self.message_user(
-                request,
-                f"Period closed. Next period ({next_period.start_date} → {next_period.end_date}) opened.",
-                level=messages.SUCCESS,
-            )
-            return
-
-        self.message_user(
-            request,
-            "Final period closed. Financial year is now fully closed.",
-            level=messages.SUCCESS,
-        )
-
-    @admin.action(description="Reopen selected period (controlled)")
-    def reopen_selected_period(self, request, queryset):
-        if queryset.count() != 1:
-            self.message_user(
-                request,
-                "Select exactly ONE period to reopen.",
-                level=messages.ERROR,
-            )
-            return
-        period = queryset.first()
-        try:
-            reopen_period(period, performed_by=request.user, reason="Reopened from admin action")
-        except ValidationError as exc:
-            self.message_user(request, "; ".join(exc.messages), level=messages.ERROR)
-            return
-        self.message_user(
-            request,
-            f"Period {period.start_date} → {period.end_date} reopened.",
-            level=messages.SUCCESS,
-        )
+@admin.register(VoucherTemplateRow)
+class VoucherTemplateRowAdmin(admin.ModelAdmin):
+    list_display = ("template", "account", "side", "default_amount", "order")
+    list_filter = ("template__society", "template__voucher_type", "side")
+    raw_id_fields = ("account", "unit")
+    ordering = ("template", "order", "id")
 
 
 @admin.register(FinancialYear)

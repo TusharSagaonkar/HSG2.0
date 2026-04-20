@@ -2,6 +2,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Count
 from django.db.models import Q
@@ -15,6 +16,7 @@ from django.views.generic import UpdateView
 from django.views.generic import FormView
 from django.views import View
 from django.shortcuts import redirect
+from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.http import JsonResponse
 
@@ -30,6 +32,8 @@ from housing.forms import MemberForm
 from housing.forms import ChargeTemplateForm
 from housing.forms import BillingGenerationForm
 from housing.forms import ReceiptPostingForm
+from housing.forms import VoucherTemplateForm
+from housing.forms import VoucherTemplateRowFormSet
 from societies.models import Society
 from societies.models import Membership
 from notifications.models import EmailVerificationToken
@@ -43,11 +47,14 @@ from billing.services import generate_bills_for_period
 from billing.reports import build_member_outstanding
 from receipts.services import post_receipt_for_bill
 from accounting.models import Account
+from accounting.models import VoucherTemplate
 from notifications.services import schedule_payment_reminders
 from notifications.models import GlobalEmailSettings
 from notifications.models import SocietyEmailSettings
 from housing_accounting.selection import get_selected_scope
 from societies.services import create_society
+from societies.permissions import has_role_or_above
+from societies.roles import ROLE_ADMIN
 from societies.utils import get_user_role
 
 
@@ -1383,5 +1390,227 @@ class ReminderScheduleView(LoginRequiredMixin, View):
         )
         return redirect("housing:outstanding-dashboard")
 
+
+class SocietyVoucherTemplatesView(LoginRequiredMixin, DetailView):
+    """
+    View for managing voucher templates for a specific society.
+    """
+    model = Society
+    template_name = "housing/society_voucher_templates.html"
+    context_object_name = "society"
+
+    def dispatch(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        if not (request.user.is_superuser or getattr(request.user, "is_super_admin", False)):
+            user_role = get_user_role(request.user, self.object)
+            if not has_role_or_above(user_role, ROLE_ADMIN):
+                raise PermissionDenied(_("You do not have permission to manage voucher templates."))
+        return super().dispatch(request, *args, **kwargs)
+
+    def _get_templates_queryset(self, society):
+        return (
+            VoucherTemplate.objects.filter(society=society)
+            .select_related("society")
+            .prefetch_related("rows__account", "rows__unit")
+            .order_by(
+                "-is_pinned",
+                "-usage_count",
+                "sort_order",
+                "voucher_type",
+                "name",
+                "id",
+            )
+        )
+
+    def _resolve_editor_template(self, society):
+        edit_id = self.request.GET.get("edit")
+        if not edit_id:
+            return None
+        try:
+            return VoucherTemplate.objects.get(pk=int(edit_id), society=society)
+        except (VoucherTemplate.DoesNotExist, TypeError, ValueError):
+            return None
+
+    def _resolve_copy_source(self, society):
+        copy_id = self.request.GET.get("copy")
+        if not copy_id:
+            return None
+        try:
+            return VoucherTemplate.objects.prefetch_related("rows__account", "rows__unit").get(
+                pk=int(copy_id),
+                society=society,
+            )
+        except (VoucherTemplate.DoesNotExist, TypeError, ValueError):
+            return None
+
+    def _copy_template_initial(self, source_template):
+        source_name = source_template.name or source_template.get_voucher_type_display()
+        return {
+            "voucher_type": source_template.voucher_type,
+            "name": f"Copy of {source_name}",
+            "narration": source_template.narration,
+            "payment_mode": source_template.payment_mode,
+            "reference_number_pattern": source_template.reference_number_pattern,
+            "is_active": source_template.is_active,
+            "is_pinned": False,
+            "sort_order": source_template.sort_order,
+        }
+
+    def _copy_template_rows_initial(self, source_template):
+        rows = []
+        for row in source_template.rows.all().order_by("order", "id"):
+            rows.append(
+                {
+                    "account": row.account_id,
+                    "unit": row.unit_id if row.unit else None,
+                    "side": row.side,
+                    "default_amount": row.default_amount,
+                    "order": row.order,
+                }
+            )
+        return rows
+
+    def _build_editor_forms(self, society, template=None, data=None, initial=None, row_initial_data=None):
+        template_instance = template or VoucherTemplate(society=society)
+        template_form = VoucherTemplateForm(data=data, instance=template_instance, initial=initial)
+        row_formset = VoucherTemplateRowFormSet(
+            data=data,
+            instance=template_instance,
+            prefix="rows",
+            form_kwargs={"society": society},
+            initial=row_initial_data,
+        )
+        return template_form, row_formset, template_instance
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        society = self.get_object()
+
+        voucher_templates = self._get_templates_queryset(society)
+        templates_by_type = {}
+        for template in voucher_templates:
+            templates_by_type.setdefault(template.voucher_type, []).append(template)
+
+        template_form = kwargs.get("template_form")
+        row_formset = kwargs.get("row_formset")
+        editor_template = kwargs.get("editor_template")
+        copy_source_template = kwargs.get("copy_source_template")
+        if template_form is None or row_formset is None:
+            editor_template = editor_template or self._resolve_editor_template(society)
+            if editor_template:
+                template_form, row_formset, editor_template = self._build_editor_forms(
+                    society,
+                    template=editor_template,
+                )
+            else:
+                copy_source_template = copy_source_template or self._resolve_copy_source(society)
+                if copy_source_template:
+                    template_form, row_formset, _ = self._build_editor_forms(
+                        society,
+                        template=VoucherTemplate(society=society),
+                        initial=self._copy_template_initial(copy_source_template),
+                        row_initial_data=self._copy_template_rows_initial(copy_source_template),
+                    )
+                else:
+                    template_form, row_formset, _ = self._build_editor_forms(
+                        society,
+                        template=VoucherTemplate(society=society),
+                        initial={"is_active": True, "is_pinned": False, "sort_order": 0},
+                    )
+
+        context["voucher_templates"] = voucher_templates
+        context["templates_by_type"] = templates_by_type
+        context["voucher_type_choices"] = VoucherTemplate._meta.get_field("voucher_type").choices
+        context["template_form"] = template_form
+        context["row_formset"] = row_formset
+        context["editor_template"] = editor_template
+        context["copy_source_template"] = copy_source_template
+        return context
+
+    def post(self, request, *args, **kwargs):
+        society = self.get_object()
+        action = request.POST.get("action")
+        template_id = request.POST.get("template_id")
+
+        if action == "save":
+            editor_template = None
+            if template_id:
+                editor_template = get_object_or_404(
+                    VoucherTemplate,
+                    pk=int(template_id),
+                    society=society,
+                )
+
+            template_form, row_formset, template_instance = self._build_editor_forms(
+                society,
+                template=editor_template,
+                data=request.POST,
+            )
+
+            if template_form.is_valid() and row_formset.is_valid():
+                with transaction.atomic():
+                    saved_template = template_form.save(commit=False)
+                    saved_template.society = society
+                    saved_template.save()
+                    row_formset.instance = saved_template
+                    row_formset.save()
+                messages.success(
+                    request,
+                    _('Template "%(name)s" saved.') % {
+                        "name": saved_template.name or saved_template.get_voucher_type_display(),
+                    },
+                )
+                return redirect("housing:society-voucher-templates", pk=society.pk)
+
+            messages.warning(
+                request,
+                _("Please fix the highlighted template and row fields."),
+            )
+            return self.render_to_response(
+                self.get_context_data(
+                    template_form=template_form,
+                    row_formset=row_formset,
+                    editor_template=editor_template,
+                    copy_source_template=self._resolve_copy_source(society),
+                )
+            )
+
+        if action == "toggle_active" and template_id:
+            try:
+                template = VoucherTemplate.objects.get(
+                    id=template_id,
+                    society=society,
+                )
+                template.is_active = not template.is_active
+                template.save()
+                messages.success(
+                    request,
+                    _('Template "%(name)s" %(status)s.') % {
+                        "name": template.name or template.get_voucher_type_display(),
+                        "status": _("activated") if template.is_active else _("deactivated"),
+                    },
+                )
+            except VoucherTemplate.DoesNotExist:
+                messages.error(request, _("Template not found."))
+
+        elif action == "delete" and template_id:
+            try:
+                template = VoucherTemplate.objects.get(
+                    id=template_id,
+                    society=society,
+                )
+                template_name = template.name or template.get_voucher_type_display()
+                template.delete()
+                messages.success(
+                    request,
+                    _('Template "%(name)s" deleted.') % {"name": template_name},
+                )
+            except VoucherTemplate.DoesNotExist:
+                messages.error(request, _("Template not found."))
+
+        return redirect("housing:society-voucher-templates", pk=society.pk)
+
+
+society_voucher_templates_view = SocietyVoucherTemplatesView.as_view()
 
 reminder_schedule_view = ReminderScheduleView.as_view()
