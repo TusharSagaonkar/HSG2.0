@@ -1,0 +1,43 @@
+{% load i18n %}
+
+<div class="tree-node level-{{ level }}{% if not node.children %} leaf{% endif %}">
+  <div class="tree-node-content">
+    {% if node.children %}
+      <details class="tree-details" open>
+        <summary class="tree-summary">
+          <span class="tree-toggle">›</span>
+          <span class="tree-node-name">{{ node.account.name }}</span>
+          {% if node.account.code %}
+            <span class="tree-node-code">{{ node.account.code }}</span>
+          {% endif %}
+          <span class="tree-node-type">{{ node.account.get_account_type_display }}</span>
+          <div class="tree-node-actions">
+            <a href="{% url 'accounting:account-ledger' node.account.pk %}" class="tree-action-link">
+              {% translate "Ledger" %}
+            </a>
+          </div>
+        </summary>
+
+        <div class="tree-children">
+          {% for child in node.children %}
+            {% include "accounting/partials/account_tree_node.html" with node=child level=level|add:1 %}
+          {% endfor %}
+        </div>
+      </details>
+    {% else %}
+      <div class="tree-leaf-content">
+        <span class="tree-leaf-icon">•</span>
+        <span class="tree-node-name">{{ node.account.name }}</span>
+        {% if node.account.code %}
+          <span class="tree-node-code">{{ node.account.code }}</span>
+        {% endif %}
+        <span class="tree-node-type">{{ node.account.get_account_type_display }}</span>
+        <div class="tree-node-actions">
+          <a href="{% url 'accounting:account-ledger' node.account.pk %}" class="tree-action-link">
+            {% translate "Ledger" %}
+          </a>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+</div>

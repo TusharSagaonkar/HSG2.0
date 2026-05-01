@@ -38,6 +38,19 @@ class VoucherForm(forms.ModelForm):
         for field in self.fields.values():
             css = "form-select" if isinstance(field.widget, forms.Select) else "form-control"
             field.widget.attrs["class"] = css
+        
+        # If society is pre-selected (from context), make it read-only
+        if self.instance and self.instance.society_id:
+            self.fields["society"].disabled = True
+        elif self.initial.get("society"):
+            self.fields["society"].disabled = True
+            # Also set queryset to only the selected society
+            from societies.models import Society
+            try:
+                society_id = int(self.initial.get("society"))
+                self.fields["society"].queryset = Society.objects.filter(pk=society_id)
+            except (ValueError, TypeError):
+                pass
 
     def clean_voucher_date(self):
         voucher_date = self.cleaned_data["voucher_date"]

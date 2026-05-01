@@ -1,0 +1,40 @@
+{% load i18n %}
+{% if is_paginated %}
+  <nav class="pagination-enhanced" aria-label="{{ aria_label|default:_('Pagination') }}">
+    <div class="pagination-enhanced__info">
+      {% blocktranslate with current=page_obj.number total=paginator.num_pages %}
+        Page {{ current }} of {{ total }}
+      {% endblocktranslate %}
+    </div>
+    
+    <div class="d-flex align-items-center gap-2">
+      {% if page_obj.has_previous %}
+        <a class="pagination-enhanced__link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+          <i class="fas fa-chevron-left me-1"></i>{% translate "Previous" %}
+        </a>
+      {% else %}
+        <span class="pagination-enhanced__link pagination-enhanced__link--disabled">
+          <i class="fas fa-chevron-left me-1"></i>{% translate "Previous" %}
+        </span>
+      {% endif %}
+      
+      {% for num in paginator.page_range %}
+        {% if page_obj.number == num %}
+          <span class="pagination-enhanced__link pagination-enhanced__link--active">{{ num }}</span>
+        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+          <a class="pagination-enhanced__link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+        {% endif %}
+      {% endfor %}
+      
+      {% if page_obj.has_next %}
+        <a class="pagination-enhanced__link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+          {% translate "Next" %}<i class="fas fa-chevron-right ms-1"></i>
+        </a>
+      {% else %}
+        <span class="pagination-enhanced__link pagination-enhanced__link--disabled">
+          {% translate "Next" %}<i class="fas fa-chevron-right ms-1"></i>
+        </span>
+      {% endif %}
+    </div>
+  </nav>
+{% endif %}

@@ -247,6 +247,133 @@
   padding: 1rem;
 }
 
+.account-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.account-tree-group,
+.account-tree-subgroup {
+  border: 1px solid #e4e9f2;
+  border-radius: 14px;
+  background: linear-gradient(180deg, #ffffff 0%, #fafcff 100%);
+  box-shadow: 0 8px 20px rgba(24, 39, 75, 0.04);
+  overflow: hidden;
+}
+
+.account-tree-summary {
+  align-items: center;
+  cursor: pointer;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  list-style: none;
+  padding: 0.9rem 1rem;
+  user-select: none;
+}
+
+.account-tree-summary::-webkit-details-marker {
+  display: none;
+}
+
+.account-tree-summary::before {
+  color: #66758e;
+  content: "▸";
+  font-size: 0.9rem;
+  transition: transform 0.18s ease;
+}
+
+.account-tree-group[open] > .account-tree-summary::before,
+.account-tree-subgroup[open] > .account-tree-summary::before {
+  transform: rotate(90deg);
+}
+
+.account-tree-summary-label {
+  color: #1a2035;
+  font-size: 0.98rem;
+  font-weight: 700;
+}
+
+.account-tree-summary-sub {
+  background: #f6f9ff;
+  border-top: 1px solid #eef2f7;
+}
+
+.account-tree-group-body,
+.account-tree-subgroup-body {
+  padding: 0 0.9rem 0.9rem;
+}
+
+.account-tree-subgroup {
+  margin-left: 0.75rem;
+}
+
+.account-tree-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.account-tree-list.level-0 {
+  margin-top: 0.75rem;
+}
+
+.account-tree-item + .account-tree-item {
+  margin-top: 0.6rem;
+}
+
+.account-tree-card {
+  align-items: center;
+  background: #ffffff;
+  border: 1px solid #e6ebf4;
+  border-radius: 12px;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 0.8rem 0.95rem;
+}
+
+.account-tree-main {
+  min-width: 0;
+}
+
+.account-tree-name {
+  align-items: center;
+  color: #1c2438;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  font-weight: 700;
+}
+
+.account-tree-meta {
+  align-items: center;
+  color: #6d778b;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+  font-size: 0.78rem;
+  margin-top: 0.2rem;
+}
+
+.account-tree-code {
+  background: #edf3ff;
+  border-radius: 999px;
+  color: #2756a5;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+}
+
+.account-tree-actions .btn {
+  white-space: nowrap;
+}
+
+.account-tree .badge {
+  font-size: 0.72rem;
+}
+
 .society-overview-card {
   background: linear-gradient(180deg, #ffffff 0%, #fbfcff 100%);
   border-color: #dde5f2;

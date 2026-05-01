@@ -91,14 +91,16 @@ class LedgerEntry(models.Model):
         account_type = self.account.category.account_type
 
         if account_type in ("ASSET", "LIABILITY"):
-            if self.account.name in (
-                "Maintenance Receivable",
-                "Advance Receivable",
-                "Advance from Members",
-                "Security Deposit Payable",
-            ) and not self.unit:
+            # Check if this is a member-related account by code prefix (1.5.x)
+            account_code = self.account.code or ""
+            is_member_account = (
+                account_code.startswith("1.5.") or  # All receivables
+                account_code.startswith("2.1.") or  # Member Liabilities
+                self.account.is_member_related
+            )
+            if is_member_account and not self.unit:
                 raise ValidationError(
-                    {"unit": "Unit is required for receivable/payable accounts."}
+                    {"unit": "Unit is required for member-related accounts."}
                 )
 
         if account_type in ("INCOME", "EXPENSE", "EQUITY") and self.unit:

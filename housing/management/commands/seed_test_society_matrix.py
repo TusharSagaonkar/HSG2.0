@@ -35,12 +35,10 @@ class Command(BaseCommand):
 
         ensure_standard_categories(society)
         create_default_accounts_for_society(society)
-        receivable = self._get_or_create_account(
-            society=society,
-            name="Maintenance Receivable",
-            category_name="Member Receivables",
-            account_type=AccountCategory.AccountType.ASSET,
-        )
+        # Accounts are now created by create_default_accounts_for_society()
+        from accounting.services.gst_vouchers import AccountCodes
+        from accounting.models import Account
+        receivable = Account.objects.get(society=society, code=AccountCodes.MAINTENANCE_DUE)
 
         self._ensure_financial_year(
             society=society,

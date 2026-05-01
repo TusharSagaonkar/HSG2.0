@@ -14,138 +14,150 @@
 {% endblock dashboard_subtitle %}
 
 {% block content %}
-  <div class="page-actions">
-    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Slots actions' %}">
-      <a href="{% url 'parking:slot-list' %}" class="btn btn-main"><i class="fas fa-parking me-1"></i>{% translate "Slots" %}</a>
-      <a href="{% url 'parking:slot-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Slot' %}">+</a>
+  <div class="action-bar action-bar--responsive">
+    <div class="action-bar__group">
+      <a href="{% url 'parking:slot-add' %}" class="btn-action btn-action--primary">
+        <i class="fas fa-plus me-1"></i>{% translate "Add Slot" %}
+      </a>
     </div>
-    <a href="{% url 'parking:flat-dashboard-list' %}" class="btn btn-outline-primary"><i class="fas fa-building me-1"></i>{% translate "Flat Dashboard" %}</a>
-    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Vehicles actions' %}">
-      <a href="{% url 'parking:vehicle-list' %}" class="btn btn-main"><i class="fas fa-car me-1"></i>{% translate "Vehicles" %}</a>
-      <a href="{% url 'parking:vehicle-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Vehicle' %}">+</a>
+
+    <a href="{% url 'parking:flat-dashboard-list' %}" class="btn-action btn-action--outline-primary">
+      <i class="fas fa-building me-1"></i>{% translate "Flat Dashboard" %}
+    </a>
+
+    <div class="action-bar__group">
+      <a href="{% url 'parking:vehicle-add' %}" class="btn-action btn-action--primary">
+        <i class="fas fa-plus me-1"></i>{% translate "Add Vehicle" %}
+      </a>
     </div>
-    <a href="{% url 'parking:permit-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Permits" %}</a>
-    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Open parking limits actions' %}">
-      <a href="{% url 'parking:limit-list' %}" class="btn btn-main"><i class="fas fa-sliders-h me-1"></i>{% translate "Open Parking Limits" %}</a>
-      <a href="{% url 'parking:limit-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Open Parking Limit' %}">+</a>
+
+    <a href="{% url 'parking:permit-list' %}" class="btn-action btn-action--outline-primary">
+      <i class="fas fa-eye me-1"></i>{% translate "View Permits" %}
+    </a>
+
+    <div class="action-bar__group">
+      <a href="{% url 'parking:limit-add' %}" class="btn-action btn-action--primary">
+        <i class="fas fa-plus me-1"></i>{% translate "Add Open Parking Limit" %}
+      </a>
     </div>
-    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Rotation policy actions' %}">
-      <a href="{% url 'parking:rotation-policy-list' %}" class="btn btn-main"><i class="fas fa-random me-1"></i>{% translate "Rotation Policies" %}</a>
-      <a href="{% url 'parking:rotation-policy-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Rotation Policy' %}">+</a>
+
+    <div class="action-bar__group">
+      <a href="{% url 'parking:rotation-policy-add' %}" class="btn-action btn-action--primary">
+        <i class="fas fa-plus me-1"></i>{% translate "Add Rotation Policy" %}
+      </a>
     </div>
-    <a href="{% url 'parking:rotation-cycle-list' %}" class="btn btn-outline-primary"><i class="fas fa-sync-alt me-1"></i>{% translate "Rotation Cycles" %}</a>
+
+    <a href="{% url 'parking:rotation-cycle-list' %}" class="btn-action btn-action--outline-primary">
+      <i class="fas fa-sync-alt me-1"></i>{% translate "Rotation Cycles" %}
+    </a>
   </div>
 
   <div class="row g-3 mb-4">
     <div class="col-12 col-sm-6 col-xl-2">
-      <div class="quick-card">
-        <p class="small text-muted mb-1">{% translate "Total Slots" %}</p>
-        <h2 class="h3 mb-0">{{ total_slots }}</h2>
-      </div>
+      {% include "components/stat_card.html" with icon="fas fa-parking" label=_("Total Slots") value=total_slots color="primary" %}
     </div>
     <div class="col-12 col-sm-6 col-xl-2">
-      <div class="quick-card">
-        <p class="small text-muted mb-1">{% translate "Active Slots" %}</p>
-        <h2 class="h3 mb-0">{{ active_slots }}</h2>
-      </div>
+      {% include "components/stat_card.html" with icon="fas fa-check-circle" label=_("Active Slots") value=active_slots color="success" %}
     </div>
     <div class="col-12 col-sm-6 col-xl-2">
-      <div class="quick-card">
-        <p class="small text-muted mb-1">{% translate "Vehicles" %}</p>
-        <h2 class="h3 mb-0">{{ total_vehicles }}</h2>
-      </div>
+      {% include "components/stat_card.html" with icon="fas fa-car" label=_("Vehicles") value=total_vehicles color="info" %}
     </div>
     <div class="col-12 col-sm-6 col-xl-2">
-      <div class="quick-card">
-        <p class="small text-muted mb-1">{% translate "Active Vehicles" %}</p>
-        <h2 class="h3 mb-0">{{ active_vehicles }}</h2>
-      </div>
+      {% include "components/stat_card.html" with icon="fas fa-car-side" label=_("Active Vehicles") value=active_vehicles color="warning" %}
     </div>
     <div class="col-12 col-sm-6 col-xl-2">
-      <div class="quick-card">
-        <p class="small text-muted mb-1">{% translate "Open Parking Limits" %}</p>
-        <h2 class="h3 mb-0">{{ total_limits }}</h2>
-      </div>
+      {% include "components/stat_card.html" with icon="fas fa-sliders-h" label=_("Open Parking Limits") value=total_limits color="secondary" %}
     </div>
     <div class="col-12 col-sm-6 col-xl-2">
-      <div class="quick-card">
-        <p class="small text-muted mb-1">{% translate "Active Permits" %}</p>
-        <h2 class="h3 mb-0">{{ active_permits }} / {{ total_permits }}</h2>
-      </div>
+      {% include "components/stat_card.html" with icon="fas fa-ticket-alt" label=_("Active Permits") value=active_permits subtitle=total_permits|stringformat:"/%s" color="info" %}
     </div>
   </div>
 
   <div class="row g-3">
     <div class="col-12 col-lg-6">
-      <div class="quick-card">
-        <h3 class="h6 mb-2">{% translate "Recent Slots" %}</h3>
-        {% if recent_slots %}
-          <ul class="list-group list-group-flush">
-            {% for slot in recent_slots %}
-              <li class="list-group-item px-0 d-flex justify-content-between">
-                <div>
-                  <strong>{{ slot.slot_number }}</strong>
-                  <span class="text-muted">({{ slot.get_slot_type_display }})</span>
-                </div>
-                {% if slot.is_active %}
-                  <span class="badge text-bg-success">{% translate "Active" %}</span>
-                {% else %}
-                  <span class="badge text-bg-secondary">{% translate "Inactive" %}</span>
-                {% endif %}
-              </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="text-muted mb-0">{% translate "No parking slots yet." %}</p>
-        {% endif %}
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{% translate "Recent Slots" %}</h3>
+        </div>
+        <div class="content-card__body">
+          {% if recent_slots %}
+            <ul class="list-group list-group-flush">
+              {% for slot in recent_slots %}
+                <li class="list-group-item px-0 d-flex justify-content-between">
+                  <div>
+                    <strong>{{ slot.slot_number }}</strong>
+                    <span class="text-muted">({{ slot.get_slot_type_display }})</span>
+                  </div>
+                  {% if slot.is_active %}
+                    <span class="badge-status badge-status--success">{% translate "Active" %}</span>
+                  {% else %}
+                    <span class="badge-status badge-status--secondary">{% translate "Inactive" %}</span>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            {% include "components/empty_state.html" with icon="fa-parking" title=_("No parking slots yet") message=_("Add your first parking slot to get started.") action_url="parking:slot-add" action_label=_("Add Slot") action_icon="fas fa-plus" %}
+          {% endif %}
+        </div>
       </div>
     </div>
+
     <div class="col-12 col-lg-6">
-      <div class="quick-card">
-        <h3 class="h6 mb-2">{% translate "Recent Vehicles" %}</h3>
-        {% if recent_vehicles %}
-          <ul class="list-group list-group-flush">
-            {% for vehicle in recent_vehicles %}
-              <li class="list-group-item px-0">
-                <strong>{{ vehicle.vehicle_number }}</strong>
-                <span class="text-muted">({{ vehicle.get_vehicle_type_display }})</span>
-                <div class="small text-muted">
-                  {{ vehicle.unit.identifier }}{% if vehicle.member %} / {{ vehicle.member.full_name }}{% endif %}
-                </div>
-              </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="text-muted mb-0">{% translate "No vehicles yet." %}</p>
-        {% endif %}
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{% translate "Recent Vehicles" %}</h3>
+        </div>
+        <div class="content-card__body">
+          {% if recent_vehicles %}
+            <ul class="list-group list-group-flush">
+              {% for vehicle in recent_vehicles %}
+                <li class="list-group-item px-0">
+                  <strong>{{ vehicle.vehicle_number }}</strong>
+                  <span class="text-muted">({{ vehicle.get_vehicle_type_display }})</span>
+                  <div class="small text-muted">
+                    {{ vehicle.unit.identifier }}{% if vehicle.member %} / {{ vehicle.member.full_name }}{% endif %}
+                  </div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            {% include "components/empty_state.html" with icon="fa-car" title=_("No vehicles yet") message=_("Add your first vehicle to get started.") action_url="parking:vehicle-add" action_label=_("Add Vehicle") action_icon="fas fa-plus" %}
+          {% endif %}
+        </div>
       </div>
     </div>
+
     <div class="col-12 col-lg-6">
-      <div class="quick-card">
-        <h3 class="h6 mb-2">{% translate "Recent Sold Permits" %}</h3>
-        {% if recent_permits %}
-          <ul class="list-group list-group-flush">
-            {% for permit in recent_permits %}
-              <li class="list-group-item px-0 d-flex justify-content-between">
-                <div>
-                  <strong>{{ permit.vehicle.vehicle_number }}</strong>
-                  <span class="text-muted">({{ permit.slot.slot_number }} / {{ permit.unit.identifier }})</span>
-                </div>
-                {% if permit.status == "ACTIVE" %}
-                  <span class="badge text-bg-success">{% translate "Active" %}</span>
-                {% elif permit.status == "STANDBY" %}
-                  <span class="badge text-bg-warning">{% translate "Standby" %}</span>
-                {% elif permit.status == "REVOKED" %}
-                  <span class="badge text-bg-secondary">{% translate "Revoked" %}</span>
-                {% else %}
-                  <span class="badge text-bg-danger">{% translate "Expired" %}</span>
-                {% endif %}
-              </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="text-muted mb-0">{% translate "No parking permits yet." %}</p>
-        {% endif %}
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{% translate "Recent Sold Permits" %}</h3>
+        </div>
+        <div class="content-card__body">
+          {% if recent_permits %}
+            <ul class="list-group list-group-flush">
+              {% for permit in recent_permits %}
+                <li class="list-group-item px-0 d-flex justify-content-between">
+                  <div>
+                    <strong>{{ permit.vehicle.vehicle_number }}</strong>
+                    <span class="text-muted">({{ permit.slot.slot_number }} / {{ permit.unit.identifier }})</span>
+                  </div>
+                  {% if permit.status == "ACTIVE" %}
+                    <span class="badge-status badge-status--success">{% translate "Active" %}</span>
+                  {% elif permit.status == "STANDBY" %}
+                    <span class="badge-status badge-status--warning">{% translate "Standby" %}</span>
+                  {% elif permit.status == "REVOKED" %}
+                    <span class="badge-status badge-status--secondary">{% translate "Revoked" %}</span>
+                  {% else %}
+                    <span class="badge-status badge-status--danger">{% translate "Expired" %}</span>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            {% include "components/empty_state.html" with icon="fa-ticket-alt" title=_("No parking permits yet") message=_("Sold permits will appear here.") %}
+          {% endif %}
+        </div>
       </div>
     </div>
   </div>

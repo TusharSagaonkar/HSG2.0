@@ -1,4 +1,5 @@
 /* Project specific Javascript goes here. */
+
 const stopToggleEvent = (event) => {
   event.preventDefault();
   event.stopPropagation();
@@ -17,61 +18,6 @@ const initLayoutToggles = () => {
   const sidebarToggles = Array.from(document.querySelectorAll(".toggle-sidebar"));
   const sidenavToggles = Array.from(document.querySelectorAll(".sidenav-toggler"));
   const topbarToggles = Array.from(document.querySelectorAll(".topbar-toggler"));
-  const submenuLinks = Array.from(
-    document.querySelectorAll(".submenu-link[data-submenu-target]"),
-  );
-  const submenuToggleZoneWidth = 44;
-
-  const getSubmenuPanel = (submenuLink) => {
-    const targetId = submenuLink.getAttribute("data-submenu-target");
-    return targetId ? document.getElementById(targetId) : null;
-  };
-
-  const collapseAllSubmenus = (keepTargetId = null) => {
-    submenuLinks.forEach((submenuLink) => {
-      const panel = getSubmenuPanel(submenuLink);
-      const targetId = submenuLink.getAttribute("data-submenu-target");
-      const shouldStayOpen = keepTargetId && targetId === keepTargetId;
-
-      if (panel) {
-        panel.classList.toggle("show", shouldStayOpen);
-      }
-
-      submenuLink.setAttribute("aria-expanded", shouldStayOpen ? "true" : "false");
-      const navItem = submenuLink.closest(".nav-item");
-      if (navItem) {
-        navItem.classList.toggle("submenu", shouldStayOpen);
-      }
-    });
-  };
-
-  const toggleSubmenuByLink = (submenuLink) => {
-    if (!submenuLink) {
-      return;
-    }
-
-    const panel = getSubmenuPanel(submenuLink);
-    const targetId = submenuLink.getAttribute("data-submenu-target");
-    if (!panel || !targetId) {
-      return;
-    }
-
-    const shouldOpen = !panel.classList.contains("show");
-    collapseAllSubmenus(shouldOpen ? targetId : null);
-  };
-
-  const isCaretZoneClick = (event, submenuLink) => {
-    if (!submenuLink) {
-      return false;
-    }
-
-    if (event.target.closest(".submenu-caret")) {
-      return true;
-    }
-
-    const linkRect = submenuLink.getBoundingClientRect();
-    return event.clientX >= linkRect.right - submenuToggleZoneWidth;
-  };
 
   const syncSidebarToggleState = () => {
     const isMinimized = wrapper.classList.contains("sidebar_minimize");
@@ -105,27 +51,10 @@ const initLayoutToggles = () => {
   syncSidebarToggleState();
   syncSidenavToggleState();
   syncTopbarToggleState();
-  collapseAllSubmenus();
 
   document.addEventListener(
     "click",
     (event) => {
-      const submenuLink = event.target.closest(".submenu-link");
-      if (submenuLink && isCaretZoneClick(event, submenuLink)) {
-        stopToggleEvent(event);
-        toggleSubmenuByLink(submenuLink);
-        return;
-      }
-
-      if (submenuLink) {
-        collapseAllSubmenus();
-      }
-
-      const submenuChildLink = event.target.closest(".nav-collapse a");
-      if (submenuChildLink) {
-        collapseAllSubmenus();
-      }
-
       const sidebarToggle = event.target.closest(".toggle-sidebar");
       if (sidebarToggle) {
         stopToggleEvent(event);

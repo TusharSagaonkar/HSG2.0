@@ -89,30 +89,15 @@ class Command(BaseCommand):
         ensure_standard_categories(society)
         create_default_accounts_for_society(society)
 
-        receivable = self._get_or_create_account(
-            society=society,
-            name="Maintenance Receivable",
-            category_name="Member Receivables",
-            account_type=AccountCategory.AccountType.ASSET,
-        )
-        main_bank = self._get_or_create_account(
-            society=society,
-            name="Bank Account - Main",
-            category_name="Bank & Cash",
-            account_type=AccountCategory.AccountType.ASSET,
-        )
-        maintenance_income = self._get_or_create_account(
-            society=society,
-            name="Maintenance Charges",
-            category_name="Maintenance Charges",
-            account_type=AccountCategory.AccountType.INCOME,
-        )
-        sinking_income = self._get_or_create_account(
-            society=society,
-            name="Other Income",
-            category_name="Maintenance Charges",
-            account_type=AccountCategory.AccountType.INCOME,
-        )
+        # Accounts are now created by create_default_accounts_for_society()
+        # Look up accounts by code using the standard tree
+        from accounting.services.gst_vouchers import AccountCodes
+        from accounting.models import Account
+        
+        receivable = Account.objects.get(society=society, code=AccountCodes.MAINTENANCE_DUE)
+        main_bank = Account.objects.get(society=society, code=AccountCodes.BANK_MAINTENANCE)
+        maintenance_income = Account.objects.get(society=society, code=AccountCodes.MAINTENANCE_CHARGES)
+        sinking_income = Account.objects.get(society=society, code=AccountCodes.OTHER_INCOME)
 
         fy = self._ensure_open_financial_year(society=society, today=today)
         period = self._ensure_open_period(

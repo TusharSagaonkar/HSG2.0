@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Account Tree" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Account Tree" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Hierarchical view of all accounts based on parent-child relationships." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="tree-page-actions">
+    <a href="{% url 'accounting:account-list' %}" class="tree-link">
+      <i class="fas fa-list me-1"></i>{% translate "Flat List" %}
+    </a>
+    <a href="{% url 'accounting:dashboard' %}" class="tree-link">
+      <i class="fas fa-arrow-left me-1"></i>{% translate "Dashboard" %}
+    </a>
+  </div>
+
+  <div class="tree-summary">
+    {{ total_accounts }} {% translate "accounts" %}
+    {% if tree_groups|length > 1 %}
+      {% translate "across" %} {{ tree_groups|length }} {% translate "societies" %}
+    {% endif %}
+  </div>
+
+  {% for group in tree_groups %}
+    <div class="tree-group">
+      <div class="tree-group-header">
+        <span class="tree-group-name">{{ group.society.name }}</span>
+        <span class="tree-group-count">{{ group.nodes|length }} {% translate "root" %}</span>
+      </div>
+
+      {% if group.nodes %}
+        <div class="tree-container">
+          {% for node in group.nodes %}
+            {% include "accounting/partials/account_tree_node.html" with node=node level=0 %}
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="tree-empty">{% translate "No accounts available for this society." %}</p>
+      {% endif %}
+    </div>
+  {% empty %}
+    <p class="tree-empty">{% translate "No accounts available." %}</p>
+  {% endfor %}
+{% endblock content %}

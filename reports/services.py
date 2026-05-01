@@ -10,6 +10,48 @@ from accounting.models import LedgerEntry
 from accounting.models import Voucher
 from accounting.services.reporting import build_trial_balance
 
+# Account code constants for reliable lookups
+class AccountCodes:
+    """Account codes from the standard account tree."""
+    # Receivables
+    MEMBER_RECEIVABLE = "1.5.1"  # Parent account for all member receivables
+    MAINTENANCE_DUE = "1.5.1.1"
+    PARKING_DUE = "1.5.1.2"
+    INTEREST_ON_ARREARS = "1.5.1.3"
+    OTHER_MEMBER_DUES = "1.5.1.4"
+    VENDOR_RECEIVABLE = "1.5.2"
+    INTEREST_RECEIVABLE_BANK = "1.5.3"
+
+    # Payables
+    VENDOR_PAYABLE = "2.2.1"
+    EXPENSE_PAYABLE = "2.2.2"
+    AUDIT_FEES_PAYABLE = "2.2.3"
+
+    # Suspense
+    SUSPENSE_ACCOUNT = "2.6.1"  # Liability suspense
+    SUSPENSE_DEBIT = "1.8.2"  # Asset suspense
+
+    # Bank & Cash
+    CASH_IN_HAND = "1.4.1"
+    BANK_MAINTENANCE = "1.4.2.1"
+    BANK_SINKING_FUND = "1.4.2.2"
+    BANK_REPAIR_FUND = "1.4.2.3"
+    BANK_PARKING_FUND = "1.4.2.4"
+    FUND_TRANSFER = "1.4.3"
+
+
+def _get_account_by_code(society, code: str):
+    """Get account by code for a society."""
+    from accounting.models import Account
+    return Account.objects.filter(society=society, code=code).first()
+
+
+def _get_accounts_under_code(society, code_prefix: str):
+    """Get all accounts (including descendants) with code starting with given prefix."""
+    from accounting.models import Account
+    return Account.objects.filter(society=society, code__startswith=code_prefix)
+
+
 
 ZERO = Decimal("0.00")
 
@@ -1040,7 +1082,7 @@ def _allocate_open_items(items, settlement_amount):
 
 def build_receivable_aging(*, society, financial_year=None, to_date=None):
     cutoff = _to_date_or_year_end(financial_year, to_date)
-    account = Account.objects.filter(society=society, name="Maintenance Receivable").first()
+    account = _get_account_by_code(society, AccountCodes.MEMBER_RECEIVABLE)
     if account is None or cutoff is None:
         return {
             "rows": [],
@@ -1133,7 +1175,7 @@ def build_receivable_aging(*, society, financial_year=None, to_date=None):
 
 def build_payable_aging(*, society, financial_year=None, to_date=None):
     cutoff = _to_date_or_year_end(financial_year, to_date)
-    account = Account.objects.filter(society=society, name="Vendor Payable").first()
+    account = _get_account_by_code(society, AccountCodes.VENDOR_PAYABLE)
     if account is None or cutoff is None:
         return {
             "rows": [],
@@ -1246,7 +1288,7 @@ def build_exception_report(*, society, financial_year=None, to_date=None):
             )
 
     suspense_balance = ZERO
-    suspense_account = Account.objects.filter(society=society, name="Bank Suspense - Unreconciled").first()
+    suspense_account = _get_account_by_code(society, AccountCodes.SUSPENSE_ACCOUNT)
     if suspense_account is not None:
         suspense_trial = build_trial_balance(
             society=society,

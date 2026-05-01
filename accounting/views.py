@@ -105,6 +105,104 @@ class AccountListView(LoginRequiredMixin, ListView):
 account_list_view = AccountListView.as_view()
 
 
+def _build_account_tree(accounts):
+    """
+    Build a hierarchical tree structure based on parent-child relationships.
+    Returns a list of root nodes (accounts with no parent), each with nested children.
+    """
+    # Build a map for quick lookup
+    account_map = {account.id: account for account in accounts}
+    
+    # Initialize tree nodes with empty children lists
+    tree_nodes = {}
+    for account in accounts:
+        tree_nodes[account.id] = {
+            'account': account,
+            'children': []
+        }
+    
+    # Link children to their parents
+    root_nodes = []
+    for account in accounts:
+        node = tree_nodes[account.id]
+        if account.parent_id and account.parent_id in tree_nodes:
+            # This account has a parent in our queryset
+            tree_nodes[account.parent_id]['children'].append(node)
+        else:
+            # This is a root node (no parent or parent not in queryset)
+            root_nodes.append(node)
+    
+    # Sort helper: sort by code (numeric parts), then by name
+    def sort_key(node):
+        account = node['account']
+        code = account.code or ''
+        # Parse code for natural sorting (e.g., 1.2.10 comes after 1.2.9)
+        code_parts = []
+        for part in code.split('.'):
+            try:
+                code_parts.append(int(part))
+            except ValueError:
+                code_parts.append(0)
+        return (code_parts, account.name.lower())
+    
+    # Sort root nodes
+    root_nodes.sort(key=sort_key)
+    
+    # Recursively sort children
+    def sort_children(node):
+        node['children'].sort(key=sort_key)
+        for child in node['children']:
+            sort_children(child)
+    
+    for root in root_nodes:
+        sort_children(root)
+    
+    return root_nodes
+
+
+class AccountTreeView(LoginRequiredMixin, TemplateView):
+    template_name = "accounting/account_tree.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        selected_society, _ = get_selected_scope(self.request)
+
+        queryset = Account.objects.select_related(
+            "society",
+            "category",
+            "parent",
+        ).order_by("society__name", "name")
+        if selected_society:
+            queryset = queryset.filter(society=selected_society)
+
+        context["tree_groups"] = []
+        if selected_society:
+            context["tree_groups"].append(
+                {
+                    "society": selected_society,
+                    "nodes": _build_account_tree(list(queryset)),
+                }
+            )
+        else:
+            society_map = {}
+            for account in queryset:
+                society_map.setdefault(account.society_id, {"society": account.society, "accounts": []})
+                society_map[account.society_id]["accounts"].append(account)
+            context["tree_groups"] = [
+                {
+                    "society": item["society"],
+                    "nodes": _build_account_tree(item["accounts"]),
+                }
+                for item in sorted(society_map.values(), key=lambda item: item["society"].name.lower())
+            ]
+
+        context["total_accounts"] = queryset.count()
+        return context
+
+
+account_tree_view = AccountTreeView.as_view()
+
+
 class AccountLedgerView(LoginRequiredMixin, TemplateView):
     template_name = "accounting/account_ledger.html"
 
@@ -367,7 +465,15 @@ class VoucherEntryView(LoginRequiredMixin, TemplateView):
                 else:
                     society = self._resolve_society(society_id)
 
-        return self.row_formset_class(
+        # When initial data is provided (e.g., from template), only show those rows
+        # Otherwise, provide 2 blank rows for manual entry
+        extra = 0 if initial_data else 2
+
+        return formset_factory(
+            LedgerEntryRowForm,
+            formset=LedgerEntryRowBaseFormSet,
+            extra=extra,
+        )(
             data=data,
             prefix="entries",
             form_kwargs={"society": society},

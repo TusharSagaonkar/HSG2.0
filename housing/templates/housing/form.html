@@ -15,64 +15,75 @@
 {% endblock dashboard_subtitle %}
 
 {% block content %}
-  <div class="page-actions">
+  <div class="action-bar">
     <a href="{% if cancel_url %}{{ cancel_url }}{% else %}{% url 'housing:dashboard' %}{% endif %}"
-       class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% if cancel_label %}{{ cancel_label }}{% else %}{% translate "Back to Dashboard" %}{% endif %}</a>
+       class="btn-action btn-action--secondary">
+      <i class="fas fa-arrow-left me-1"></i>{% if cancel_label %}{{ cancel_label }}{% else %}{% translate "Back to Dashboard" %}{% endif %}
+    </a>
   </div>
 
-  <div class="quick-card form-shell">
-    <form method="post"
-          novalidate
-          {% if auto_reload_society %}data-auto-reload-society="1"{% endif %}
-          {% if auto_reload_unit %}data-auto-reload-unit="1"{% endif %}
-          {% if member_lookup_url %}data-member-lookup-url="{{ member_lookup_url }}"{% endif %}>
-      {% csrf_token %}
-      <div class="row g-3">
-        {% if form.non_field_errors %}
-          <div class="col-12">
-            <div class="alert alert-danger mb-0" role="alert">
-              {% for error in form.non_field_errors %}
-                <div>{{ error }}</div>
-              {% endfor %}
-            </div>
-          </div>
-        {% endif %}
-
-        {% for field in form %}
-          {% if field.field.widget.input_type == "checkbox" %}
+  <div class="content-card">
+    <div class="content-card__body">
+      <form method="post"
+            novalidate
+            {% if auto_reload_society %}data-auto-reload-society="1"{% endif %}
+            {% if auto_reload_unit %}data-auto-reload-unit="1"{% endif %}
+            {% if member_lookup_url %}data-member-lookup-url="{{ member_lookup_url }}"{% endif %}>
+        {% csrf_token %}
+        
+        <div class="row g-3">
+          {% if form.non_field_errors %}
             <div class="col-12">
-              <div class="form-check mt-2">
-                {{ field }}
-                <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+              <div class="alert alert-danger mb-0" role="alert">
+                {% for error in form.non_field_errors %}
+                  <div>{{ error }}</div>
+                {% endfor %}
               </div>
-              {% if field.help_text %}
-                <div class="form-text">{{ field.help_text }}</div>
-              {% endif %}
-              {% for error in field.errors %}
-                <div class="text-danger small">{{ error }}</div>
-              {% endfor %}
-            </div>
-          {% else %}
-            <div class="{% if field.field.widget.input_type == 'textarea' or field.name == 'description' or field.name == 'address' %}col-12{% else %}col-12 col-md-6{% endif %}">
-              <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-              {{ field }}
-              {% if field.help_text %}
-                <div class="form-text">{{ field.help_text }}</div>
-              {% endif %}
-              {% for error in field.errors %}
-                <div class="text-danger small">{{ error }}</div>
-              {% endfor %}
             </div>
           {% endif %}
-        {% endfor %}
 
-        <div class="col-12 form-actions form-actions-inline">
-          <a href="{% if cancel_url %}{{ cancel_url }}{% else %}{% url 'housing:dashboard' %}{% endif %}"
-             class="btn btn-outline-secondary"><i class="fas fa-times me-1"></i>{% translate "Cancel" %}</a>
-          <button type="submit" class="btn btn-primary"><i class="{% if submit_icon %}{{ submit_icon }}{% else %}fas fa-save{% endif %} me-1"></i>{% if submit_label %}{{ submit_label }}{% else %}{% translate "Save" %}{% endif %}</button>
+          {% for field in form %}
+            {% if field.field.widget.input_type == "checkbox" %}
+              <div class="col-12">
+                <div class="form-check mt-2">
+                  {{ field }}
+                  <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                </div>
+                {% if field.help_text %}
+                  <div class="form-text">{{ field.help_text }}</div>
+                {% endif %}
+                {% for error in field.errors %}
+                  <div class="form-error">{{ error }}</div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="{% if field.field.widget.input_type == 'textarea' or field.name == 'description' or field.name == 'address' %}col-12{% else %}col-12 col-md-6{% endif %}">
+                <div class="form-group">
+                  <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                  {{ field }}
+                  {% if field.help_text %}
+                    <div class="form-text">{{ field.help_text }}</div>
+                  {% endif %}
+                  {% for error in field.errors %}
+                    <div class="form-error">{{ error }}</div>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+          {% endfor %}
         </div>
-      </div>
-    </form>
+
+        <div class="form-actions form-actions-inline">
+          <a href="{% if cancel_url %}{{ cancel_url }}{% else %}{% url 'housing:dashboard' %}{% endif %}"
+             class="btn-action btn-action--secondary">
+            <i class="fas fa-times me-1"></i>{% translate "Cancel" %}
+          </a>
+          <button type="submit" class="btn-action btn-action--primary">
+            <i class="{% if submit_icon %}{{ submit_icon }}{% else %}fas fa-save{% endif %} me-1"></i>{% if submit_label %}{{ submit_label }}{% else %}{% translate "Save" %}{% endif %}
+          </button>
+        </div>
+      </form>
+    </div>
   </div>
 
   <!-- Parking-specific form enhancements -->

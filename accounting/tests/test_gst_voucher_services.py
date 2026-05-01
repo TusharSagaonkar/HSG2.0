@@ -6,6 +6,7 @@ from django.utils import timezone
 from accounting.models import AccountingPeriod
 from accounting.models import Voucher
 from accounting.services.gst_vouchers import create_expense_with_gst
+from accounting.services.gst_vouchers import AccountCodes
 from accounting.services.gst_vouchers import create_fund_transfer
 from accounting.services.gst_vouchers import create_member_advance_adjustment
 from accounting.services.gst_vouchers import create_member_advance_receipt
@@ -58,8 +59,8 @@ def test_create_maintenance_billing_with_gst_posts_balanced_entries():
     assert voucher.posted_at is not None
     entries = list(voucher.entries.select_related("account").order_by("id"))
     assert len(entries) == 4
-    assert any(entry.account.name == "Output CGST" and entry.credit == Decimal("90.00") for entry in entries)
-    assert any(entry.account.name == "Output SGST" and entry.credit == Decimal("90.00") for entry in entries)
+    assert any(entry.account.code == AccountCodes.OUTPUT_CGST and entry.credit == Decimal("90.00") for entry in entries)
+    assert any(entry.account.code == AccountCodes.OUTPUT_SGST and entry.credit == Decimal("90.00") for entry in entries)
 
 
 def test_create_expense_with_gst_posts_balanced_entries():
@@ -77,9 +78,9 @@ def test_create_expense_with_gst_posts_balanced_entries():
     assert voucher.posted_at is not None
     assert voucher.voucher_type == Voucher.VoucherType.BILL
     entries = list(voucher.entries.select_related("account").order_by("id"))
-    assert any(entry.account.name == "Input CGST" and entry.debit == Decimal("90.00") for entry in entries)
-    assert any(entry.account.name == "Input SGST" and entry.debit == Decimal("90.00") for entry in entries)
-    assert any(entry.account.name == "Vendor Payable" and entry.credit == Decimal("1180.00") for entry in entries)
+    assert any(entry.account.code == AccountCodes.INPUT_CGST and entry.debit == Decimal("90.00") for entry in entries)
+    assert any(entry.account.code == AccountCodes.INPUT_SGST and entry.debit == Decimal("90.00") for entry in entries)
+    assert any(entry.account.code == AccountCodes.VENDOR_PAYABLE and entry.credit == Decimal("1180.00") for entry in entries)
 
 
 def test_create_member_payment_receipt_posts_bank_against_receivable():
@@ -97,8 +98,8 @@ def test_create_member_payment_receipt_posts_bank_against_receivable():
 
     assert voucher.posted_at is not None
     entries = list(voucher.entries.select_related("account").order_by("id"))
-    assert any(entry.account.name == "Bank Account – Main" and entry.debit == Decimal("1180.00") for entry in entries)
-    assert any(entry.account.name == "Maintenance Receivable" and entry.credit == Decimal("1180.00") for entry in entries)
+    assert any(entry.account.code == AccountCodes.BANK_MAINTENANCE and entry.debit == Decimal("1180.00") for entry in entries)
+    assert any(entry.account.code == AccountCodes.MAINTENANCE_DUE and entry.credit == Decimal("1180.00") for entry in entries)
 
 
 def test_create_vendor_payment_posts_payable_against_bank():
@@ -132,8 +133,8 @@ def test_create_fund_transfer_posts_between_bank_accounts():
 
     assert voucher.posted_at is not None
     entries = list(voucher.entries.select_related("account").order_by("id"))
-    assert any(entry.account.name == "Bank Account – Sinking Fund" and entry.debit == Decimal("50000.00") for entry in entries)
-    assert any(entry.account.name == "Bank Account – Main" and entry.credit == Decimal("50000.00") for entry in entries)
+    assert any(entry.account.code == AccountCodes.BANK_SINKING_FUND and entry.debit == Decimal("50000.00") for entry in entries)
+    assert any(entry.account.code == AccountCodes.BANK_MAINTENANCE and entry.credit == Decimal("50000.00") for entry in entries)
 
 
 def test_member_advance_receipt_and_adjustment_flow():
@@ -149,8 +150,8 @@ def test_member_advance_receipt_and_adjustment_flow():
     )
     assert receipt.posted_at is not None
     receipt_entries = list(receipt.entries.select_related("account").order_by("id"))
-    assert any(entry.account.name == "Bank Account – Main" and entry.debit == Decimal("5000.00") for entry in receipt_entries)
-    assert any(entry.account.name == "Member Advance" and entry.credit == Decimal("5000.00") for entry in receipt_entries)
+    assert any(entry.account.code == AccountCodes.BANK_MAINTENANCE and entry.debit == Decimal("5000.00") for entry in receipt_entries)
+    assert any(entry.account.code == AccountCodes.MEMBER_ADVANCE and entry.credit == Decimal("5000.00") for entry in receipt_entries)
 
     adjustment = create_member_advance_adjustment(
         society=society,
@@ -160,5 +161,5 @@ def test_member_advance_receipt_and_adjustment_flow():
     )
     assert adjustment.posted_at is not None
     adjustment_entries = list(adjustment.entries.select_related("account").order_by("id"))
-    assert any(entry.account.name == "Member Advance" and entry.debit == Decimal("5000.00") for entry in adjustment_entries)
-    assert any(entry.account.name == "Maintenance Receivable" and entry.credit == Decimal("5000.00") for entry in adjustment_entries)
+    assert any(entry.account.code == AccountCodes.MEMBER_ADVANCE and entry.debit == Decimal("5000.00") for entry in adjustment_entries)
+    assert any(entry.account.code == AccountCodes.MAINTENANCE_DUE and entry.credit == Decimal("5000.00") for entry in adjustment_entries)

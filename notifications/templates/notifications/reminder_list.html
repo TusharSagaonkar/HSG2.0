@@ -14,14 +14,14 @@
 {% endblock dashboard_subtitle %}
 
 {% block content %}
-  <div class="page-actions">
-    <a href="{% url 'housing:dashboard' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}</a>
-    <a href="{% url 'housing:outstanding-dashboard' %}" class="btn btn-primary"><i class="fas fa-exclamation-circle me-1"></i>{% translate "Outstanding Dashboard" %}</a>
-    <a href="{% url 'billing:bill-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Bills" %}</a>
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'housing:dashboard' %}" class="btn-action btn-action--secondary">
+      <i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}
+    </a>
   </div>
 
-  <div class="table-responsive">
-    <table class="table table-sm table-hover align-middle mb-0">
+  <div class="table-responsive-wrapper">
+    <table class="table-enhanced">
       <thead>
         <tr>
           <th>{% translate "Scheduled For" %}</th>
@@ -52,36 +52,14 @@
           </tr>
         {% empty %}
           <tr>
-            <td colspan="6" class="text-center text-muted py-4">{% translate "No reminders found." %}</td>
+            <td colspan="6" class="text-center text-muted py-4">
+              {% include "components/empty_state.html" with icon="fa-bell" title=_("No reminders found") message=_("Reminders will appear here once scheduled.") %}
+            </td>
           </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
 
-  {% if is_paginated %}
-    <nav class="mt-3" aria-label="{% translate 'Reminders pagination' %}">
-      <ul class="pagination pagination-sm mb-0">
-        {% if page_obj.has_previous %}
-          <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.previous_page_number }}">{% translate "Previous" %}</a>
-          </li>
-        {% else %}
-          <li class="page-item disabled"><span class="page-link">{% translate "Previous" %}</span></li>
-        {% endif %}
-        <li class="page-item disabled">
-          <span class="page-link">
-            {% blocktranslate with current=page_obj.number total=paginator.num_pages %}Page {{ current }} of {{ total }}{% endblocktranslate %}
-          </span>
-        </li>
-        {% if page_obj.has_next %}
-          <li class="page-item">
-            <a class="page-link" href="?page={{ page_obj.next_page_number }}">{% translate "Next" %}</a>
-          </li>
-        {% else %}
-          <li class="page-item disabled"><span class="page-link">{% translate "Next" %}</span></li>
-        {% endif %}
-      </ul>
-    </nav>
-  {% endif %}
+  {% include "components/pagination.html" with aria_label=_("Reminders pagination") %}
 {% endblock content %}

@@ -1,0 +1,52 @@
+{% load i18n %}
+<div class="action-bar action-bar--responsive {% if sticky %}action-bar--sticky{% endif %}">
+  {% if back_url %}
+    <a href="{{ back_url }}" class="btn-action btn-action--secondary">
+      <i class="fas fa-arrow-left me-1"></i>{% translate "Back" %}
+    </a>
+  {% endif %}
+  
+  <div class="action-bar__group">
+    {% for action in actions %}
+      <a href="{{ action.url }}" 
+         class="btn-action btn-action--{{ action.style|default:'outline-primary' }}"
+         {% if action.title %}title="{{ action.title }}"{% endif %}
+         {% if action.data %}{% for key, value in action.data.items %}data-{{ key }}="{{ value }}"{% endfor %}{% endif %}>
+        {% if action.icon %}<i class="{{ action.icon }} me-1"></i>{% endif %}
+        {{ action.label }}
+      </a>
+    {% endfor %}
+  </div>
+  
+  {% if extra_actions %}
+    <div class="action-bar__group action-bar__group--push d-none d-md-flex">
+      <div class="dropdown">
+        <button class="btn-action btn-action--secondary" type="button" data-bs-toggle="dropdown" aria-label="More actions">
+          <i class="fas fa-ellipsis-v"></i>
+        </button>
+        <ul class="dropdown-menu dropdown-menu-end">
+          {% for action in extra_actions %}
+            <li>
+              <a class="dropdown-item" href="{{ action.url }}">
+                {% if action.icon %}<i class="{{ action.icon }} me-2"></i>{% endif %}
+                {{ action.label }}
+              </a>
+            </li>
+          {% endfor %}
+        </ul>
+      </div>
+    </div>
+    
+    <!-- Mobile: Show as separate section -->
+    <div class="d-md-none w-100">
+      <div class="action-bar__group">
+        {% for action in extra_actions %}
+          <a href="{{ action.url }}" class="btn-action btn-action--{{ action.style|default:'outline-secondary' }}">
+            {% if action.icon %}<i class="{{ action.icon }} me-1"></i>{% endif %}
+            {{ action.label }}
+          </a>
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+</div>

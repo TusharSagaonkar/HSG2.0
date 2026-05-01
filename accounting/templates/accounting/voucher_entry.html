@@ -13,191 +13,220 @@
   {% translate "Create a draft voucher and add ledger lines." %}
 {% endblock dashboard_subtitle %}
 
-{% block page_id %}accounting:voucher-entry{% endblock page_id %}
-
 {% block content %}
-  <div class="page-actions">
-    <a href="{% url 'accounting:voucher-posting' %}" class="btn btn-outline-primary"><i class="fas fa-check-circle me-1"></i>{% translate "Voucher Posting Menu" %}</a>
-    <a href="{% url 'accounting:voucher-list' %}" class="btn btn-outline-secondary"><i class="fas fa-eye me-1"></i>{% translate "Voucher List" %}</a>
-  </div>
-
-  <div class="voucher-quick-actions mb-4">
-    <h3 class="h6">{% translate "Quick Start" %}</h3>
-    <p class="text-muted small">{% translate "Click a button to pre‑fill common voucher details." %}</p>
-    
-    {% if voucher_templates %}
-      <div class="d-flex flex-wrap gap-2">
-        {% for template in voucher_templates %}
-          <a href="?template_id={{ template.id }}"
-             data-template-quick-button="true"
-             data-template-shortcut-index="{{ forloop.counter }}"
-             class="btn btn-outline-{% cycle 'danger' 'success' 'info' 'warning' 'secondary' 'primary' %}"
-             title="{% if template.name %}{{ template.name }}{% else %}{{ template.get_voucher_type_display }}{% endif %}">
-            <i class="fas
-              {% if template.voucher_type == 'PAYMENT' %}fa-money-bill-wave
-              {% elif template.voucher_type == 'RECEIPT' %}fa-receipt
-              {% elif template.voucher_type == 'GENERAL' %}fa-exchange-alt
-              {% elif template.voucher_type == 'JOURNAL' %}fa-book
-              {% else %}fa-file-invoice{% endif %} me-1"></i>
-            {% if template.name %}
-              {{ template.name }}
-            {% else %}
-              {% if template.voucher_type == 'GENERAL' %}
-                {% translate "Contra" %}
-              {% else %}
-                {{ template.get_voucher_type_display }}
-              {% endif %}
-            {% endif %}
-            {% if forloop.counter <= 9 %}
-              <span class="badge text-bg-light ms-1">Ctrl+{{ forloop.counter }}</span>
-            {% endif %}
-          </a>
-        {% endfor %}
-      </div>
-      {% if selected_template %}
-        <div class="alert alert-info mt-3 small">
-          <i class="fas fa-info-circle me-1"></i>
-          {% if selected_template.voucher_type == 'GENERAL' and not selected_template.name %}
-            {% blocktranslate %}
-              Pre‑filled from template "Contra". You can modify any field before saving.
-            {% endblocktranslate %}
-          {% elif selected_template.name %}
-            {% blocktranslate with template_name=selected_template.name %}
-              Pre‑filled from template "{{ template_name }}". You can modify any field before saving.
-            {% endblocktranslate %}
-          {% else %}
-            {% blocktranslate with template_name=selected_template.get_voucher_type_display %}
-              Pre‑filled from template "{{ template_name }}". You can modify any field before saving.
-            {% endblocktranslate %}
-          {% endif %}
-        </div>
+  {# Compact template info message #}
+  {% if selected_template %}
+    <div class="alert alert-info alert-sm py-1 mb-2 border-0 shadow-sm">
+      <i class="fas fa-info-circle me-1"></i>
+      {% if selected_template.voucher_type == 'GENERAL' and not selected_template.name %}
+        {% blocktranslate %}Pre-filled from "Contra". Modify before saving.{% endblocktranslate %}
+      {% elif selected_template.name %}
+        {% blocktranslate with template_name=selected_template.name %}Pre-filled from "{{ template_name }}". Modify before saving.{% endblocktranslate %}
+      {% else %}
+        {% blocktranslate with template_name=selected_template.get_voucher_type_display %}Pre-filled from "{{ template_name }}". Modify before saving.{% endblocktranslate %}
       {% endif %}
-    {% else %}
-      <div class="alert alert-warning small">
-        <i class="fas fa-exclamation-triangle me-1"></i>
-        {% if selected_society %}
-          {% translate "No voucher templates configured for this society. Use the admin interface to create templates." %}
-        {% else %}
-          {% translate "Select a society to see available voucher templates." %}
-        {% endif %}
-      </div>
-      {# Fallback to basic buttons if no templates #}
-      <div class="d-flex flex-wrap gap-2 mt-2">
-        <a href="?voucher_type=PAYMENT&payment_mode=CASH&narration=Payment+for+expenses"
-           class="btn btn-outline-danger btn-sm">
-           <i class="fas fa-money-bill-wave me-1"></i>{% translate "Payment" %}
-        </a>
-        <a href="?voucher_type=RECEIPT&payment_mode=CASH&narration=Receipt+from+member"
-           class="btn btn-outline-success btn-sm">
-           <i class="fas fa-receipt me-1"></i>{% translate "Receipt" %}
-        </a>
-        <a href="?voucher_type=GENERAL&narration=Transfer+cash+to+bank"
-           class="btn btn-outline-info btn-sm">
-           <i class="fas fa-exchange-alt me-1"></i>{% translate "Contra" %}
-        </a>
-        <a href="?voucher_type=JOURNAL&narration=Adjustment+entry"
-           class="btn btn-outline-warning btn-sm">
-           <i class="fas fa-book me-1"></i>{% translate "Journal" %}
-        </a>
-      </div>
-    {% endif %}
-  </div>
+    </div>
+  {% endif %}
 
-  <form method="post" novalidate>
+  {% if not voucher_templates and not selected_template %}
+    <div class="alert alert-warning alert-sm py-1 mb-2 border-0 shadow-sm">
+      <i class="fas fa-exclamation-triangle me-1"></i>
+      {% if selected_society %}
+        {% translate "No voucher templates configured." %}
+      {% else %}
+        {% translate "Select a society to see templates." %}
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {# Main Voucher Entry Form #}
+  <form method="post" novalidate data-loading-state>
     {% csrf_token %}
-    <div class="row g-3">
-      {% for field in voucher_form %}
-        <div class="col-12 col-md-6">
-          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
-          {{ field }}
-          {% for error in field.errors %}
-            <div class="text-danger small">{{ error }}</div>
+    
+    {# Voucher Details Section #}
+    <div class="content-card shadow-sm mb-2">
+      <div class="content-card__header py-2 px-3">
+        <h3 class="content-card__title mb-0">
+          <i class="fas fa-file-invoice me-2 text-primary"></i>{% translate "Voucher Details" %}
+        </h3>
+      </div>
+      <div class="content-card__body pt-2 pb-3 px-3">
+        <div class="row g-2">
+          {% for field in voucher_form %}
+            <div class="col-12 col-md-4 col-lg-3">
+              <div class="form-group mb-1">
+                <label class="form-label small mb-1 fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% for error in field.errors %}
+                  <div class="form-error small mt-1">{{ error }}</div>
+                {% endfor %}
+              </div>
+            </div>
           {% endfor %}
         </div>
-      {% endfor %}
-    </div>
-    <p class="small text-muted mt-2 mb-0">
-      {% translate "Changing society reloads the page and updates ledger account options for that society." %}
-    </p>
-
-    <hr class="my-4" />
-
-    <h2 class="h6">{% translate "Ledger Entries" %}</h2>
-    {{ entry_formset.management_form }}
-    {% if entry_formset.non_form_errors %}
-      <div class="alert alert-danger">
-        {% for error in entry_formset.non_form_errors %}
-          <div>{{ error }}</div>
-        {% endfor %}
+        <p class="small text-muted mt-2 mb-0">
+          <i class="fas fa-info-circle me-1"></i>
+          {% translate "Changing society reloads the page and updates ledger account options." %}
+        </p>
       </div>
-    {% endif %}
-
-    <div class="table-responsive">
-      <table class="table table-sm align-middle">
-        <thead>
-          <tr>
-            <th>{% translate "Account" %}</th>
-            <th>{% translate "Unit (optional)" %}</th>
-            <th>{% translate "Debit" %}</th>
-            <th>{% translate "Credit" %}</th>
-          </tr>
-        </thead>
-        <tbody id="ledger-entry-rows">
-          {% for form in entry_formset %}
-            <tr>
-              <td>
-                {{ form.account }}
-                {% for error in form.account.errors %}
-                  <div class="text-danger small">{{ error }}</div>
-                {% endfor %}
-              </td>
-              <td>
-                {{ form.unit }}
-                {% for error in form.unit.errors %}
-                  <div class="text-danger small">{{ error }}</div>
-                {% endfor %}
-              </td>
-              <td>
-                {{ form.debit }}
-                {% for error in form.debit.errors %}
-                  <div class="text-danger small">{{ error }}</div>
-                {% endfor %}
-              </td>
-              <td>
-                {{ form.credit }}
-                {% for error in form.credit.errors %}
-                  <div class="text-danger small">{{ error }}</div>
-                {% endfor %}
-              </td>
-            </tr>
-            {% if form.non_field_errors %}
-              <tr>
-                <td colspan="4">
-                  {% for error in form.non_field_errors %}
-                    <div class="text-danger small">{{ error }}</div>
-                  {% endfor %}
-                </td>
-              </tr>
-            {% endif %}
-          {% endfor %}
-        </tbody>
-      </table>
     </div>
 
-    <div class="form-actions">
-      <button type="button" id="add-ledger-row" class="btn btn-outline-secondary">
-        <i class="fas fa-plus-circle me-1"></i>{% translate "Add Row" %}
-      </button>
-      <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>{% translate "Save Draft Voucher" %}</button>
+    {# Ledger Entries Section #}
+    <div class="content-card shadow-sm mb-2">
+      <div class="content-card__header py-2 px-3">
+        <h3 class="content-card__title mb-0">
+          <i class="fas fa-list me-2 text-primary"></i>{% translate "Ledger Entries" %}
+        </h3>
+      </div>
+      <div class="content-card__body pt-2 pb-0 px-0">
+        {{ entry_formset.management_form }}
+        {% if entry_formset.non_form_errors %}
+          <div class="px-3 pb-2">
+            <div class="alert alert-danger py-1 small mb-0">
+              {% for error in entry_formset.non_form_errors %}
+                <div>{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+
+        <div class="table-responsive-wrapper border-0 rounded-0">
+          <table class="table-enhanced table-sm mb-0">
+            <thead>
+              <tr>
+                <th class="py-2 px-3">{% translate "Account" %}</th>
+                <th class="py-2 px-3">{% translate "Unit" %}</th>
+                <th class="py-2 px-3">{% translate "Debit" %}</th>
+                <th class="py-2 px-3">{% translate "Credit" %}</th>
+              </tr>
+            </thead>
+            <tbody id="ledger-entry-rows">
+              {% for form in entry_formset %}
+                <tr>
+                  <td class="py-2 px-3">
+                    {{ form.account }}
+                    {% for error in form.account.errors %}
+                      <div class="form-error small mt-1">{{ error }}</div>
+                    {% endfor %}
+                  </td>
+                  <td class="py-2 px-3">
+                    {{ form.unit }}
+                    {% for error in form.unit.errors %}
+                      <div class="form-error small mt-1">{{ error }}</div>
+                    {% endfor %}
+                  </td>
+                  <td class="py-2 px-3">
+                    {% if forloop.first and selected_template %}
+                      {% with "id_entries-0-debit" as first_debit_id %}
+                        {{ form.debit }}
+                      {% endwith %}
+                    {% else %}
+                      {{ form.debit }}
+                    {% endif %}
+                    {% for error in form.debit.errors %}
+                      <div class="form-error small mt-1">{{ error }}</div>
+                    {% endfor %}
+                  </td>
+                  <td class="py-2 px-3">
+                    {{ form.credit }}
+                    {% for error in form.credit.errors %}
+                      <div class="form-error small mt-1">{{ error }}</div>
+                    {% endfor %}
+                  </td>
+                </tr>
+                {% if form.non_field_errors %}
+                  <tr>
+                    <td colspan="4" class="py-2 px-3">
+                      {% for error in form.non_field_errors %}
+                        <div class="form-error small">{{ error }}</div>
+                      {% endfor %}
+                    </td>
+                  </tr>
+                {% endif %}
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        {# Form Actions in Card Footer #}
+        <div class="content-card__footer d-flex justify-content-between align-items-center">
+          <div class="d-flex gap-2">
+            <button type="button" id="add-ledger-row" class="btn-action btn-action--sm btn-action--secondary">
+              <i class="fas fa-plus-circle me-1"></i>{% translate "Add Row" %}
+            </button>
+            <button type="reset" class="btn-action btn-action--sm btn-action--outline-danger">
+              <i class="fas fa-redo me-1"></i>{% translate "Reset" %}
+            </button>
+          </div>
+          <div class="d-flex gap-2">
+            <a href="{% url 'accounting:voucher-posting' %}" class="btn-action btn-action--sm btn-action--outline-primary">
+              <i class="fas fa-check-circle me-1"></i>{% translate "Posting" %}
+            </a>
+            <button type="submit" name="save_and_new" value="1" class="btn-action btn-action--primary">
+              <i class="fas fa-save me-1"></i>{% translate "Save & New" %}
+            </button>
+          </div>
+        </div>
+      </div>
     </div>
   </form>
 
+  {# Quick Start Section - Compact Single Line at Bottom #}
+  <div class="content-card shadow-sm">
+    <div class="content-card__body py-2 px-3">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span class="text-muted small fw-semibold mb-0 me-1">{% translate "Quick:" %}</span>
+        {% if voucher_templates %}
+          {% for template in voucher_templates %}
+            <a href="?template_id={{ template.id }}"
+               data-template-quick-button="true"
+               data-template-shortcut-index="{{ forloop.counter }}"
+               class="btn-action btn-action--sm {% cycle 'btn-action--danger' 'btn-action--success' 'btn-action--info' 'btn-action--warning' 'btn-action--secondary' 'btn-action--primary' %}"
+               title="{% if template.name %}{{ template.name }}{% else %}{{ template.get_voucher_type_display }}{% endif %}">
+              <i class="fas
+                {% if template.voucher_type == 'PAYMENT' %}fa-money-bill-wave
+                {% elif template.voucher_type == 'RECEIPT' %}fa-receipt
+                {% elif template.voucher_type == 'GENERAL' %}fa-exchange-alt
+                {% elif template.voucher_type == 'JOURNAL' %}fa-book
+                {% else %}fa-file-invoice{% endif %} me-1"></i>
+              {% if template.name %}
+                {{ template.name }}
+              {% else %}
+                {% if template.voucher_type == 'GENERAL' %}Contra{% else %}{{ template.get_voucher_type_display }}{% endif %}
+              {% endif %}
+              {% if forloop.counter <= 9 %}
+                <span class="badge bg-light text-dark ms-1">{{ forloop.counter }}</span>
+              {% endif %}
+            </a>
+          {% endfor %}
+        {% else %}
+          <a href="?voucher_type=PAYMENT&payment_mode=CASH&narration=Payment+for+expenses"
+             class="btn-action btn-action--sm btn-action--danger">
+             <i class="fas fa-money-bill-wave me-1"></i>{% translate "Payment" %}
+          </a>
+          <a href="?voucher_type=RECEIPT&payment_mode=CASH&narration=Receipt+from+member"
+             class="btn-action btn-action--sm btn-action--success">
+             <i class="fas fa-receipt me-1"></i>{% translate "Receipt" %}
+          </a>
+          <a href="?voucher_type=GENERAL&narration=Transfer+cash+to+bank"
+             class="btn-action btn-action--sm btn-action--info">
+             <i class="fas fa-exchange-alt me-1"></i>{% translate "Contra" %}
+          </a>
+          <a href="?voucher_type=JOURNAL&narration=Adjustment+entry"
+             class="btn-action btn-action--sm btn-action--warning">
+             <i class="fas fa-book me-1"></i>{% translate "Journal" %}
+          </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
   <template id="ledger-entry-empty-row-template">
     <tr>
-      <td>{{ entry_formset.empty_form.account }}</td>
-      <td>{{ entry_formset.empty_form.unit }}</td>
-      <td>{{ entry_formset.empty_form.debit }}</td>
-      <td>{{ entry_formset.empty_form.credit }}</td>
+      <td class="py-2 px-3">{{ entry_formset.empty_form.account }}</td>
+      <td class="py-2 px-3">{{ entry_formset.empty_form.unit }}</td>
+      <td class="py-2 px-3">{{ entry_formset.empty_form.debit }}</td>
+      <td class="py-2 px-3">{{ entry_formset.empty_form.credit }}</td>
     </tr>
   </template>
 {% endblock content %}
@@ -214,18 +243,15 @@
       const templateButtons = Array.from(document.querySelectorAll('[data-template-quick-button="true"]'))
         .filter((button) => Number.parseInt(button.dataset.templateShortcutIndex || "", 10) <= 9);
 
+      // Focus first debit field when template is pre-filled
+      const firstDebitField = document.querySelector("#id_entries-0-debit");
+      if (firstDebitField) {
+        firstDebitField.focus();
+      }
+
       document.addEventListener("keydown", (event) => {
         if (!event.ctrlKey || event.altKey || event.shiftKey || event.metaKey) {
           return;
-        }
-
-        const activeElement = document.activeElement;
-        if (activeElement) {
-          const tagName = activeElement.tagName;
-          const isContentEditable = activeElement.isContentEditable;
-          if (["INPUT", "TEXTAREA", "SELECT"].includes(tagName) || isContentEditable) {
-            return;
-          }
         }
 
         if (!/^[1-9]$/.test(event.key)) {
@@ -257,17 +283,13 @@
           window.location.href = next.toString();
         });
 
-        // Preserve society parameter in quick‑action buttons
         const societyId = societyField.value;
         if (societyId) {
           document.querySelectorAll('.voucher-quick-actions a').forEach(link => {
             const url = new URL(link.href, window.location.origin);
-            // Only add society parameter if not already in template_id links
-            // For template_id links, we need to preserve the template_id
             if (url.searchParams.has('template_id')) {
               url.searchParams.set('society', societyId);
             } else {
-              // For old-style links with individual parameters
               url.searchParams.set('society', societyId);
             }
             link.href = url.toString();
@@ -287,10 +309,61 @@
 
         const newRowHtml = emptyRowTemplate.innerHTML.replaceAll(
           "__prefix__",
-          String(currentCount),
+          String(currentCount)
         );
         rowsContainer.insertAdjacentHTML("beforeend", newRowHtml);
         totalFormsField.value = String(currentCount + 1);
+
+        // Focus the account field of the newly added row
+        const newAccountField = document.getElementById(`id_entries-${currentCount}-account`);
+        if (newAccountField) {
+          newAccountField.focus();
+        }
+      });
+
+      // Add visible focus style for Add Row button
+      const addRowFocusStyle = document.createElement('style');
+      addRowFocusStyle.textContent = `
+        #add-ledger-row:focus-visible {
+          background: var(--color-primary);
+          color: var(--color-text-inverse);
+          border-color: var(--color-primary);
+          outline: 2px solid var(--color-primary);
+          outline-offset: 2px;
+          box-shadow: var(--shadow-color-primary);
+        }
+      `;
+      document.head.appendChild(addRowFocusStyle);
+
+      // Auto-balance: fill opposite amount in next row
+      rowsContainer.addEventListener('change', (event) => {
+        const target = event.target;
+        const isDebit = target.name && target.name.includes('debit');
+        const isCredit = target.name && target.name.includes('credit');
+        if (!isDebit && !isCredit) return;
+
+        const value = target.value;
+        if (!value || parseFloat(value) === 0) return;
+
+        const row = target.closest('tr');
+        const allRows = Array.from(rowsContainer.querySelectorAll('tr'));
+        const currentIndex = allRows.indexOf(row);
+        
+        // Find next row that has an account selected
+        for (let i = currentIndex + 1; i < allRows.length; i++) {
+          const nextRow = allRows[i];
+          const accountSelect = nextRow.querySelector('select[name$="-account"]');
+          const oppositeInput = isDebit
+            ? nextRow.querySelector('input[name$="-credit"]')
+            : nextRow.querySelector('input[name$="-debit"]');
+          
+          if (accountSelect && accountSelect.value && oppositeInput && !oppositeInput.value) {
+            oppositeInput.value = value;
+            // Trigger change event for any listeners
+            oppositeInput.dispatchEvent(new Event('change', { bubbles: true }));
+            break;
+          }
+        }
       });
     });
   </script>

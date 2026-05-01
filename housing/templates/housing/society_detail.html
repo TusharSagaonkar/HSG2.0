@@ -18,55 +18,73 @@
 {% endblock dashboard_subtitle %}
 
 {% block content %}
-  <div class="page-actions">
-    <a href="{% url 'housing:society-list' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to societies" %}</a>
-    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Structure actions' %}">
-      <a href="#structure-hierarchy" class="btn btn-main"><i class="fas fa-sitemap me-1"></i>{% translate "Structure" %}</a>
-      <a href="{% url 'housing:structure-add' %}?society={{ society.pk }}" class="btn btn-plus" aria-label="{% translate 'Add Structure' %}">+</a>
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'housing:society-list' %}" class="btn-action btn-action--secondary">
+      <i class="fas fa-arrow-left me-1"></i>{% translate "Back to societies" %}
+    </a>
+    <div class="action-bar__group">
+      <a href="{% url 'housing:structure-add' %}?society={{ society.pk }}" class="btn-action btn-action--primary">
+        <i class="fas fa-plus me-1"></i>{% translate "Add Structure" %}
+      </a>
     </div>
-    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Unit actions' %}">
-      <a href="#structure-hierarchy" class="btn btn-main"><i class="fas fa-door-open me-1"></i>{% translate "Units" %}</a>
-      <a href="{% url 'housing:unit-add' %}?society={{ society.pk }}" class="btn btn-plus" aria-label="{% translate 'Add Unit' %}">+</a>
+    <div class="action-bar__group">
+      <a href="{% url 'housing:unit-add' %}?society={{ society.pk }}" class="btn-action btn-action--primary">
+        <i class="fas fa-plus me-1"></i>{% translate "Add Unit" %}
+      </a>
     </div>
-    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Ownership actions' %}">
-      <a href="#structure-hierarchy" class="btn btn-main"><i class="fas fa-user-tag me-1"></i>{% translate "Ownership" %}</a>
-      <a href="{% url 'housing:ownership-add' %}?society={{ society.pk }}" class="btn btn-plus" aria-label="{% translate 'Add Ownership' %}">+</a>
+    <div class="action-bar__group">
+      <a href="{% url 'housing:ownership-add' %}?society={{ society.pk }}" class="btn-action btn-action--primary">
+        <i class="fas fa-plus me-1"></i>{% translate "Add Ownership" %}
+      </a>
     </div>
-    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Occupancy actions' %}">
-      <a href="#structure-hierarchy" class="btn btn-main"><i class="fas fa-home me-1"></i>{% translate "Occupancy" %}</a>
-      <a href="{% url 'housing:occupancy-add' %}?society={{ society.pk }}" class="btn btn-plus" aria-label="{% translate 'Add Occupancy' %}">+</a>
+    <div class="action-bar__group">
+      <a href="{% url 'housing:occupancy-add' %}?society={{ society.pk }}" class="btn-action btn-action--primary">
+        <i class="fas fa-plus me-1"></i>{% translate "Add Occupancy" %}
+      </a>
     </div>
-    <a href="{% url 'housing:member-list' %}" class="btn btn-outline-primary"><i class="fas fa-users me-1"></i>{% translate "Members" %}</a>
-    <a href="{% url 'housing:society-email-settings' society.pk %}" class="btn btn-outline-primary"><i class="fas fa-envelope me-1"></i>{% translate "Email Settings" %}</a>
-    <a href="{% url 'billing:charge-template-list' %}" class="btn btn-outline-primary"><i class="fas fa-list-alt me-1"></i>{% translate "Charge Templates" %}</a>
-    <a href="{% url 'billing:bill-list' %}" class="btn btn-outline-primary"><i class="fas fa-file-invoice me-1"></i>{% translate "Bills" %}</a>
-    <a href="{% url 'receipts:receipt-list' %}" class="btn btn-outline-primary"><i class="fas fa-receipt me-1"></i>{% translate "Receipts" %}</a>
-    <a href="{% url 'notifications:reminder-list' %}" class="btn btn-outline-primary"><i class="fas fa-bell me-1"></i>{% translate "Reminders" %}</a>
+    <div class="action-bar__group action-bar__group--push">
+      <a href="{% url 'housing:member-list' %}" class="btn-action btn-action--outline-primary">
+        <i class="fas fa-users me-1"></i>{% translate "Members" %}
+      </a>
+      <a href="{% url 'housing:society-email-settings' society.pk %}" class="btn-action btn-action--outline-primary">
+        <i class="fas fa-envelope me-1"></i>{% translate "Email Settings" %}
+      </a>
+    </div>
   </div>
 
   <div class="row g-3 mb-3">
     <div class="col-12 col-lg-6">
-      <div class="quick-card">
-        <h3 class="h6 mb-2">{% translate "Address" %}</h3>
-        {% if society.address %}
-          <p class="mb-0 text-muted">{{ society.address }}</p>
-        {% else %}
-          <p class="mb-0 text-muted">{% translate "No address provided." %}</p>
-        {% endif %}
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{% translate "Address" %}</h3>
+        </div>
+        <div class="content-card__body">
+          {% if society.address %}
+            <p class="mb-0 text-muted">{{ society.address }}</p>
+          {% else %}
+            <p class="mb-0 text-muted">{% translate "No address provided." %}</p>
+          {% endif %}
+        </div>
       </div>
     </div>
+
     <div class="col-12 col-lg-6">
-      <div class="quick-card">
-        <h3 class="h6 mb-2">{% translate "Quick Stats" %}</h3>
-        <p class="mb-1"><strong>{% translate "Root structures:" %}</strong> {{ root_structures|length }}</p>
-        <p class="mb-0"><strong>{% translate "Total units:" %}</strong> {{ total_units }}</p>
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{% translate "Quick Stats" %}</h3>
+        </div>
+        <div class="content-card__body">
+          <p class="mb-1"><strong>{% translate "Root structures:" %}</strong> {{ root_structures|length }}</p>
+          <p class="mb-0"><strong>{% translate "Total units:" %}</strong> {{ total_units }}</p>
+        </div>
       </div>
     </div>
+
     <div class="col-12 col-lg-6">
-      <div class="quick-card governance-card">
+      <div class="content-card governance-card">
         <div class="governance-header">
           <div>
-            <h3 class="h6 mb-1">{% translate "Access & Governance" %}</h3>
+            <h3 class="content-card__title">{% translate "Access & Governance" %}</h3>
             <p class="small text-muted mb-0">{% translate "Tenant isolation and role-based permissions for this society." %}</p>
           </div>
           {% if current_user_role %}
@@ -93,85 +111,95 @@
         </div>
       </div>
     </div>
+
     <div class="col-12 col-lg-6">
-      <div class="quick-card">
-        <h3 class="h6 mb-2">{% translate "Role Hierarchy" %}</h3>
-        <div class="role-stack">
-          {% for role in role_summary %}
-            <div class="role-stack-item">
-              <div class="role-stack-badge-row">
-                <span class="context-badge context-badge-role">{{ role.label }}</span>
-                {% if current_user_role == role.key %}
-                  <span class="context-badge context-badge-count">{% translate "Current" %}</span>
-                {% endif %}
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{% translate "Role Hierarchy" %}</h3>
+        </div>
+        <div class="content-card__body">
+          <div class="role-stack">
+            {% for role in role_summary %}
+              <div class="role-stack-item">
+                <div class="role-stack-badge-row">
+                  <span class="context-badge context-badge-role">{{ role.label }}</span>
+                  {% if current_user_role == role.key %}
+                    <span class="context-badge context-badge-count">{% translate "Current" %}</span>
+                  {% endif %}
+                </div>
+                <p class="mb-0 text-muted">{{ role.description }}</p>
               </div>
-              <p class="mb-0 text-muted">{{ role.description }}</p>
-            </div>
-          {% endfor %}
+            {% endfor %}
+          </div>
         </div>
       </div>
     </div>
   </div>
 
-  <div class="quick-card" id="structure-hierarchy">
-    <h3 class="h6 mb-2">{% translate "Structure Hierarchy with Units" %}</h3>
-    <p class="small text-muted">{% translate "Each unit is shown under the exact structure it belongs to." %}</p>
-    {% if root_structures %}
-      <div class="structure-filter-bar" data-structure-filters>
-        <div class="structure-filter-item structure-filter-search">
-          <label class="form-label" for="structure-search">{% translate "Search" %}</label>
-          <input id="structure-search"
-                 type="search"
-                 class="form-control"
-                 placeholder="{% translate 'Search structure, unit, owner, occupant' %}"
-                 data-structure-search />
+  <div class="content-card" id="structure-hierarchy">
+    <div class="content-card__header">
+      <h3 class="content-card__title">{% translate "Structure Hierarchy with Units" %}</h3>
+      <p class="small text-muted mb-0">{% translate "Each unit is shown under the exact structure it belongs to." %}</p>
+    </div>
+    <div class="content-card__body">
+      {% if root_structures %}
+        <div class="structure-filter-bar" data-structure-filters>
+          <div class="structure-filter-item structure-filter-search">
+            <label class="form-label" for="structure-search">{% translate "Search" %}</label>
+            <input id="structure-search"
+                   type="search"
+                   class="form-control"
+                   placeholder="{% translate 'Search structure, unit, owner, occupant' %}"
+                   data-structure-search />
+          </div>
+          <div class="structure-filter-item">
+            <label class="form-label" for="structure-type-filter">{% translate "Structure" %}</label>
+            <select id="structure-type-filter" class="form-select" data-structure-type-filter>
+              <option value="">{% translate "All" %}</option>
+              <option value="BUILDING">{% translate "Building" %}</option>
+              <option value="WING">{% translate "Wing" %}</option>
+              <option value="BLOCK">{% translate "Block" %}</option>
+              <option value="TOWER">{% translate "Tower" %}</option>
+              <option value="FLOOR">{% translate "Floor" %}</option>
+            </select>
+          </div>
+          <div class="structure-filter-item">
+            <label class="form-label" for="unit-status-filter">{% translate "Unit Status" %}</label>
+            <select id="unit-status-filter" class="form-select" data-unit-status-filter>
+              <option value="">{% translate "All" %}</option>
+              <option value="active">{% translate "Active" %}</option>
+              <option value="inactive">{% translate "Inactive" %}</option>
+            </select>
+          </div>
+          <div class="structure-filter-item">
+            <label class="form-label" for="occupancy-filter">{% translate "Occupancy" %}</label>
+            <select id="occupancy-filter" class="form-select" data-occupancy-filter>
+              <option value="">{% translate "All" %}</option>
+              <option value="occupied">{% translate "Occupied" %}</option>
+              <option value="vacant">{% translate "Vacant / Empty" %}</option>
+            </select>
+          </div>
+          <div class="structure-filter-actions">
+            <button type="button" class="btn-action btn-action--sm btn-action--outline-secondary" data-structure-filter-reset>
+              <i class="fas fa-undo me-1"></i>{% translate "Reset" %}
+            </button>
+          </div>
         </div>
-        <div class="structure-filter-item">
-          <label class="form-label" for="structure-type-filter">{% translate "Structure" %}</label>
-          <select id="structure-type-filter" class="form-select" data-structure-type-filter>
-            <option value="">{% translate "All" %}</option>
-            <option value="BUILDING">{% translate "Building" %}</option>
-            <option value="WING">{% translate "Wing" %}</option>
-            <option value="BLOCK">{% translate "Block" %}</option>
-            <option value="TOWER">{% translate "Tower" %}</option>
-            <option value="FLOOR">{% translate "Floor" %}</option>
-          </select>
+        <div class="small text-muted mb-3" data-structure-filter-summary>
+          {% translate "Showing full structure hierarchy." %}
         </div>
-        <div class="structure-filter-item">
-          <label class="form-label" for="unit-status-filter">{% translate "Unit Status" %}</label>
-          <select id="unit-status-filter" class="form-select" data-unit-status-filter>
-            <option value="">{% translate "All" %}</option>
-            <option value="active">{% translate "Active" %}</option>
-            <option value="inactive">{% translate "Inactive" %}</option>
-          </select>
-        </div>
-        <div class="structure-filter-item">
-          <label class="form-label" for="occupancy-filter">{% translate "Occupancy" %}</label>
-          <select id="occupancy-filter" class="form-select" data-occupancy-filter>
-            <option value="">{% translate "All" %}</option>
-            <option value="occupied">{% translate "Occupied" %}</option>
-            <option value="vacant">{% translate "Vacant / Empty" %}</option>
-          </select>
-        </div>
-        <div class="structure-filter-actions">
-          <button type="button" class="btn btn-outline-secondary" data-structure-filter-reset>
-            <i class="fas fa-undo me-1"></i>{% translate "Reset" %}
-          </button>
-        </div>
-      </div>
-      <div class="small text-muted mb-3" data-structure-filter-summary>
-        {% translate "Showing full structure hierarchy." %}
-      </div>
-    {% endif %}
-    {% if root_structures %}
-      <ul class="structure-tree">
-        {% for structure in root_structures %}
-          {% include "housing/partials/structure_tree.html" with structure=structure society=society %}
-        {% endfor %}
-      </ul>
-    {% else %}
-      <p class="text-muted mb-0">{% translate "No structures added yet." %}</p>
-    {% endif %}
+      {% endif %}
+      
+      {% if root_structures %}
+        <ul class="structure-tree">
+          {% for structure in root_structures %}
+            {% include "housing/partials/structure_tree.html" with structure=structure society=society %}
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-muted mb-0">{% translate "No structures added yet." %}</p>
+      {% endif %}
+    </div>
   </div>
 
   <!-- Member Add Modal -->

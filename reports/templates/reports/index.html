@@ -17,11 +17,13 @@
   <div class="row g-3">
     {% for report in report_links %}
       <div class="col-12 col-md-6 col-xl-4">
-        <div class="card h-100 shadow-sm">
-          <div class="card-body">
-            <h5 class="card-title mb-2">{{ report.title }}</h5>
+        <div class="content-card h-100 shadow-sm">
+          <div class="content-card__header">
+            <h5 class="content-card__title mb-2">{{ report.title }}</h5>
+          </div>
+          <div class="content-card__body">
             <p class="text-muted mb-3">{{ report.description }}</p>
-            <a href="{% url report.url_name %}" class="btn btn-outline-primary">
+            <a href="{% url report.url_name %}" class="btn-action btn-action--outline-primary">
               <i class="fas fa-chart-bar me-1"></i>{% translate "Open Report" %}
             </a>
           </div>
@@ -30,4 +32,3 @@
     {% endfor %}
   </div>
 {% endblock content %}
-

@@ -14,15 +14,18 @@
 {% endblock dashboard_subtitle %}
 
 {% block content %}
-  <div class="page-actions">
-    <a href="{% url 'housing:dashboard' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}</a>
-    <a href="{% url 'billing:bill-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Bills" %}</a>
-    <a href="{% url 'receipts:receipt-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Receipts" %}</a>
-    <a href="{% url 'notifications:reminder-list' %}" class="btn btn-outline-primary"><i class="fas fa-bell me-1"></i>{% translate "Reminder Log" %}</a>
-    <a href="{% url 'housing:receipt-post' %}" class="btn btn-primary"><i class="fas fa-money-check-alt me-1"></i>{% translate "Post Receipt" %}</a>
-    <form method="post" action="{% url 'housing:reminder-schedule' %}">
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'housing:dashboard' %}" class="btn-action btn-action--secondary">
+      <i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}
+    </a>
+    <a href="{% url 'housing:receipt-post' %}" class="btn-action btn-action--primary">
+      <i class="fas fa-money-check-alt me-1"></i>{% translate "Post Receipt" %}
+    </a>
+    <form method="post" action="{% url 'housing:reminder-schedule' %}" class="d-inline">
       {% csrf_token %}
-      <button type="submit" class="btn btn-outline-primary"><i class="fas fa-calendar-plus me-1"></i>{% translate "Schedule Reminders" %}</button>
+      <button type="submit" class="btn-action btn-action--outline-primary">
+        <i class="fas fa-calendar-plus me-1"></i>{% translate "Schedule Reminders" %}
+      </button>
     </form>
   </div>
 
@@ -32,13 +35,15 @@
       <input id="id_as_of_date" name="as_of_date" type="date" class="form-control" value="{{ as_of_date|date:'Y-m-d' }}">
     </div>
     <div class="col-auto">
-      <button type="submit" class="btn btn-outline-primary"><i class="fas fa-filter me-1"></i>{% translate "Apply" %}</button>
+      <button type="submit" class="btn-action btn-action--outline-primary">
+        <i class="fas fa-filter me-1"></i>{% translate "Apply" %}
+      </button>
     </div>
   </form>
 
   {% if outstanding %}
-    <div class="table-responsive">
-      <table class="table table-sm table-hover align-middle mb-0">
+    <div class="table-responsive-wrapper">
+      <table class="table-enhanced">
         <thead>
           <tr>
             <th>{% translate "Member" %}</th>
@@ -65,11 +70,13 @@
               <td class="text-end">{{ row.bucket_31_60 }}</td>
               <td class="text-end">{{ row.bucket_61_90 }}</td>
               <td class="text-end">{{ row.bucket_90_plus }}</td>
-              <td class="text-end">{{ row.total_outstanding }}</td>
+              <td class="text-end fw-semibold">{{ row.total_outstanding }}</td>
             </tr>
           {% empty %}
             <tr>
-              <td colspan="8" class="text-center text-muted py-4">{% translate "No outstanding receivables." %}</td>
+              <td colspan="8" class="text-center text-muted py-4">
+                {% translate "No outstanding receivables." %}
+              </td>
             </tr>
           {% endfor %}
         </tbody>

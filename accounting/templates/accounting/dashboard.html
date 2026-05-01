@@ -14,93 +14,100 @@
 {% endblock dashboard_subtitle %}
 
 {% block content %}
-  <div class="page-actions">
-    <a href="{% url 'accounting:account-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Accounts" %}</a>
-    <a href="{% url 'accounting:voucher-list' %}" class="btn btn-outline-primary"><i class="fas fa-eye me-1"></i>{% translate "View Vouchers" %}</a>
-    <a href="{% url 'accounting:voucher-entry' %}" class="btn btn-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Voucher Entry" %}</a>
-    <a href="{% url 'accounting:voucher-posting' %}" class="btn btn-outline-success"><i class="fas fa-check-circle me-1"></i>{% translate "Voucher Posting" %}</a>
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'accounting:voucher-entry' %}" class="btn-action btn-action--primary">
+      <i class="fas fa-plus-circle me-1"></i>{% translate "Voucher Entry" %}
+    </a>
+    <a href="{% url 'accounting:voucher-posting' %}" class="btn-action btn-action--success">
+      <i class="fas fa-check-circle me-1"></i>{% translate "Voucher Posting" %}
+    </a>
+    <div class="action-bar__separator"></div>
+    <a href="{% url 'accounting:account-list' %}" class="btn-action btn-action--info">
+      <i class="fas fa-list me-1"></i>{% translate "Account List" %}
+    </a>
+    <a href="{% url 'accounting:account-tree' %}" class="btn-action btn-action--secondary">
+      <i class="fas fa-sitemap me-1"></i>{% translate "Account Tree" %}
+    </a>
+    <a href="{% url 'accounting:trial-balance' %}" class="btn-action btn-action--warning">
+      <i class="fas fa-balance-scale me-1"></i>{% translate "Trial Balance" %}
+    </a>
   </div>
 
   <div class="row g-3 mb-4">
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="quick-card">
-        <p class="small text-muted mb-1">{% translate "Accounts" %}</p>
-        <h2 class="h3 mb-0">{{ total_accounts }}</h2>
-      </div>
+      {% include "components/stat_card.html" with icon="fas fa-list" label=_("Accounts") value=total_accounts color="primary" %}
     </div>
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="quick-card">
-        <p class="small text-muted mb-1">{% translate "Vouchers" %}</p>
-        <h2 class="h3 mb-0">{{ total_vouchers }}</h2>
-      </div>
+      {% include "components/stat_card.html" with icon="fas fa-file-alt" label=_("Vouchers") value=total_vouchers color="info" %}
     </div>
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="quick-card">
-        <p class="small text-muted mb-1">{% translate "Posted Vouchers" %}</p>
-        <h2 class="h3 mb-0">{{ posted_vouchers }}</h2>
-      </div>
+      {% include "components/stat_card.html" with icon="fas fa-check-circle" label=_("Posted Vouchers") value=posted_vouchers color="success" %}
     </div>
     <div class="col-12 col-sm-6 col-xl-3">
-      <div class="quick-card">
-        <p class="small text-muted mb-1">{% translate "Open Periods" %}</p>
-        <h2 class="h3 mb-0">{{ open_periods }}</h2>
-      </div>
+      {% include "components/stat_card.html" with icon="fas fa-calendar-check" label=_("Open Periods") value=open_periods color="warning" %}
     </div>
   </div>
 
   <div class="row g-3">
     <div class="col-12 col-lg-6">
-      <div class="quick-card">
-        <h3 class="h6 mb-2">{% translate "Recent Vouchers" %}</h3>
-        {% if recent_vouchers %}
-          <ul class="list-group list-group-flush">
-            {% for voucher in recent_vouchers %}
-              <li class="list-group-item px-0 d-flex justify-content-between align-items-start">
-                <div>
-                  <a
-                    href="{% url 'accounting:voucher-detail' voucher.pk %}"
-                    class="text-decoration-none fw-semibold"
-                    data-voucher-detail-url="{% url 'accounting:voucher-detail' voucher.pk %}"
-                    data-voucher-label="{{ voucher.display_number }}"
-                  >
-                    {{ voucher.display_number }}
-                  </a>
-                  <span class="text-muted">({{ voucher.get_voucher_type_display }})</span>
-                  <div class="small text-muted">{{ voucher.society.name }} - {{ voucher.voucher_date|date:"M d, Y" }}</div>
-                </div>
-                {% if voucher.posted_at %}
-                  <div class="d-inline-flex gap-1">
-                    <span class="badge text-bg-success">{% translate "Posted" %}</span>
-                    {% if voucher.reversal_of_id or voucher.has_reversal %}
-                      <span class="badge text-bg-danger">{% translate "Reversed" %}</span>
-                    {% endif %}
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{% translate "Recent Vouchers" %}</h3>
+        </div>
+        <div class="content-card__body">
+          {% if recent_vouchers %}
+            <ul class="list-group list-group-flush">
+              {% for voucher in recent_vouchers %}
+                <li class="list-group-item px-0 d-flex justify-content-between align-items-start">
+                  <div>
+                    <a href="{% url 'accounting:voucher-detail' voucher.pk %}"
+                       class="text-decoration-none fw-semibold"
+                       data-voucher-detail-url="{% url 'accounting:voucher-detail' voucher.pk %}"
+                       data-voucher-label="{{ voucher.display_number }}">
+                      {{ voucher.display_number }}
+                    </a>
+                    <span class="text-muted">({{ voucher.get_voucher_type_display }})</span>
+                    <div class="small text-muted">{{ voucher.society.name }} - {{ voucher.voucher_date|date:"M d, Y" }}</div>
                   </div>
-                {% else %}
-                  <span class="badge text-bg-warning">{% translate "Draft" %}</span>
-                {% endif %}
-              </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="text-muted mb-0">{% translate "No vouchers yet." %}</p>
-        {% endif %}
+                  {% if voucher.posted_at %}
+                    <div class="d-inline-flex gap-1">
+                      <span class="badge-status badge-status--success">{% translate "Posted" %}</span>
+                      {% if voucher.reversal_of_id or voucher.has_reversal %}
+                        <span class="badge-status badge-status--danger">{% translate "Reversed" %}</span>
+                      {% endif %}
+                    </div>
+                  {% else %}
+                    <span class="badge-status badge-status--warning">{% translate "Draft" %}</span>
+                  {% endif %}
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            {% include "components/empty_state.html" with icon="fa-file-alt" title=_("No vouchers yet") message=_("Create your first voucher to get started.") action_url="accounting:voucher-entry" action_label=_("Voucher Entry") action_icon="fas fa-plus" %}
+          {% endif %}
+        </div>
       </div>
     </div>
+
     <div class="col-12 col-lg-6">
-      <div class="quick-card">
-        <h3 class="h6 mb-2">{% translate "Accounts Snapshot" %}</h3>
-        {% if recent_accounts %}
-          <ul class="list-group list-group-flush">
-            {% for account in recent_accounts %}
-              <li class="list-group-item px-0">
-                <strong>{{ account.name }}</strong>
-                <div class="small text-muted">{{ account.society.name }} / {{ account.category.name }}</div>
-              </li>
-            {% endfor %}
-          </ul>
-        {% else %}
-          <p class="text-muted mb-0">{% translate "No accounts yet." %}</p>
-        {% endif %}
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{% translate "Accounts Snapshot" %}</h3>
+        </div>
+        <div class="content-card__body">
+          {% if recent_accounts %}
+            <ul class="list-group list-group-flush">
+              {% for account in recent_accounts %}
+                <li class="list-group-item px-0">
+                  <strong>{{ account.name }}</strong>
+                  <div class="small text-muted">{{ account.society.name }} / {{ account.category.name }}</div>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            {% include "components/empty_state.html" with icon="fa-list" title=_("No accounts yet") message=_("Create your first account to get started.") action_url="accounting:account-list" action_label=_("View Accounts") action_icon="fas fa-eye" %}
+          {% endif %}
+        </div>
       </div>
     </div>
   </div>

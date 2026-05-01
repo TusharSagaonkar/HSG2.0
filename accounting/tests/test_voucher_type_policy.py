@@ -44,12 +44,12 @@ def test_receipt_voucher_requires_payment_mode_and_reference():
     )
     bank, _ = Account.objects.get_or_create(
         society=society,
-        name="Bank Account – Main",
+        code=AccountCodes.BANK_MAINTENANCE,
         category=bank_cat,
     )
     income, _ = Account.objects.get_or_create(
         society=society,
-        name="Maintenance Charges",
+        code=AccountCodes.MAINTENANCE_CHARGES,
         category=income_cat,
     )
 
@@ -108,7 +108,7 @@ def test_receipt_voucher_requires_cash_or_bank_debit():
     )
     income, _ = Account.objects.get_or_create(
         society=society,
-        name="Maintenance Charges",
+        code=AccountCodes.MAINTENANCE_CHARGES,
         category=income_cat,
     )
 
@@ -207,7 +207,7 @@ def test_gst_policy_blocks_direct_gst_payable_posting():
     )
     receivable, _ = Account.objects.get_or_create(
         society=society,
-        name="Maintenance Receivable",
+        code=AccountCodes.MAINTENANCE_DUE,
         category=asset_cat,
         defaults={"account_type": "ASSET"},
     )
@@ -275,19 +275,19 @@ def test_gst_policy_enforces_input_output_direction():
     )
     output_cgst, _ = Account.objects.get_or_create(
         society=society,
-        name="Output CGST",
+        code=AccountCodes.OUTPUT_CGST,
         category=liability_cat,
         defaults={"account_type": "LIABILITY", "is_gst": True, "gst_type": "OUTPUT"},
     )
     maintenance_income, _ = Account.objects.get_or_create(
         society=society,
-        name="Maintenance Charges",
+        code=AccountCodes.MAINTENANCE_CHARGES,
         category=income_cat,
         defaults={"account_type": "INCOME"},
     )
     receivable, _ = Account.objects.get_or_create(
         society=society,
-        name="Maintenance Receivable",
+        code=AccountCodes.MAINTENANCE_DUE,
         category=asset_cat,
         defaults={"account_type": "ASSET"},
     )
@@ -357,13 +357,13 @@ def test_gst_policy_requires_taxable_base_line():
     )
     bank, _ = Account.objects.get_or_create(
         society=society,
-        name="Bank Account – Main",
+        code=AccountCodes.BANK_MAINTENANCE,
         category=asset_cat,
         defaults={"account_type": "ASSET"},
     )
     output_cgst, _ = Account.objects.get_or_create(
         society=society,
-        name="Output CGST",
+        code=AccountCodes.OUTPUT_CGST,
         category=liability_cat,
         defaults={"account_type": "LIABILITY", "is_gst": True, "gst_type": "OUTPUT"},
     )
