@@ -1,0 +1,287 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  Share Dashboard - {{ member.full_name }} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  Share Dashboard - {{ member.full_name }}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {{ member.unit.identifier }} / {{ member.society.name }}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'members:member-detail' member.pk %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Member" %}</a>
+    <a href="{% url 'shares:allotment' %}" class="btn btn-primary"><i class="fas fa-plus-circle me-1"></i>{% translate "Allot Shares" %}</a>
+    <a href="{% url 'shares:transfer' %}" class="btn btn-outline-primary"><i class="fas fa-exchange-alt me-1"></i>{% translate "Transfer Shares" %}</a>
+    <a href="{% url 'members:nominee-list' member.pk %}" class="btn btn-outline-primary"><i class="fas fa-users me-1"></i>{% translate "Manage Nominees" %}</a>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-lg-3">
+      <div class="quick-card text-center">
+        <h3 class="h6 mb-2">{% translate "Total Shares" %}</h3>
+        <p class="display-6 mb-0">{{ total_shares|floatformat:2 }}</p>
+        <small class="text-muted">{% translate "Current balance" %}</small>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-3">
+      <div class="quick-card text-center">
+        <h3 class="h6 mb-2">{% translate "Share Value" %}</h3>
+        <p class="display-6 mb-0">₹{{ share_value|floatformat:2 }}</p>
+        <small class="text-muted">{% translate "At face value" %}</small>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-3">
+      <div class="quick-card text-center">
+        <h3 class="h6 mb-2">{% translate "Active Certificates" %}</h3>
+        <p class="display-6 mb-0">{{ active_certificates_count }}</p>
+        <small class="text-muted">{% translate "Issued certificates" %}</small>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-lg-3">
+      <div class="quick-card text-center">
+        <h3 class="h6 mb-2">{% translate "Nominees" %}</h3>
+        <p class="display-6 mb-0">{{ active_nominees_count }}</p>
+        <small class="text-muted">{% translate "Active nominees" %}</small>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <!-- Left Column: Share History -->
+    <div class="col-12 col-lg-8">
+      <div class="quick-card mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h3 class="h6 mb-0">{% translate "Recent Share Transactions" %}</h3>
+          <a href="{% url 'shares:member-share-history' member.pk %}" class="btn btn-sm btn-outline-primary">{% translate "View Full History" %}</a>
+        </div>
+        {% if recent_transactions %}
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>{% translate "Date" %}</th>
+                  <th>{% translate "Type" %}</th>
+                  <th>{% translate "Shares" %}</th>
+                  <th>{% translate "Balance" %}</th>
+                  <th>{% translate "Reference" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for transaction in recent_transactions %}
+                  <tr>
+                    <td>{{ transaction.transaction_date|date:"M d, Y" }}</td>
+                    <td>
+                      <span class="badge 
+                        {% if transaction.transaction_type == 'ALLOTMENT' %}bg-success
+                        {% elif transaction.transaction_type == 'TRANSFER_OUT' %}bg-danger
+                        {% elif transaction.transaction_type == 'TRANSFER_IN' %}bg-info
+                        {% elif transaction.transaction_type == 'TRANSMISSION' %}bg-warning
+                        {% else %}bg-secondary{% endif %}">
+                        {{ transaction.get_transaction_type_display }}
+                      </span>
+                    </td>
+                    <td class="{% if transaction.share_count > 0 %}text-success{% else %}text-danger{% endif %}">
+                      {% if transaction.share_count > 0 %}+{% endif %}{{ transaction.share_count|floatformat:2 }}
+                    </td>
+                    <td>{{ transaction.running_balance|floatformat:2 }}</td>
+                    <td>
+                      {% if transaction.certificate %}
+                        <a href="{% url 'shares:certificate-detail' transaction.certificate.pk %}" class="text-decoration-none">
+                          Cert #{{ transaction.certificate.certificate_no }}
+                        </a>
+                      {% elif transaction.reference_number %}
+                        {{ transaction.reference_number }}
+                      {% else %}
+                        <span class="text-muted">-</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="alert alert-info mb-0">
+            <i class="fas fa-info-circle me-2"></i>
+            {% translate "No share transactions found for this member." %}
+            <a href="{% url 'shares:allotment' %}" class="alert-link">{% translate "Allot the first shares" %}</a>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Active Certificates -->
+      <div class="quick-card">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h3 class="h6 mb-0">{% translate "Active Share Certificates" %}</h3>
+          <a href="{% url 'shares:certificate-list' %}" class="btn btn-sm btn-outline-primary">{% translate "View All Certificates" %}</a>
+        </div>
+        {% if active_certificates %}
+          <div class="table-responsive">
+            <table class="table table-hover">
+              <thead>
+                <tr>
+                  <th>{% translate "Certificate No" %}</th>
+                  <th>{% translate "Shares" %}</th>
+                  <th>{% translate "Issued Date" %}</th>
+                  <th>{% translate "Status" %}</th>
+                  <th>{% translate "Actions" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for certificate in active_certificates %}
+                  <tr>
+                    <td>
+                      <strong>{{ certificate.certificate_no }}</strong>
+                    </td>
+                    <td>{{ certificate.share_count|floatformat:2 }}</td>
+                    <td>{{ certificate.issued_date|date:"M d, Y" }}</td>
+                    <td>
+                      <span class="badge bg-success">{{ certificate.get_status_display }}</span>
+                    </td>
+                    <td>
+                      <a href="{% url 'shares:certificate-detail' certificate.pk %}" class="btn btn-sm btn-outline-primary">
+                        <i class="fas fa-eye"></i>
+                      </a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="alert alert-warning mb-0">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {% translate "No active share certificates found." %}
+            {% translate "Shares may be held without certificates or certificates may be cancelled." %}
+          </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Right Column: Nominees and Quick Actions -->
+    <div class="col-12 col-lg-4">
+      <!-- Nominee Summary -->
+      <div class="quick-card mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+          <h3 class="h6 mb-0">{% translate "Nominee Summary" %}</h3>
+          <a href="{% url 'members:nominee-list' member.pk %}" class="btn btn-sm btn-outline-primary">{% translate "Manage" %}</a>
+        </div>
+        
+        {% if active_nominees %}
+          <div class="list-group list-group-flush">
+            {% for nominee in active_nominees %}
+              <div class="list-group-item">
+                <div class="d-flex justify-content-between align-items-start">
+                  <div>
+                    <h6 class="mb-1">{{ nominee.full_name }}</h6>
+                    <small class="text-muted">{{ nominee.get_relationship_display }}</small>
+                  </div>
+                  <span class="badge bg-info">{{ nominee.percentage|floatformat:2 }}%</span>
+                </div>
+                {% if nominee.is_primary %}
+                  <span class="badge bg-primary mt-1"><i class="fas fa-star"></i> {% translate "Primary" %}</span>
+                {% endif %}
+                {% if nominee.phone %}
+                  <div class="mt-1">
+                    <small><i class="fas fa-phone me-1"></i>{{ nominee.phone }}</small>
+                  </div>
+                {% endif %}
+              </div>
+            {% endfor %}
+          </div>
+          
+          <div class="mt-3">
+            <div class="progress" style="height: 20px;">
+              <div class="progress-bar bg-success" role="progressbar"
+                   style="width: {% widthratio total_nominee_percentage 1 1 %}%;"
+                   aria-valuenow="{{ total_nominee_percentage }}" aria-valuemin="0" aria-valuemax="100">
+                {{ total_nominee_percentage|floatformat:1 }}%
+              </div>
+            </div>
+            <small class="text-muted">{% translate "Total nominee allocation" %}</small>
+          </div>
+        {% else %}
+          <div class="alert alert-warning mb-0">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            {% translate "No active nominees found." %}
+            <a href="{% url 'members:nominee-create' member.pk %}" class="alert-link">{% translate "Add a nominee" %}</a>
+          </div>
+        {% endif %}
+      </div>
+
+      <!-- Quick Actions -->
+      <div class="quick-card mb-3">
+        <h3 class="h6 mb-3">{% translate "Quick Actions" %}</h3>
+        <div class="d-grid gap-2">
+          <a href="{% url 'shares:allotment' %}" class="btn btn-success">
+            <i class="fas fa-plus-circle me-2"></i>{% translate "Allot Shares" %}
+          </a>
+          <a href="{% url 'shares:transfer' %}" class="btn btn-primary">
+            <i class="fas fa-exchange-alt me-2"></i>{% translate "Transfer Shares" %}
+          </a>
+          <a href="{% url 'shares:transmission' %}" class="btn btn-warning">
+            <i class="fas fa-user-friends me-2"></i>{% translate "Transmit to Nominee" %}
+          </a>
+          <a href="{% url 'shares:correction' %}" class="btn btn-info">
+            <i class="fas fa-wrench me-2"></i>{% translate "Record Correction" %}
+          </a>
+          <a href="{% url 'members:nominee-create' member.pk %}" class="btn btn-outline-primary">
+            <i class="fas fa-user-plus me-2"></i>{% translate "Add Nominee" %}
+          </a>
+        </div>
+      </div>
+
+      <!-- Share Statistics -->
+      <div class="quick-card">
+        <h3 class="h6 mb-3">{% translate "Share Statistics" %}</h3>
+        <ul class="list-unstyled mb-0">
+          <li class="mb-2">
+            <strong>{% translate "Total Transactions:" %}</strong> 
+            <span class="float-end">{{ total_transactions }}</span>
+          </li>
+          <li class="mb-2">
+            <strong>{% translate "Allotments:" %}</strong> 
+            <span class="float-end">{{ allotment_count }}</span>
+          </li>
+          <li class="mb-2">
+            <strong>{% translate "Transfers In:" %}</strong> 
+            <span class="float-end">{{ transfer_in_count }}</span>
+          </li>
+          <li class="mb-2">
+            <strong>{% translate "Transfers Out:" %}</strong> 
+            <span class="float-end">{{ transfer_out_count }}</span>
+          </li>
+          <li class="mb-2">
+            <strong>{% translate "Transmissions:" %}</strong> 
+            <span class="float-end">{{ transmission_count }}</span>
+          </li>
+          <li class="mb-2">
+            <strong>{% translate "Corrections:" %}</strong> 
+            <span class="float-end">{{ correction_count }}</span>
+          </li>
+          <li class="mb-0">
+            <strong>{% translate "Last Transaction:" %}</strong> 
+            <span class="float-end">{{ last_transaction_date|date:"M d, Y"|default:"-" }}</span>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <!-- Share Value Chart (Placeholder for future implementation) -->
+  <div class="quick-card mt-3">
+    <h3 class="h6 mb-3">{% translate "Share Balance Trend" %}</h3>
+    <div class="text-center py-5 bg-light rounded">
+      <i class="fas fa-chart-line fa-3x text-muted mb-3"></i>
+      <p class="text-muted">{% translate "Share balance chart visualization will be available in a future update." %}</p>
+      <small class="text-muted">{% translate "View detailed history for transaction timeline." %}</small>
+    </div>
+  </div>
+{% endblock content %}

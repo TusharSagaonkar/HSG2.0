@@ -14,12 +14,14 @@ from housing_accounting.selection import get_selected_scope
 from reports.services import build_balance_sheet
 from reports.services import build_bank_reconciliation_statement
 from reports.services import build_cash_flow_statement
+from reports.services import build_active_member_list_report
 from reports.services import build_exception_report
 from reports.services import build_advanced_regulatory_reports
 from reports.services import build_control_risk_reports
 from reports.services import build_fixed_assets_register
 from reports.services import build_gst_reports
 from reports.services import build_inventory_costing_reports
+from reports.services import build_member_register_report
 from reports.services import build_management_analytics_reports
 from reports.services import build_payable_aging
 from reports.services import build_profit_and_loss
@@ -51,6 +53,8 @@ class ReportsHomeView(LoginRequiredMixin, TemplateView):
             {"title": "Management Analytics", "url_name": "reports:management-analytics-reports", "description": "Budget vs actual, variance, profitability, and KPI dashboards.", "status": "Live"},
             {"title": "Control and Risk", "url_name": "reports:control-risk-reports", "description": "Audit trail, suspense monitoring, and anomaly tracking.", "status": "Live"},
             {"title": "Advanced Regulatory", "url_name": "reports:advanced-regulatory-reports", "description": "Regulatory, settlement, liquidity, and revenue-leakage outputs.", "status": "Live"},
+            {"title": "Form I - Register of Members", "url_name": "reports:form-i-register-of-members", "description": "Permanent historical membership register with share and nominee details.", "status": "Live"},
+            {"title": "Form J - List of Members", "url_name": "reports:form-j-list-of-members", "description": "Current active member list for AGM, voting, and statutory notices.", "status": "Live"},
         ]
         return context
 
@@ -397,6 +401,36 @@ class ExceptionReportView(BaseReportView):
         }
 
 
+class FormIMembersRegisterReportView(BaseReportView):
+    page_title = "Form I - Register of Members"
+    page_subtitle = "Permanent statutory membership register with share, nominee, and transfer history."
+
+    def build_report_context(self, *, society, financial_year, to_date):
+        return {
+            "mode": "form_i",
+            "form_i": build_member_register_report(
+                society=society,
+                financial_year=financial_year,
+                to_date=to_date,
+            ),
+        }
+
+
+class FormJMembersListReportView(BaseReportView):
+    page_title = "Form J - List of Members"
+    page_subtitle = "Current active member list for voting, notices, and operational use."
+
+    def build_report_context(self, *, society, financial_year, to_date):
+        return {
+            "mode": "form_j",
+            "form_j": build_active_member_list_report(
+                society=society,
+                financial_year=financial_year,
+                to_date=to_date,
+            ),
+        }
+
+
 class PlannedReportView(BaseReportView):
     allow_without_scope = True
     report_status = "Planned"
@@ -432,3 +466,5 @@ advanced_regulatory_reports_view = AdvancedRegulatoryReportsView.as_view()
 accounts_receivable_aging_report_view = AccountsReceivableAgingReportView.as_view()
 accounts_payable_aging_report_view = AccountsPayableAgingReportView.as_view()
 exception_report_view = ExceptionReportView.as_view()
+form_i_members_register_report_view = FormIMembersRegisterReportView.as_view()
+form_j_members_list_report_view = FormJMembersListReportView.as_view()

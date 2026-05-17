@@ -20,7 +20,7 @@
       <a href="{% url 'housing:structure-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Structure' %}">+</a>
     </div>
     <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Unit actions' %}">
-      <a href="{% url 'housing:structure-unit-dashboard' %}" class="btn btn-main"><i class="fas fa-door-open me-1"></i>{% translate "Units" %}</a>
+      <a href="#unit-dashboard" class="btn btn-main"><i class="fas fa-door-open me-1"></i>{% translate "Units" %}</a>
       <a href="{% url 'housing:unit-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Unit' %}">+</a>
     </div>
     <a href="{% url 'housing:unit-bulk-add' %}" class="btn btn-outline-primary"><i class="fas fa-th me-1"></i>{% translate "Bulk Add Units" %}</a>
@@ -98,24 +98,153 @@
         {% endif %}
       </div>
     </div>
-    <div class="col-12 col-lg-6">
+    <div class="col-12" id="unit-dashboard">
       <div class="quick-card">
-        <h3 class="h6 mb-2">{% translate "Recent Units" %}</h3>
-        {% if recent_units %}
-          <ul class="list-group list-group-flush">
-            {% for unit in recent_units %}
-              <li class="list-group-item px-0">
-                <strong>{{ unit.identifier }}</strong>
-                <span class="text-muted">({{ unit.get_unit_type_display }})</span>
-                <div class="small text-muted">
-                  <a href="{% url 'housing:society-detail' unit.structure.society_id %}" class="text-decoration-none">
-                    {{ unit.structure.society.name }}
-                  </a>
-                  / {{ unit.structure.name }}
-                </div>
-              </li>
-            {% endfor %}
-          </ul>
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
+          <div>
+            <h3 class="h6 mb-1">{% translate "Unit Dashboard" %}</h3>
+            <p class="small text-muted mb-0">{% translate "Search, sort, and filter every unit from one place." %}</p>
+          </div>
+          <div class="text-muted small">{{ units|length }} {% translate "units" %}</div>
+        </div>
+
+        <form method="get" class="row g-3 mb-4">
+          <div class="col-12 col-lg-4">
+            <label for="unit-search" class="form-label small mb-1">{% translate "Search" %}</label>
+            <input id="unit-search" type="search" name="q" value="{{ search }}" class="form-control" placeholder="{% translate 'Unit, structure, or society' %}">
+          </div>
+          <div class="col-6 col-lg-2">
+            <label for="unit-type" class="form-label small mb-1">{% translate "Type" %}</label>
+            <select id="unit-type" name="unit_type" class="form-select">
+              <option value="">{% translate "All" %}</option>
+              {% for value, label in unit_types %}
+                <option value="{{ value }}" {% if selected_unit_type == value %}selected{% endif %}>{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6 col-lg-2">
+            <label for="unit-society" class="form-label small mb-1">{% translate "Society" %}</label>
+            <select id="unit-society" name="society" class="form-select">
+              <option value="">{% translate "All" %}</option>
+              {% for society in societies %}
+                <option value="{{ society.pk }}" {% if selected_society_id == society.pk|stringformat:"s" %}selected{% endif %}>{{ society.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6 col-lg-2">
+            <label for="unit-structure" class="form-label small mb-1">{% translate "Structure" %}</label>
+            <select id="unit-structure" name="structure" class="form-select">
+              <option value="">{% translate "All" %}</option>
+              {% for structure in structures %}
+                <option value="{{ structure.pk }}" {% if selected_structure_id == structure.pk|stringformat:"s" %}selected{% endif %}>{{ structure.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6 col-lg-2">
+            <label for="unit-status" class="form-label small mb-1">{% translate "Status" %}</label>
+            <select id="unit-status" name="status" class="form-select">
+              <option value="">{% translate "All" %}</option>
+              <option value="active" {% if selected_status == "active" %}selected{% endif %}>{% translate "Active" %}</option>
+              <option value="inactive" {% if selected_status == "inactive" %}selected{% endif %}>{% translate "Inactive" %}</option>
+            </select>
+          </div>
+          <div class="col-6 col-lg-2">
+            <label for="unit-occupancy" class="form-label small mb-1">{% translate "Occupancy" %}</label>
+            <select id="unit-occupancy" name="occupancy" class="form-select">
+              <option value="">{% translate "All" %}</option>
+              <option value="occupied" {% if selected_occupancy == "occupied" %}selected{% endif %}>{% translate "Occupied" %}</option>
+              <option value="vacant" {% if selected_occupancy == "vacant" %}selected{% endif %}>{% translate "Vacant" %}</option>
+            </select>
+          </div>
+          <div class="col-6 col-lg-2">
+            <label for="unit-sort" class="form-label small mb-1">{% translate "Sort by" %}</label>
+            <select id="unit-sort" name="sort" class="form-select">
+              <option value="structure" {% if selected_sort == "structure" %}selected{% endif %}>{% translate "Structure" %}</option>
+              <option value="identifier" {% if selected_sort == "identifier" %}selected{% endif %}>{% translate "Identifier" %}</option>
+              <option value="created" {% if selected_sort == "created" %}selected{% endif %}>{% translate "Newest" %}</option>
+              <option value="area" {% if selected_sort == "area" %}selected{% endif %}>{% translate "Largest area" %}</option>
+              <option value="active" {% if selected_sort == "active" %}selected{% endif %}>{% translate "Active first" %}</option>
+            </select>
+          </div>
+          <div class="col-12 d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-main">{% translate "Apply filters" %}</button>
+            <a href="{% url 'housing:structure-unit-dashboard' %}#unit-dashboard" class="btn btn-outline-secondary">{% translate "Reset" %}</a>
+          </div>
+        </form>
+
+        {% if units %}
+          <div class="table-responsive">
+            <table class="table table-hover align-middle">
+              <thead>
+                <tr>
+                  <th>{% translate "Unit" %}</th>
+                  <th>{% translate "Structure" %}</th>
+                  <th>{% translate "Owner" %}</th>
+                  <th>{% translate "Tenant name" %}</th>
+                  <th>{% translate "Type" %}</th>
+                  <th>{% translate "Area" %}</th>
+                  <th>{% translate "Status" %}</th>
+                  <th>{% translate "Occupancy" %}</th>
+                  <th class="text-end">{% translate "Actions" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for unit in units %}
+                  <tr>
+                    <td>
+                      <a href="{% url 'housing:unit-detail' unit.pk %}" class="text-decoration-none fw-semibold">{{ unit.identifier }}</a>
+                    </td>
+                    <td>{{ unit.structure.name }}</td>
+                    <td>
+                      {% if unit.primary_owner_member %}
+                        <a href="{% url 'members:member-detail' unit.primary_owner_member.pk %}" class="text-decoration-none">
+                          {{ unit.primary_owner_name }}
+                        </a>
+                      {% elif unit.primary_owner_name %}
+                        {{ unit.primary_owner_name }}
+                      {% else %}
+                        <span class="text-muted">{% translate "Unassigned" %}</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if unit.primary_tenant_member %}
+                        <a href="{% url 'members:member-detail' unit.primary_tenant_member.pk %}" class="text-decoration-none">
+                          {{ unit.primary_tenant_member.full_name }}
+                        </a>
+                      {% else %}
+                        <span class="text-muted">{% translate "No tenant" %}</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ unit.get_unit_type_display }}</td>
+                    <td>
+                      {% if unit.billing_area_sqft %}
+                        {{ unit.billing_area_sqft }} sqft
+                      {% else %}
+                        <span class="text-muted">-</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      <span class="badge bg-{% if unit.is_active %}success{% else %}secondary{% endif %}">
+                        {% if unit.is_active %}{% translate "Active" %}{% else %}{% translate "Inactive" %}{% endif %}
+                      </span>
+                    </td>
+                    <td>
+                      {% with current_occupancy=unit.active_occupancies|first %}
+                        {% if current_occupancy %}
+                          {{ current_occupancy.get_occupancy_type_display }}
+                        {% else %}
+                          <span class="text-muted">{% translate "No active occupancy" %}</span>
+                        {% endif %}
+                      {% endwith %}
+                    </td>
+                    <td class="text-end">
+                      <a href="{% url 'housing:unit-detail' unit.pk %}" class="btn btn-sm btn-outline-primary">{% translate "Open" %}</a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         {% else %}
           <p class="text-muted mb-0">{% translate "No units found yet." %}</p>
         {% endif %}

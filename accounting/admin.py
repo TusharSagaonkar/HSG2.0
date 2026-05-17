@@ -10,10 +10,41 @@ from .models.model_AccountingPeriod import AccountingPeriod
 from .models.model_PeriodStatusLog import PeriodStatusLog
 from .models.model_YearEndCloseLog import YearEndCloseLog
 from .models.model_VoucherTemplate import VoucherTemplate, VoucherTemplateRow
+from .models.model_AccountMapping import AccountMapping
 from .services.period_workflow import close_period
 from .services.period_workflow import reopen_period
 from .services.year_end import close_financial_year_with_carry_forward
 # accounting/admin.py
+
+# Inline for Society admin (will be added to housing/admin.py)
+class AccountMappingInline(admin.StackedInline):
+    model = AccountMapping
+    can_delete = False
+    fieldsets = (
+        (None, {
+            "fields": ("society",)
+        }),
+        ("Share Accounts", {
+            "fields": (
+                "share_capital_account",
+                "premium_account",
+            )
+        }),
+        ("Fee Accounts", {
+            "fields": (
+                "entrance_fee_account",
+                "transfer_fee_account",
+            )
+        }),
+        ("Bank Account", {
+            "fields": ("bank_account",)
+        }),
+    )
+    extra = 0
+    max_num = 1
+    verbose_name = "Account Mapping"
+    verbose_name_plural = "Account Mapping"
+
 
 @admin.register(AccountingPeriod)
 class AccountingPeriodAdmin(admin.ModelAdmin):
@@ -48,6 +79,79 @@ class AccountingPeriodAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+@admin.register(AccountMapping)
+class AccountMappingAdmin(admin.ModelAdmin):
+    """
+    Admin for AccountMapping (society-to-account mapping).
+    """
+    list_display = (
+        "society",
+        "share_capital_account",
+        "entrance_fee_account",
+        "transfer_fee_account",
+        "premium_account",
+        "bank_account",
+    )
+    list_filter = ("society",)
+    search_fields = (
+        "society__name",
+        "society__registration_number",
+    )
+    raw_id_fields = (
+        "share_capital_account",
+        "entrance_fee_account",
+        "transfer_fee_account",
+        "premium_account",
+        "bank_account",
+    )
+    ordering = ("society__name",)
+
+    fieldsets = (
+        (None, {
+            "fields": ("society",)
+        }),
+        ("Share Accounts", {
+            "fields": (
+                "share_capital_account",
+                "premium_account",
+            )
+        }),
+        ("Fee Accounts", {
+            "fields": (
+                "entrance_fee_account",
+                "transfer_fee_account",
+            )
+        }),
+        ("Bank Account", {
+            "fields": ("bank_account",)
+        }),
+    )
+
+    # Custom actions
+    @admin.action(description="Validate selected account mappings")
+    def validate_mappings(self, request, queryset):
+        errors = []
+        for mapping in queryset:
+            try:
+                mapping.clean()
+            except Exception as e:
+                errors.append(f"Mapping {mapping.id}: {e}")
+        if errors:
+            self.message_user(
+                request,
+                "Validation errors:\n" + "\n".join(errors),
+                level=messages.ERROR,
+            )
+        else:
+            self.message_user(
+                request,
+                "All selected mappings are valid.",
+                level=messages.SUCCESS,
+            )
+
+    actions = [validate_mappings]
 
 
 class VoucherTemplateRowInline(admin.TabularInline):

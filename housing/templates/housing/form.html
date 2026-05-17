@@ -28,7 +28,8 @@
             novalidate
             {% if auto_reload_society %}data-auto-reload-society="1"{% endif %}
             {% if auto_reload_unit %}data-auto-reload-unit="1"{% endif %}
-            {% if member_lookup_url %}data-member-lookup-url="{{ member_lookup_url }}"{% endif %}>
+            {% if member_lookup_url %}data-member-lookup-url="{{ member_lookup_url }}"{% endif %}
+            {% if unit_search_url %}data-unit-search-url="{{ unit_search_url }}"{% endif %}>
         {% csrf_token %}
         
         <div class="row g-3">
@@ -43,6 +44,25 @@
           {% endif %}
 
           {% for field in form %}
+            {% if field.name == "unit_search" %}
+              <div class="col-12 col-md-6">
+                <div class="form-group">
+                  <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                  {{ field }}
+                  {% if field.help_text %}
+                    <div class="form-text">{{ field.help_text }}</div>
+                  {% endif %}
+                  <div class="unit-search-results list-group mt-2 d-none" data-unit-search-results></div>
+                  {% for error in field.errors %}
+                    <div class="form-error">{{ error }}</div>
+                  {% endfor %}
+                </div>
+              </div>
+            {% elif field.name == "unit" and field.is_hidden %}
+              {{ field }}
+            {% elif field.name == "unit" %}
+              {{ field }}
+            {% else %}
             {% if field.field.widget.input_type == "checkbox" %}
               <div class="col-12">
                 <div class="form-check mt-2">
@@ -69,6 +89,7 @@
                   {% endfor %}
                 </div>
               </div>
+            {% endif %}
             {% endif %}
           {% endfor %}
         </div>

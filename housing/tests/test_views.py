@@ -13,7 +13,10 @@ from housing.models import Structure
 from housing.models import Unit
 from housing.models import Member
 from housing.models import SocietyEmailSettings
+from housing.models import UnitOccupancy
 from housing.models import UnitOwnership
+from accounting.models import Account
+from accounting.models import AccountCategory
 
 pytestmark = pytest.mark.django_db
 
@@ -82,6 +85,10 @@ class TestSocietyViews:
         assert response.status_code == HTTPStatus.OK
         assert "housing/society_detail.html" in [t.name for t in response.templates]
         assert response.context["society"] == society
+        assert (
+            f'href="{reverse("housing:structure-unit-dashboard")}#units-dashboard"'
+            in response.content.decode()
+        )
 
     def test_society_detail_shows_primary_owner(self, client, user):
         society = Society.objects.create(name="Green Heights")
@@ -239,6 +246,320 @@ class TestSocietyViews:
         assert units[0].is_active is True
         assert units[1].unit_type == Unit.UnitType.SHOP
         assert units[1].is_active is False
+
+    def test_member_add_view_accepts_minimal_payload(self, client, user):
+        society = Society.objects.create(name="Quick Add Heights")
+        structure = Structure.objects.create(
+            society=society,
+            structure_type=Structure.StructureType.BUILDING,
+            name="Tower A",
+        )
+        unit = Unit.objects.create(
+            structure=structure,
+            unit_type=Unit.UnitType.FLAT,
+            identifier="101",
+        )
+        client.force_login(user)
+
+        response = client.post(
+            reverse("housing:member-add"),
+            data={
+                "society": society.pk,
+                "unit": unit.pk,
+                "full_name": "Asha Mehta",
+                "role": Member.MemberRole.OWNER,
+                "status": Member.MemberStatus.ACTIVE,
+            },
+        )
+
+        assert response.status_code == HTTPStatus.FOUND
+        member = Member.objects.get(full_name="Asha Mehta")
+        assert member.society == society
+        assert member.unit == unit
+        assert member.status == Member.MemberStatus.ACTIVE
+        assert member.start_date is not None
+
+    def test_member_add_owner_creates_primary_ownership_and_occupancy(self, client, user):
+        society = Society.objects.create(name="Owner Heights")
+        structure = Structure.objects.create(
+            society=society,
+            structure_type=Structure.StructureType.BUILDING,
+            name="Tower A",
+        )
+        unit = Unit.objects.create(
+            structure=structure,
+            unit_type=Unit.UnitType.FLAT,
+            identifier="101",
+        )
+        owner_user = get_user_model().objects.create_user(
+            email="owner1@example.com",
+            password="test-pass-123",
+            name="Owner One",
+        )
+        client.force_login(user)
+
+        response = client.post(
+            reverse("housing:member-add"),
+            data={
+                "society": society.pk,
+                "unit": unit.pk,
+                "full_name": "Owner One",
+                "email": "owner1@example.com",
+                "role": Member.MemberRole.OWNER,
+                "status": Member.MemberStatus.ACTIVE,
+                "start_date": "2026-01-01",
+            },
+        )
+
+        assert response.status_code == HTTPStatus.FOUND
+        member = Member.objects.get(full_name="Owner One")
+        ownership = UnitOwnership.objects.get(unit=unit)
+        occupancy = UnitOccupancy.objects.get(unit=unit, end_date__isnull=True)
+        assert ownership.role == UnitOwnership.OwnershipRole.PRIMARY
+        assert ownership.owner == owner_user
+        assert ownership.start_date.isoformat() == "2026-01-01"
+        assert occupancy.occupancy_type == UnitOccupancy.OccupancyType.OWNER
+        assert occupancy.occupant == owner_user
+        assert member.unit == unit
+
+    def test_owner_member_auto_creates_user_and_ownership(self, client, user):
+        society = Society.objects.create(name="Auto Owner Heights")
+        structure = Structure.objects.create(
+            society=society,
+            structure_type=Structure.StructureType.BUILDING,
+            name="Tower A",
+        )
+        unit = Unit.objects.create(
+            structure=structure,
+            unit_type=Unit.UnitType.FLAT,
+            identifier="101",
+        )
+        client.force_login(user)
+
+        response = client.post(
+            reverse("housing:member-add"),
+            data={
+                "society": society.pk,
+                "unit": unit.pk,
+                "full_name": "Auto Owner",
+                "email": "auto.owner@example.com",
+                "role": Member.MemberRole.OWNER,
+                "status": Member.MemberStatus.ACTIVE,
+                "start_date": "2026-01-01",
+            },
+        )
+
+        assert response.status_code == HTTPStatus.FOUND
+        member = Member.objects.get(full_name="Auto Owner")
+        ownership = UnitOwnership.objects.get(unit=unit, role=UnitOwnership.OwnershipRole.PRIMARY)
+        assert ownership.owner.email == "auto.owner@example.com"
+        assert ownership.owner.name == "Auto Owner"
+        assert ownership.owner.is_active is True
+
+    def test_second_owner_becomes_secondary_without_replacing_owner_occupancy(self, client, user):
+        society = Society.objects.create(name="Owner Heights")
+        structure = Structure.objects.create(
+            society=society,
+            structure_type=Structure.StructureType.BUILDING,
+            name="Tower A",
+        )
+        unit = Unit.objects.create(
+            structure=structure,
+            unit_type=Unit.UnitType.FLAT,
+            identifier="101",
+        )
+        owner_user = get_user_model().objects.create_user(
+            email="owner1@example.com",
+            password="test-pass-123",
+            name="Owner One",
+        )
+        second_owner_user = get_user_model().objects.create_user(
+            email="owner2@example.com",
+            password="test-pass-123",
+            name="Owner Two",
+        )
+        client.force_login(user)
+
+        client.post(
+            reverse("housing:member-add"),
+            data={
+                "society": society.pk,
+                "unit": unit.pk,
+                "full_name": "Owner One",
+                "email": "owner1@example.com",
+                "role": Member.MemberRole.OWNER,
+                "status": Member.MemberStatus.ACTIVE,
+                "start_date": "2026-01-01",
+            },
+        )
+        response = client.post(
+            reverse("housing:member-add"),
+            data={
+                "society": society.pk,
+                "unit": unit.pk,
+                "full_name": "Owner Two",
+                "email": "owner2@example.com",
+                "role": Member.MemberRole.OWNER,
+                "status": Member.MemberStatus.ACTIVE,
+                "start_date": "2026-02-01",
+            },
+        )
+
+        assert response.status_code == HTTPStatus.FOUND
+        ownerships = list(UnitOwnership.objects.filter(unit=unit).order_by("start_date", "id"))
+        occupancy = UnitOccupancy.objects.get(unit=unit, end_date__isnull=True)
+        assert ownerships[0].role == UnitOwnership.OwnershipRole.PRIMARY
+        assert ownerships[0].owner == owner_user
+        assert ownerships[1].role == UnitOwnership.OwnershipRole.SECONDARY
+        assert ownerships[1].owner == second_owner_user
+        assert occupancy.occupancy_type == UnitOccupancy.OccupancyType.OWNER
+        assert occupancy.occupant == owner_user
+
+    def test_tenant_add_replaces_current_occupancy(self, client, user):
+        society = Society.objects.create(name="Tenant Heights")
+        structure = Structure.objects.create(
+            society=society,
+            structure_type=Structure.StructureType.BUILDING,
+            name="Tower A",
+        )
+        unit = Unit.objects.create(
+            structure=structure,
+            unit_type=Unit.UnitType.FLAT,
+            identifier="101",
+        )
+        current_owner = get_user_model().objects.create_user(
+            email="owner@example.com",
+            password="test-pass-123",
+            name="Current Owner",
+        )
+        tenant_user = get_user_model().objects.create_user(
+            email="tenant@example.com",
+            password="test-pass-123",
+            name="Tenant User",
+        )
+        UnitOccupancy.objects.create(
+            unit=unit,
+            occupant=current_owner,
+            occupancy_type=UnitOccupancy.OccupancyType.OWNER,
+            start_date="2026-01-01",
+        )
+        client.force_login(user)
+
+        response = client.post(
+            reverse("housing:member-add"),
+            data={
+                "society": society.pk,
+                "unit": unit.pk,
+                "full_name": "Tenant User",
+                "email": "tenant@example.com",
+                "role": Member.MemberRole.TENANT,
+                "status": Member.MemberStatus.ACTIVE,
+                "start_date": "2026-02-01",
+            },
+        )
+
+        assert response.status_code == HTTPStatus.FOUND
+        previous_occupancy = UnitOccupancy.objects.get(
+            unit=unit,
+            occupancy_type=UnitOccupancy.OccupancyType.OWNER,
+        )
+        current_occupancy = UnitOccupancy.objects.get(
+            unit=unit,
+            end_date__isnull=True,
+        )
+        assert previous_occupancy.end_date.isoformat() == "2026-01-31"
+        assert current_occupancy.occupancy_type == UnitOccupancy.OccupancyType.TENANT
+        assert current_occupancy.occupant == tenant_user
+
+    def test_non_owner_member_receivable_account_is_cleared(self, client, user):
+        society = Society.objects.create(name="Tenant Heights")
+        asset_cat = AccountCategory.objects.create(
+            society=society,
+            name="Assets Receivable Test",
+            account_type=AccountCategory.AccountType.ASSET,
+        )
+        receivable = Account.objects.create(
+            society=society,
+            name="Temporary Receivable",
+            code="9.9.9",
+            category=asset_cat,
+            account_type=Account.AccountType.ASSET,
+        )
+        structure = Structure.objects.create(
+            society=society,
+            structure_type=Structure.StructureType.BUILDING,
+            name="Tower A",
+        )
+        unit = Unit.objects.create(
+            structure=structure,
+            unit_type=Unit.UnitType.FLAT,
+            identifier="101",
+        )
+        client.force_login(user)
+
+        response = client.post(
+            reverse("housing:member-add"),
+            data={
+                "society": society.pk,
+                "unit": unit.pk,
+                "full_name": "Tenant User",
+                "email": "tenant@example.com",
+                "role": Member.MemberRole.TENANT,
+                "status": Member.MemberStatus.ACTIVE,
+                "receivable_account": receivable.pk,
+                "start_date": "2026-02-01",
+            },
+        )
+
+        assert response.status_code == HTTPStatus.FOUND
+        member = Member.objects.get(full_name="Tenant User")
+        assert member.receivable_account is None
+
+    def test_member_add_modal_is_slimmed_down(self, client, user):
+        society = Society.objects.create(name="Quick Add Heights")
+        structure = Structure.objects.create(
+            society=society,
+            structure_type=Structure.StructureType.BUILDING,
+            name="Tower A",
+        )
+        unit = Unit.objects.create(
+            structure=structure,
+            unit_type=Unit.UnitType.FLAT,
+            identifier="101",
+        )
+        client.force_login(user)
+
+        response = client.get(reverse("housing:society-detail", kwargs={"pk": society.pk}))
+
+        assert response.status_code == HTTPStatus.OK
+        content = response.content.decode()
+        assert 'id="id_full_name"' in content
+        assert 'id="id_role"' in content
+        assert 'name="status"' in content
+        assert 'name="start_date"' not in content
+        assert 'name="end_date"' not in content
+
+    def test_member_add_page_includes_unit_search_ui(self, client, user):
+        society = Society.objects.create(name="Search Heights")
+        structure = Structure.objects.create(
+            society=society,
+            structure_type=Structure.StructureType.BUILDING,
+            name="Tower A",
+        )
+        Unit.objects.create(
+            structure=structure,
+            unit_type=Unit.UnitType.FLAT,
+            identifier="101",
+        )
+        client.force_login(user)
+
+        response = client.get(reverse("housing:member-add"), {"society": society.pk})
+
+        assert response.status_code == HTTPStatus.OK
+        content = response.content.decode()
+        assert 'data-unit-search-url="' in content
+        assert 'data-unit-search-results' in content
+        assert 'name="unit_search"' in content
 
 
 class TestMemberListFilters:

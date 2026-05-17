@@ -42,6 +42,11 @@
         <i class="fas fa-plus me-1"></i>{% translate "Add Occupancy" %}
       </a>
     </div>
+    <div class="action-bar__group">
+      <a href="{% url 'housing:structure-unit-dashboard' %}#units-dashboard" class="btn-action btn-action--outline-primary">
+        <i class="fas fa-door-open me-1"></i>{% translate "Units" %}
+      </a>
+    </div>
     <div class="action-bar__group action-bar__group--push">
       <a href="{% url 'housing:member-list' %}" class="btn-action btn-action--outline-primary">
         <i class="fas fa-users me-1"></i>{% translate "Members" %}
@@ -94,7 +99,13 @@
         <div class="governance-metrics">
           <div class="governance-metric">
             <span class="governance-label">{% translate "Created by" %}</span>
-            <strong>{{ society.created_by.name|default:society.created_by.email|default:"-" }}</strong>
+            <strong>
+              {% if society.created_by %}
+                {{ society.created_by.name|default:society.created_by.email|default:"-" }}
+              {% else %}
+                -
+              {% endif %}
+            </strong>
           </div>
           <div class="governance-metric">
             <span class="governance-label">{% translate "Active memberships" %}</span>

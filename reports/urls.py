@@ -8,6 +8,8 @@ from reports.views import bank_reconciliation_statement_view
 from reports.views import cash_flow_statement_view
 from reports.views import control_risk_reports_view
 from reports.views import exception_report_view
+from reports.views import form_i_members_register_report_view
+from reports.views import form_j_members_list_report_view
 from reports.views import fixed_assets_register_view
 from reports.views import gst_reports_view
 from reports.views import inventory_costing_reports_view
@@ -62,6 +64,8 @@ urlpatterns = [
         name="transaction-reconciliation",
     ),
     path("exceptions/", view=exception_report_view, name="exception-report"),
+    path("form-i-register-of-members/", view=form_i_members_register_report_view, name="form-i-register-of-members"),
+    path("form-j-list-of-members/", view=form_j_members_list_report_view, name="form-j-list-of-members"),
     path("gst-reports/", view=gst_reports_view, name="gst-reports"),
     path("tds-reports/", view=tds_reports_view, name="tds-reports"),
     path(

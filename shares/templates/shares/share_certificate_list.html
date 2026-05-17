@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+  {% translate "Share Certificates" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Share Certificates" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Manage and view all share certificates" %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="action-bar">
+    <a href="{% url 'shares:dashboard' %}" class="btn-action btn-action--secondary">
+      <i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}
+    </a>
+    <a href="{% url 'shares:allotment' %}" class="btn-action btn-action--primary">
+      <i class="fas fa-plus-circle me-1"></i>{% translate "Issue New Certificate" %}
+    </a>
+  </div>
+
+  <!-- Filters -->
+  <div class="content-card mb-4">
+    <div class="content-card__body">
+      <form method="get" class="row g-3">
+        <div class="col-12 col-md-4">
+          <label for="member" class="form-label">{% translate "Filter by Member" %}</label>
+          <select name="member" id="member" class="form-select">
+            <option value="">{% translate "All Members" %}</option>
+            {% for m in members %}
+              <option value="{{ m.id }}" {% if request.GET.member == m.id|stringformat:"i" %}selected{% endif %}>
+                {{ m.full_name }} ({{ m.unit.name }})
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-4">
+          <label for="status" class="form-label">{% translate "Filter by Status" %}</label>
+          <select name="status" id="status" class="form-select">
+            <option value="">{% translate "All Statuses" %}</option>
+            <option value="ACTIVE" {% if request.GET.status == "ACTIVE" %}selected{% endif %}>{% translate "Active" %}</option>
+            <option value="CANCELLED" {% if request.GET.status == "CANCELLED" %}selected{% endif %}>{% translate "Cancelled" %}</option>
+            <option value="REPLACED" {% if request.GET.status == "REPLACED" %}selected{% endif %}>{% translate "Replaced" %}</option>
+            <option value="TRANSFERRED" {% if request.GET.status == "TRANSFERRED" %}selected{% endif %}>{% translate "Transferred" %}</option>
+          </select>
+        </div>
+        <div class="col-12 col-md-4 d-flex align-items-end">
+          <button type="submit" class="btn-action btn-action--primary me-2">
+            <i class="fas fa-filter me-1"></i>{% translate "Filter" %}
+          </button>
+          <a href="{% url 'shares:certificate-list' %}" class="btn-action btn-action--secondary">
+            <i class="fas fa-times me-1"></i>{% translate "Clear" %}
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Certificates Table -->
+  <div class="content-card">
+    <div class="content-card__body">
+      {% if certificates %}
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>{% translate "Certificate No." %}</th>
+                <th>{% translate "Member" %}</th>
+                <th>{% translate "Shares" %}</th>
+                <th>{% translate "Issued Date" %}</th>
+                <th>{% translate "Status" %}</th>
+                <th>{% translate "Issued By" %}</th>
+                <th>{% translate "Actions" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for certificate in certificates %}
+                <tr>
+                  <td>
+                    <a href="{% url 'shares:certificate-detail' pk=certificate.pk %}" class="fw-semibold text-decoration-none">
+                      {{ certificate.certificate_no }}
+                    </a>
+                  </td>
+                  <td>
+                    <a href="{% url 'members:member-detail' pk=certificate.member.pk %}">
+                      {{ certificate.member.full_name }}
+                    </a>
+                    <br>
+                    <small class="text-muted">{{ certificate.member.unit.name }}</small>
+                  </td>
+                  <td>{{ certificate.share_count }}</td>
+                  <td>{{ certificate.issued_date|date:"d M Y" }}</td>
+                  <td>
+                    <span class="badge bg-{% if certificate.status == 'ACTIVE' %}success{% elif certificate.status == 'CANCELLED' %}danger{% else %}warning{% endif %}">
+                      {{ certificate.get_status_display }}
+                    </span>
+                  </td>
+                  <td>
+                    {{ certificate.issued_by.get_full_name|default:certificate.issued_by.username|default:"-" }}
+                  </td>
+                  <td>
+                    <div class="btn-group btn-group-sm">
+                      <a href="{% url 'shares:certificate-detail' pk=certificate.pk %}" class="btn-action btn-action--small">
+                        <i class="fas fa-eye me-1"></i>{% translate "View" %}
+                      </a>
+                      <a href="{% url 'shares:member-share-history' pk=certificate.member.pk %}" class="btn-action btn-action--small">
+                        <i class="fas fa-history me-1"></i>{% translate "History" %}
+                      </a>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- Pagination -->
+        {% if is_paginated %}
+          <nav aria-label="{% translate 'Certificate pagination' %}" class="mt-4">
+            <ul class="pagination justify-content-center">
+              {% if page_obj.has_previous %}
+                <li class="page-item">
+                  <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.member %}&member={{ request.GET.member }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
+                    {% translate "Previous" %}
+                  </a>
+                </li>
+              {% else %}
+                <li class="page-item disabled">
+                  <span class="page-link">{% translate "Previous" %}</span>
+                </li>
+              {% endif %}
+
+              {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                  <li class="page-item active">
+                    <span class="page-link">{{ num }}</span>
+                  </li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                  <li class="page-item">
+                    <a class="page-link" href="?page={{ num }}{% if request.GET.member %}&member={{ request.GET.member }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
+                      {{ num }}
+                    </a>
+                  </li>
+                {% endif %}
+              {% endfor %}
+
+              {% if page_obj.has_next %}
+                <li class="page-item">
+                  <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.member %}&member={{ request.GET.member }}{% endif %}{% if request.GET.status %}&status={{ request.GET.status }}{% endif %}">
+                    {% translate "Next" %}
+                  </a>
+                </li>
+              {% else %}
+                <li class="page-item disabled">
+                  <span class="page-link">{% translate "Next" %}</span>
+                </li>
+              {% endif %}
+            </ul>
+          </nav>
+        {% endif %}
+      {% else %}
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          {% translate "No share certificates found." %}
+          <a href="{% url 'shares:allotment' %}" class="alert-link">
+            {% translate "Issue a new certificate" %}
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Statistics -->
+  <div class="row mt-4">
+    <div class="col-12 col-md-4">
+      <div class="content-card">
+        <div class="content-card__body text-center">
+          <h3 class="display-6">{{ total_certificates }}</h3>
+          <p class="text-muted">{% translate "Total Certificates" %}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="content-card">
+        <div class="content-card__body text-center">
+          <h3 class="display-6 text-success">
+            {{ active_certificates }}
+          </h3>
+          <p class="text-muted">{% translate "Active Certificates" %}</p>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="content-card">
+        <div class="content-card__body text-center">
+          <h3 class="display-6">{{ active_certificate_shares }}</h3>
+          <p class="text-muted">{% translate "Total Active Shares" %}</p>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

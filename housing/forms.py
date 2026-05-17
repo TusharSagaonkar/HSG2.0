@@ -1,9 +1,11 @@
 import json
 from decimal import Decimal
 from decimal import InvalidOperation
+from django.utils import timezone
 
 from django import forms
 from django.forms import inlineformset_factory
+from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from societies.models import Society
@@ -491,6 +493,12 @@ class UnitOccupancyForm(BootstrapModelForm):
 
 
 class MemberForm(BootstrapModelForm):
+    unit_search = forms.CharField(
+        required=False,
+        label=_("Unit Search"),
+        help_text=_("Type to search units and select one result."),
+    )
+
     class Meta:
         model = Member
         fields = [
@@ -511,18 +519,114 @@ class MemberForm(BootstrapModelForm):
             "end_date": forms.DateInput(attrs={"type": "date"}),
         }
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, society=None, current_user=None, **kwargs):
         super().__init__(*args, **kwargs)
-        society_id = self.initial.get("society")
-        if society_id:
-            # OPTIMIZATION: Use only() to load minimal fields
-            self.fields["unit"].queryset = Unit.objects.filter(
-                structure__society_id=society_id
-            ).only("id", "identifier", "structure_id").order_by("identifier")
-            # OPTIMIZATION: Use only() to load minimal fields
-            self.fields["receivable_account"].queryset = Account.objects.filter(
-                society_id=society_id,
-            ).only("id", "name", "society_id").order_by("name")
+        selected_society = society or self.initial.get("society")
+        selected_society_id = getattr(selected_society, "pk", selected_society)
+        self.selected_society_id = selected_society_id
+        self.selected_role = (
+            self.data.get("role")
+            or self.initial.get("role")
+            or getattr(self.instance, "role", "")
+        )
+        self.fields["unit"].widget = forms.HiddenInput()
+        self.fields["status"].initial = Member.MemberStatus.ACTIVE
+        self.fields["start_date"].initial = self.initial.get("start_date") or timezone.localdate()
+        self.fields["start_date"].required = False
+        if selected_society_id:
+            self.fields["society"].queryset = Society.objects.filter(pk=selected_society_id)
+            self.fields["society"].initial = selected_society_id
+            self.fields["society"].disabled = True
+            self.fields["unit"].queryset = Unit.objects.filter(structure__society_id=selected_society_id).only("id")
+            self._configure_receivable_field(selected_society_id)
+        else:
+            self.fields["society"].queryset = Society.objects.only("id", "name").order_by("name")
+            self.fields["receivable_account"].queryset = Account.objects.none()
+            self.fields["receivable_account"].required = False
+            self.fields["receivable_account"].widget.attrs["disabled"] = True
+
+        # Keep the optional user field lightweight on initial render.
+        from housing_accounting.users.models import User
+        self.fields["user"].queryset = (
+            User.objects.filter(is_active=True)
+            .only("id", "name", "email", "is_active")
+            .order_by("name", "email")
+        )
+        self.fields["user"].required = False
+        if current_user is not None and not getattr(current_user, "is_superuser", False):
+            self.fields["user"].help_text = _("Select a user if this member should be linked to an existing account.")
+
+        if self.instance and self.instance.pk and self.instance.unit_id:
+            self.fields["unit_search"].initial = self.instance.unit.identifier
+
+        self.fields["full_name"].widget.attrs.setdefault("placeholder", _("Enter member name"))
+        self.fields["email"].widget.attrs.setdefault("placeholder", _("name@example.com"))
+        self.fields["phone"].widget.attrs.setdefault("placeholder", _("Optional phone number"))
+        self.fields["receivable_account"].empty_label = _("Choose receivable account")
+
+    def _configure_receivable_field(self, selected_society_id):
+        receivable_queryset = Account.objects.filter(
+            society_id=selected_society_id,
+            account_type=Account.AccountType.ASSET,
+            is_active=True,
+        ).only("id", "name", "society_id", "code", "sub_type", "is_member_related")
+        if str(self.selected_role) == Member.MemberRole.OWNER:
+            self.fields["receivable_account"].queryset = receivable_queryset.order_by("name")
+            if not self.initial.get("receivable_account") and not self.data.get("receivable_account"):
+                preferred_account = receivable_queryset.filter(code="1.5.1").order_by("name").first()
+                if preferred_account is None:
+                    preferred_account = (
+                        receivable_queryset.filter(
+                            Q(name__icontains="member receivable")
+                            | Q(name__icontains="maintenance due")
+                            | Q(name__icontains="receivable")
+                            | Q(sub_type=Account.SubType.MEMBER)
+                            | Q(is_member_related=True)
+                        )
+                        .order_by("-is_member_related", "name")
+                        .first()
+                    )
+                if preferred_account is None:
+                    preferred_account = receivable_queryset.order_by("name").first()
+                if preferred_account is not None:
+                    self.fields["receivable_account"].initial = preferred_account.pk
+            self.fields["receivable_account"].required = False
+            self.fields["receivable_account"].widget.attrs.pop("disabled", None)
+        else:
+            self.fields["receivable_account"].queryset = receivable_queryset.order_by("name")
+            self.fields["receivable_account"].required = False
+            self.fields["receivable_account"].widget.attrs["disabled"] = True
+            self.fields["receivable_account"].initial = None
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not cleaned_data.get("status"):
+            cleaned_data["status"] = Member.MemberStatus.ACTIVE
+        if not cleaned_data.get("start_date"):
+            cleaned_data["start_date"] = timezone.localdate()
+        role = cleaned_data.get("role") or self.selected_role
+        if role != Member.MemberRole.OWNER:
+            cleaned_data["receivable_account"] = None
+        elif not cleaned_data.get("receivable_account") and self.selected_society_id:
+            receivable_queryset = Account.objects.filter(
+                society_id=self.selected_society_id,
+                account_type=Account.AccountType.ASSET,
+                is_active=True,
+            )
+            cleaned_data["receivable_account"] = (
+                receivable_queryset.filter(code="1.5.1").order_by("name").first()
+                or receivable_queryset.filter(
+                    Q(name__icontains="member receivable")
+                    | Q(name__icontains="maintenance due")
+                    | Q(name__icontains="receivable")
+                    | Q(sub_type=Account.SubType.MEMBER)
+                    | Q(is_member_related=True)
+                )
+                .order_by("-is_member_related", "name")
+                .first()
+                or receivable_queryset.order_by("name").first()
+            )
+        return cleaned_data
 
 
 class ChargeTemplateForm(BootstrapModelForm):

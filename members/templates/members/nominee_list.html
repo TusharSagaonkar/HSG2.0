@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  Nominees for {{ member.full_name }} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  Nominees for {{ member.full_name }}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {{ member.unit.identifier }} / {{ member.society.name }}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="page-actions">
+    <a href="{% url 'members:member-detail' member.pk %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Member" %}</a>
+    <a href="{% url 'members:nominee-create' member.pk %}" class="btn btn-primary"><i class="fas fa-plus me-1"></i>{% translate "Add Nominee" %}</a>
+    <a href="{% url 'shares:member-share-history' member.pk %}" class="btn btn-outline-primary"><i class="fas fa-chart-line me-1"></i>{% translate "Share History" %}</a>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6">
+      <div class="quick-card">
+        <h3 class="h6 mb-2">{% translate "Member Summary" %}</h3>
+        <p class="mb-1"><strong>{% translate "Total Shares:" %}</strong> {{ member.total_share_value|floatformat:2|default:"0.00" }}</p>
+        <p class="mb-1"><strong>{% translate "Active Nominees:" %}</strong> {{ active_nominees_count }}</p>
+        <p class="mb-1"><strong>{% translate "Total Nominee Percentage:" %}</strong> {{ total_percentage|floatformat:2 }}%</p>
+        <p class="mb-0"><strong>{% translate "Remaining Percentage:" %}</strong> {{ remaining_percentage|floatformat:2 }}%</p>
+      </div>
+    </div>
+    <div class="col-12 col-md-6">
+      <div class="quick-card">
+        <h3 class="h6 mb-2">{% translate "Nominee Statistics" %}</h3>
+        <p class="mb-1"><strong>{% translate "Total Nominees:" %}</strong> {{ nominee_list|length }}</p>
+        <p class="mb-1"><strong>{% translate "Active:" %}</strong> {{ active_nominees_count }}</p>
+        <p class="mb-1"><strong>{% translate "Inactive:" %}</strong> {{ inactive_nominees_count }}</p>
+        <p class="mb-0"><strong>{% translate "Primary Nominees:" %}</strong> {{ primary_nominees_count }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="quick-card">
+    <h3 class="h6 mb-2">{% translate "Nominee List" %}</h3>
+    {% if nominee_list %}
+      <div class="table-responsive">
+        <table class="table table-hover">
+          <thead>
+            <tr>
+              <th>{% translate "Name" %}</th>
+              <th>{% translate "Relationship" %}</th>
+              <th>{% translate "Percentage" %}</th>
+              <th>{% translate "Status" %}</th>
+              <th>{% translate "Primary" %}</th>
+              <th>{% translate "Created" %}</th>
+              <th>{% translate "Actions" %}</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for nominee in nominee_list %}
+              <tr>
+                <td>
+                  <strong>{{ nominee.full_name }}</strong>
+                  {% if nominee.phone %}
+                    <br><small class="text-muted">{{ nominee.phone }}</small>
+                  {% endif %}
+                </td>
+                <td>{{ nominee.get_relationship_display }}</td>
+                <td>
+                  <span class="badge bg-info">{{ nominee.percentage|floatformat:2 }}%</span>
+                </td>
+                <td>
+                  <span class="badge {% if nominee.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+                    {% if nominee.is_active %}{% translate "Active" %}{% else %}{% translate "Inactive" %}{% endif %}
+                  </span>
+                </td>
+                <td>
+                  {% if nominee.is_primary %}
+                    <span class="badge bg-primary"><i class="fas fa-star"></i> {% translate "Primary" %}</span>
+                  {% else %}
+                    <span class="text-muted">{% translate "No" %}</span>
+                  {% endif %}
+                </td>
+                <td>{{ nominee.created_at|date:"M d, Y" }}</td>
+                <td>
+                  <div class="btn-group btn-group-sm">
+                    <a href="{% url 'members:nominee-edit' member.pk nominee.pk %}" class="btn btn-outline-primary" title="{% translate 'Edit' %}">
+                      <i class="fas fa-edit"></i>
+                    </a>
+                    {% if nominee.is_active %}
+                      <button type="button" class="btn btn-outline-warning" data-bs-toggle="modal" data-bs-target="#deactivateModal{{ nominee.pk }}" title="{% translate 'Deactivate' %}">
+                        <i class="fas fa-ban"></i>
+                      </button>
+                    {% else %}
+                      <button type="button" class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#activateModal{{ nominee.pk }}" title="{% translate 'Activate' %}">
+                        <i class="fas fa-check"></i>
+                      </button>
+                    {% endif %}
+                    <button type="button" class="btn btn-outline-danger" data-bs-toggle="modal" data-bs-target="#deleteModal{{ nominee.pk }}" title="{% translate 'Delete' %}">
+                      <i class="fas fa-trash"></i>
+                    </button>
+                  </div>
+
+                  <!-- Deactivate Modal -->
+                  <div class="modal fade" id="deactivateModal{{ nominee.pk }}" tabindex="-1" aria-labelledby="deactivateModalLabel{{ nominee.pk }}" aria-hidden="true">
+                    <div class="modal-dialog">
+                      <div class="modal-content">
+                        <div class="modal-header">
+                          <h5 class="modal-title" id="deactivateModalLabel{{ nominee.pk }}">{% translate "Deactivate Nominee" %}</h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form method="post" action="{% url 'members:nominee-deactivate' member.pk nominee.pk %}">
+                          {% csrf_token %}
+                          <div class="modal-body">
+                            <p>{% translate "Are you sure you want to deactivate nominee" %} <strong>{{ nominee.full_name }}</strong>?</p>
+                            <p class="text-warning">{% translate "Deactivated nominees cannot receive share transmissions." %}</p>
+                            <div class="mb-3">
+                              <label for="deactivateReason{{ nominee.pk }}" class="form-label">{% translate "Reason" %}</label>
+                              <textarea class="form-control" id="deactivateReason{{ nominee.pk }}" name="reason" rows="3" required></textarea>
+                            </div>
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{% translate "Cancel" %}</button>
+                            <button type="submit" class="btn btn-warning">{% translate "Deactivate" %}</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Activate Modal -->
+                  <div class="modal fade" id="activateModal{{ nominee.pk }}" tabindex="-1" aria-labelledby="activateModalLabel{{ nominee.pk }}" aria-hidden="true">
+                    <div class="modal-dialog">
+                      <div class="modal-content">
+                        <div class="modal-header">
+                          <h5 class="modal-title" id="activateModalLabel{{ nominee.pk }}">{% translate "Activate Nominee" %}</h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form method="post" action="{% url 'members:nominee-activate' member.pk nominee.pk %}">
+                          {% csrf_token %}
+                          <div class="modal-body">
+                            <p>{% translate "Are you sure you want to activate nominee" %} <strong>{{ nominee.full_name }}</strong>?</p>
+                            <div class="mb-3">
+                              <label for="activateReason{{ nominee.pk }}" class="form-label">{% translate "Reason" %}</label>
+                              <textarea class="form-control" id="activateReason{{ nominee.pk }}" name="reason" rows="3" required></textarea>
+                            </div>
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{% translate "Cancel" %}</button>
+                            <button type="submit" class="btn btn-success">{% translate "Activate" %}</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+
+                  <!-- Delete Modal -->
+                  <div class="modal fade" id="deleteModal{{ nominee.pk }}" tabindex="-1" aria-labelledby="deleteModalLabel{{ nominee.pk }}" aria-hidden="true">
+                    <div class="modal-dialog">
+                      <div class="modal-content">
+                        <div class="modal-header">
+                          <h5 class="modal-title" id="deleteModalLabel{{ nominee.pk }}">{% translate "Delete Nominee" %}</h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <form method="post" action="{% url 'members:nominee-delete' member.pk nominee.pk %}">
+                          {% csrf_token %}
+                          <div class="modal-body">
+                            <p class="text-danger">{% translate "Are you sure you want to permanently delete nominee" %} <strong>{{ nominee.full_name }}</strong>?</p>
+                            <p class="text-danger">{% translate "This action cannot be undone. All nominee records will be permanently removed." %}</p>
+                            <div class="mb-3">
+                              <label for="deleteReason{{ nominee.pk }}" class="form-label">{% translate "Reason for deletion" %}</label>
+                              <textarea class="form-control" id="deleteReason{{ nominee.pk }}" name="reason" rows="3" required></textarea>
+                            </div>
+                          </div>
+                          <div class="modal-footer">
+                            <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{% translate "Cancel" %}</button>
+                            <button type="submit" class="btn btn-danger">{% translate "Delete Permanently" %}</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="alert alert-info mb-0">
+        <i class="fas fa-info-circle me-2"></i>
+        {% translate "No nominees found for this member." %}
+        <a href="{% url 'members:nominee-create' member.pk %}" class="alert-link">{% translate "Add the first nominee" %}</a>
+      </div>
+    {% endif %}
+  </div>
+
+  <div class="quick-card mt-3">
+    <h3 class="h6 mb-2">{% translate "Nominee Management Guidelines" %}</h3>
+    <ul class="mb-0">
+      <li>{% translate "Each member can have multiple nominees with percentage allocations." %}</li>
+      <li>{% translate "The total percentage of all active nominees cannot exceed 100%." %}</li>
+      <li>{% translate "Only one nominee can be marked as primary at a time." %}</li>
+      <li>{% translate "Inactive nominees cannot receive share transmissions." %}</li>
+      <li>{% translate "When a member passes away, shares are transmitted to active nominees based on their percentages." %}</li>
+    </ul>
+  </div>
+{% endblock content %}

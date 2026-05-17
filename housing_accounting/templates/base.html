@@ -145,6 +145,13 @@
                     </a>
                   </li>
 
+                  <li class="nav-item {% if current_namespace == 'shares' %}active{% endif %}">
+                    <a href="{% url 'shares:dashboard' %}" aria-label="Shares">
+                      <i class="fas fa-certificate"></i>
+                      <p>{% translate "Shares" %}</p>
+                    </a>
+                  </li>
+
                   <li class="nav-item {% if current_namespace == 'accounting' %}active{% endif %}">
                     <a href="{% url 'accounting:dashboard' %}" aria-label="Accounting">
                       <i class="fas fa-calculator"></i>

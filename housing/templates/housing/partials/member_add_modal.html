@@ -20,8 +20,8 @@
           <!-- Hidden fields for society and unit -->
           <input type="hidden" id="id_society_modal" name="society">
           <input type="hidden" id="id_unit_modal" name="unit">
+          <input type="hidden" id="id_status_modal" name="status" value="ACTIVE">
 
-          <!-- Full Name -->
           <div class="mb-3">
             <label for="id_full_name" class="form-label">
               {% translate "Full Name" %} <span class="text-danger">*</span>
@@ -30,7 +30,6 @@
             <small class="text-muted">{% translate "Member's full name" %}</small>
           </div>
 
-          <!-- Role -->
           <div class="mb-3">
             <label for="id_role" class="form-label">
               {% translate "Role" %} <span class="text-danger">*</span>
@@ -43,25 +42,23 @@
             </select>
           </div>
 
-          <!-- Email -->
-          <div class="mb-3">
-            <label for="id_email" class="form-label">{% translate "Email" %}</label>
-            <input type="email" class="form-control" id="id_email" name="email">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <label for="id_email" class="form-label">{% translate "Email" %}</label>
+              <input type="email" class="form-control" id="id_email" name="email" placeholder="{% translate 'Optional' %}">
+            </div>
+            <div class="col-12 col-md-6">
+              <label for="id_phone" class="form-label">{% translate "Phone" %}</label>
+              <input type="tel" class="form-control" id="id_phone" name="phone" placeholder="{% translate 'Optional' %}">
+            </div>
           </div>
 
-          <!-- Phone -->
           <div class="mb-3">
-            <label for="id_phone" class="form-label">{% translate "Phone" %}</label>
-            <input type="tel" class="form-control" id="id_phone" name="phone">
-          </div>
-
-          <!-- Status -->
-          <div class="mb-3">
-            <label for="id_status" class="form-label">{% translate "Status" %}</label>
-            <select class="form-select" id="id_status" name="status">
-              <option value="ACTIVE">{% translate "Active" %}</option>
-              <option value="INACTIVE">{% translate "Inactive" %}</option>
+            <label for="id_receivable_account" class="form-label">{% translate "Receivable Account" %}</label>
+            <select class="form-select" id="id_receivable_account" name="receivable_account">
+              <option value="">{% translate "Not assigned" %}</option>
             </select>
+            <small class="text-muted">{% translate "Optional. You can assign this later from the member profile." %}</small>
           </div>
 
           <!-- Unit Display (Read-only) -->
@@ -70,27 +67,6 @@
             <div class="form-control-plaintext bg-light p-2 rounded">
               <span id="unitDisplayName" class="text-muted">{% translate "Loading..." %}</span>
             </div>
-          </div>
-
-          <!-- Receivable Account -->
-          <div class="mb-3">
-            <label for="id_receivable_account" class="form-label">{% translate "Receivable Account" %}</label>
-            <select class="form-select" id="id_receivable_account" name="receivable_account">
-              <option value="">{% translate "Not assigned" %}</option>
-            </select>
-            <small class="text-muted">{% translate "Select the receivable account for billing" %}</small>
-          </div>
-
-          <!-- Start Date -->
-          <div class="mb-3">
-            <label for="id_start_date" class="form-label">{% translate "Start Date" %}</label>
-            <input type="date" class="form-control" id="id_start_date" name="start_date">
-          </div>
-
-          <!-- End Date -->
-          <div class="mb-3">
-            <label for="id_end_date" class="form-label">{% translate "End Date" %}</label>
-            <input type="date" class="form-control" id="id_end_date" name="end_date">
           </div>
         </div>
         <div class="modal-footer">
@@ -118,6 +94,7 @@
   const societyInput = document.getElementById('id_society_modal');
   const unitInput = document.getElementById('id_unit_modal');
   const errorAlert = document.getElementById('memberFormErrors');
+  const statusInput = document.getElementById('id_status_modal');
 
   // Initialize modal when member-add link is clicked
   document.addEventListener('click', function(e) {
@@ -136,11 +113,9 @@
     // Set form values
     societyInput.value = societyId;
     unitInput.value = unitId || '';
+    statusInput.value = 'ACTIVE';
     unitDisplay.textContent = unitIdentifier || '{% translate "Not specified" %}';
     submitBtn.disabled = false;
-
-    // Load receivable accounts via API
-    loadReceivableAccounts(societyId);
 
     // Show modal
     const modal = new bootstrap.Modal(memberModal, { keyboard: false, backdrop: 'static' });
@@ -150,26 +125,6 @@
     setTimeout(() => {
       document.getElementById('id_full_name').focus();
     }, 500);
-  }
-
-  function loadReceivableAccounts(societyId) {
-    // OPTIMIZATION: Load accounts via API instead of including all in initial page load
-    fetch(`/housing/members/api/form-options/?society_id=${societyId}`)
-      .then(response => response.json())
-      .then(data => {
-        if (data.success && data.accounts) {
-          receivableAccountSelect.innerHTML = '<option value="">{% translate "Not assigned" %}</option>';
-          data.accounts.forEach(account => {
-            const option = document.createElement('option');
-            option.value = account.id;
-            option.textContent = account.name;
-            receivableAccountSelect.appendChild(option);
-          });
-        }
-      })
-      .catch(error => {
-        console.error('Error loading accounts:', error);
-      });
   }
 
   // Handle form submission via AJAX
@@ -238,6 +193,7 @@
     memberForm.reset();
     errorAlert.classList.add('d-none');
     receivableAccountSelect.innerHTML = '<option value="">{% translate "Not assigned" %}</option>';
+    statusInput.value = 'ACTIVE';
   });
 })();
 </script>

@@ -5,6 +5,7 @@ from django.core.exceptions import ValidationError
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.db.models import Count
+from django.db.models import Prefetch
 from django.db.models import Q
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
@@ -34,6 +35,7 @@ from housing.forms import BillingGenerationForm
 from housing.forms import ReceiptPostingForm
 from housing.forms import VoucherTemplateForm
 from housing.forms import VoucherTemplateRowFormSet
+from housing.services import sync_member_unit_lifecycle
 from societies.models import Society
 from societies.models import Membership
 from notifications.models import EmailVerificationToken
@@ -98,6 +100,7 @@ class HousingDashboardView(LoginRequiredMixin, TemplateView):
         ).count()
         context["recent_societies"] = recent_societies_qs[:5]
         context["recent_units"] = recent_units_qs[:8]
+        context["all_units"] = recent_units_qs
         return context
 
 
@@ -107,12 +110,39 @@ housing_dashboard_view = HousingDashboardView.as_view()
 class StructureUnitDashboardView(LoginRequiredMixin, TemplateView):
     template_name = "housing/structure_unit_dashboard.html"
 
+    @staticmethod
+    def _user_display_name(user):
+        if user is None:
+            return ""
+        return user.name or user.email or str(user)
+
+    def _unit_owner_display_name(self, unit, owner):
+        if owner is None:
+            return ""
+        member = (
+            Member.objects.filter(unit=unit, user=owner)
+            .order_by("full_name", "id")
+            .first()
+        )
+        if member and member.full_name:
+            return member.full_name
+        return self._user_display_name(owner)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         selected_society, _ = get_selected_scope(self.request)
+        params = self.request.GET
 
         structures_qs = Structure.objects.select_related("society", "parent")
-        units_qs = Unit.objects.select_related("structure", "structure__society")
+        units_qs = Unit.objects.select_related("structure", "structure__society").prefetch_related(
+            Prefetch(
+                "occupancies",
+                queryset=UnitOccupancy.objects.filter(end_date__isnull=True).order_by(
+                    "-start_date", "-id"
+                ),
+                to_attr="active_occupancies",
+            )
+        )
         active_occupancies_qs = UnitOccupancy.objects.filter(end_date__isnull=True)
 
         if selected_society:
@@ -121,6 +151,66 @@ class StructureUnitDashboardView(LoginRequiredMixin, TemplateView):
             active_occupancies_qs = active_occupancies_qs.filter(
                 unit__structure__society=selected_society
             )
+
+        search = params.get("q", "").strip()
+        if search:
+            units_qs = units_qs.filter(
+                Q(identifier__icontains=search)
+                | Q(structure__name__icontains=search)
+                | Q(structure__society__name__icontains=search)
+            )
+
+        unit_type = params.get("unit_type", "").strip()
+        if unit_type:
+            units_qs = units_qs.filter(unit_type=unit_type)
+
+        status = params.get("status", "").strip()
+        if status == "active":
+            units_qs = units_qs.filter(is_active=True)
+        elif status == "inactive":
+            units_qs = units_qs.filter(is_active=False)
+
+        occupancy = params.get("occupancy", "").strip()
+        if occupancy == "occupied":
+            units_qs = units_qs.filter(
+                pk__in=UnitOccupancy.objects.filter(
+                    end_date__isnull=True
+                ).exclude(
+                    occupancy_type=UnitOccupancy.OccupancyType.VACANT
+                ).values("unit_id")
+            )
+        elif occupancy == "vacant":
+            units_qs = units_qs.filter(
+                pk__in=UnitOccupancy.objects.filter(
+                    end_date__isnull=True,
+                    occupancy_type=UnitOccupancy.OccupancyType.VACANT,
+                ).values("unit_id")
+            )
+
+        structure_id = params.get("structure", "").strip()
+        if structure_id.isdigit():
+            units_qs = units_qs.filter(structure_id=int(structure_id))
+
+        society_id = params.get("society", "").strip()
+        if society_id.isdigit() and not selected_society:
+            units_qs = units_qs.filter(structure__society_id=int(society_id))
+
+        sort = params.get("sort", "structure")
+        sort_map = {
+            "structure": ("structure__society__name", "structure__name", "identifier"),
+            "identifier": ("identifier", "structure__name"),
+            "created": ("-created_at",),
+            "area": ("-chargeable_area_sqft", "-area_sqft", "identifier"),
+            "active": ("-is_active", "structure__name", "identifier"),
+        }
+        units_qs = units_qs.order_by(*sort_map.get(sort, sort_map["structure"]))
+
+        structures_qs = structures_qs.order_by("society__name", "name")
+        societies_qs = Society.objects.order_by("name")
+        if selected_society:
+            societies_qs = societies_qs.filter(pk=selected_society.pk)
+        elif society_id.isdigit():
+            societies_qs = societies_qs.filter(pk=int(society_id))
 
         total_structures = structures_qs.count()
         root_structures = structures_qs.filter(parent__isnull=True).count()
@@ -151,10 +241,168 @@ class StructureUnitDashboardView(LoginRequiredMixin, TemplateView):
             }
             for row in unit_type_summary
         ]
+        units_list = list(units_qs)
+        unit_ids = [unit.id for unit in units_list]
+
+        active_ownerships = (
+            UnitOwnership.objects.filter(
+                unit_id__in=unit_ids,
+                end_date__isnull=True,
+            )
+            .select_related("owner")
+            .order_by("unit_id", "role", "-start_date", "-id")
+        )
+        primary_ownership_by_unit = {}
+        for ownership in active_ownerships:
+            if ownership.role != UnitOwnership.OwnershipRole.PRIMARY:
+                continue
+            primary_ownership_by_unit.setdefault(ownership.unit_id, ownership)
+
+        active_owner_members = (
+            Member.objects.filter(
+                unit_id__in=unit_ids,
+                role=Member.MemberRole.OWNER,
+                status=Member.MemberStatus.ACTIVE,
+            )
+            .order_by("unit_id", "full_name", "id")
+        )
+        owner_member_by_unit = {}
+        for member in active_owner_members:
+            owner_member_by_unit.setdefault(member.unit_id, member)
+
+        active_tenant_members = (
+            Member.objects.filter(
+                unit_id__in=unit_ids,
+                role=Member.MemberRole.TENANT,
+                status=Member.MemberStatus.ACTIVE,
+            )
+            .order_by("unit_id", "full_name", "id")
+        )
+        tenant_members_by_unit = {}
+        for member in active_tenant_members:
+            tenant_members_by_unit.setdefault(member.unit_id, member)
+
+        for unit in units_list:
+            ownership = primary_ownership_by_unit.get(unit.id)
+            owner_member = owner_member_by_unit.get(unit.id)
+            unit.primary_owner_name = self._unit_owner_display_name(
+                unit,
+                ownership.owner if ownership else None,
+            )
+            if not unit.primary_owner_name and owner_member:
+                unit.primary_owner_name = owner_member.full_name
+            unit.primary_tenant_member = tenant_members_by_unit.get(unit.id)
+            unit.primary_owner_member = owner_member
+
+        context["units"] = units_list
+        context["search"] = search
+        context["selected_unit_type"] = unit_type
+        context["selected_status"] = status
+        context["selected_occupancy"] = occupancy
+        context["selected_sort"] = sort
+        context["societies"] = societies_qs
+        context["structures"] = structures_qs.order_by("name")
+        context["unit_types"] = Unit.UnitType.choices
+        context["selected_society_id"] = str(selected_society.pk) if selected_society else ""
+        context["selected_structure_id"] = structure_id if structure_id.isdigit() else ""
         return context
 
 
 structure_unit_dashboard_view = StructureUnitDashboardView.as_view()
+
+
+class UnitDetailView(LoginRequiredMixin, DetailView):
+    model = Unit
+    template_name = "housing/unit_detail.html"
+    context_object_name = "unit"
+
+    @staticmethod
+    def _user_display_name(user):
+        if user is None:
+            return ""
+        return user.name or user.email or str(user)
+
+    def _unit_member_display_name(self, unit, user):
+        if user is None:
+            return ""
+        member = (
+            Member.objects.filter(unit=unit, user=user)
+            .order_by("full_name", "id")
+            .first()
+        )
+        if member and member.full_name:
+            return member.full_name
+        return self._user_display_name(user)
+
+    def get_object(self, queryset=None):
+        unit = super().get_object(queryset)
+        selected_society, _ = get_selected_scope(self.request)
+        if selected_society and unit.structure.society_id != selected_society.id:
+            raise Http404(_("Unit not found in selected society."))
+        return unit
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        unit = self.object
+
+        context["society"] = unit.structure.society
+        context["structure"] = unit.structure
+        context["ownerships"] = (
+            UnitOwnership.objects.filter(unit=unit)
+            .select_related("owner")
+            .order_by("-start_date", "-id")
+        )
+        context["occupancies"] = (
+            UnitOccupancy.objects.filter(unit=unit)
+            .select_related("occupant")
+            .order_by("-start_date", "-id")
+        )
+        context["members"] = (
+            Member.objects.filter(unit=unit)
+            .select_related("society", "unit", "receivable_account")
+            .order_by("full_name", "id")
+        )
+        context["primary_owner"] = (
+            UnitOwnership.objects.filter(
+                unit=unit,
+                role=UnitOwnership.OwnershipRole.PRIMARY,
+                end_date__isnull=True,
+            )
+            .select_related("owner")
+            .order_by("-start_date", "-id")
+            .first()
+        )
+        if context["primary_owner"]:
+            context["primary_owner_display_name"] = self._user_display_name(
+                context["primary_owner"].owner
+            )
+            context["primary_owner_display_name"] = self._unit_member_display_name(
+                unit,
+                context["primary_owner"].owner,
+            )
+        context["current_occupancy"] = (
+            UnitOccupancy.objects.filter(
+                unit=unit,
+                end_date__isnull=True,
+            )
+            .select_related("occupant")
+            .order_by("-start_date", "-id")
+            .first()
+        )
+        if context["current_occupancy"]:
+            context["current_occupant_display_name"] = self._unit_member_display_name(
+                unit,
+                context["current_occupancy"].occupant,
+            )
+        for ownership in context["ownerships"]:
+            ownership.owner_display_name = self._unit_member_display_name(unit, ownership.owner)
+        for occupancy in context["occupancies"]:
+            occupancy.occupant_display_name = self._unit_member_display_name(unit, occupancy.occupant)
+        context["active_members"] = context["members"].filter(status=Member.MemberStatus.ACTIVE)
+        return context
+
+
+unit_detail_view = UnitDetailView.as_view()
 
 
 class SocietyListView(LoginRequiredMixin, ListView):
@@ -190,6 +438,18 @@ class SocietyDetailView(LoginRequiredMixin, DetailView):
         if user is None:
             return ""
         return user.name or user.email
+
+    def _unit_owner_display_name(self, unit, owner):
+        if owner is None:
+            return ""
+        member = (
+            Member.objects.filter(unit=unit, user=owner)
+            .order_by("full_name", "id")
+            .first()
+        )
+        if member and member.full_name:
+            return member.full_name
+        return self._user_display_name(owner)
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -228,6 +488,19 @@ class SocietyDetailView(LoginRequiredMixin, DetailView):
         for occupancy in active_occupancies:
             current_occupancy_by_unit.setdefault(occupancy.unit_id, occupancy)
 
+        active_owner_members = (
+            Member.objects.filter(
+                society=society,
+                unit_id__in=unit_ids,
+                role=Member.MemberRole.OWNER,
+                status=Member.MemberStatus.ACTIVE,
+            )
+            .order_by("unit_id", "full_name", "id")
+        )
+        owner_member_by_unit = {}
+        for member in active_owner_members:
+            owner_member_by_unit.setdefault(member.unit_id, member)
+
         active_members = (
             Member.objects.filter(
                 society=society,
@@ -252,11 +525,15 @@ class SocietyDetailView(LoginRequiredMixin, DetailView):
         for unit in units:
             ownership = primary_ownership_by_unit.get(unit.id)
             occupancy = current_occupancy_by_unit.get(unit.id)
+            owner_member = owner_member_by_unit.get(unit.id)
             unit.primary_owner_record = ownership
             unit.current_occupancy_record = occupancy
-            unit.primary_owner_name = self._user_display_name(
+            unit.primary_owner_name = self._unit_owner_display_name(
+                unit,
                 ownership.owner if ownership else None,
             )
+            if not unit.primary_owner_name and owner_member:
+                unit.primary_owner_name = owner_member.full_name
             unit.current_occupant_name = self._user_display_name(
                 occupancy.occupant if occupancy else None,
             )
@@ -691,7 +968,7 @@ member_list_view = MemberListView.as_view()
 class MemberCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
     model = Member
     form_class = MemberForm
-    template_name = "housing/form.html"
+    template_name = "housing/member_form.html"
     success_message = _("Member saved successfully.")
 
     def get_initial(self):
@@ -706,7 +983,33 @@ class MemberCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
             initial["society"] = society_id
         if unit_id:
             initial["unit"] = unit_id
+            unit = (
+                Unit.objects.select_related("structure")
+                .filter(pk=unit_id)
+                .first()
+            )
+            if unit:
+                initial["unit_search"] = unit.identifier
         return initial
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        selected_society, _ = get_selected_scope(self.request)
+        society_id = (
+            self.request.POST.get("society")
+            or self.request.GET.get("society")
+            or (selected_society.pk if selected_society else None)
+        )
+        if society_id:
+            kwargs["society"] = Society.objects.filter(pk=society_id).first()
+        kwargs["current_user"] = self.request.user
+        return kwargs
+
+    def form_valid(self, form):
+        with transaction.atomic():
+            response = super().form_valid(form)
+            sync_member_unit_lifecycle(self.object)
+        return response
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -720,6 +1023,7 @@ class MemberCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
         context["society_id"] = society_id
         context["unit_id"] = unit_id
         context["is_modal"] = self.request.GET.get("modal") or self.request.POST.get("modal")
+        context["unit_search_url"] = reverse("housing:unit-search-api")
         return context
 
     def get_success_url(self):
@@ -732,8 +1036,14 @@ member_create_view = MemberCreateView.as_view()
 class MemberUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     model = Member
     form_class = MemberForm
-    template_name = "housing/form.html"
+    template_name = "housing/member_form.html"
     success_message = _("Member updated successfully.")
+
+    def get_form_kwargs(self):
+        kwargs = super().get_form_kwargs()
+        kwargs["society"] = self.get_object().society
+        kwargs["current_user"] = self.request.user
+        return kwargs
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -741,6 +1051,8 @@ class MemberUpdateView(LoginRequiredMixin, SuccessMessageMixin, UpdateView):
         context["form_subtitle"] = _("Update membership details and status.")
         context["cancel_url"] = reverse("housing:member-list")
         context["cancel_label"] = _("Back to Members")
+        context["unit_search_url"] = reverse("housing:unit-search-api")
+        context["society_id"] = self.get_object().society_id
         return context
 
     def get_success_url(self):
@@ -793,7 +1105,38 @@ class MemberFormOptionsAPIView(LoginRequiredMixin, View):
         })
 
 
+class UnitSearchAPIView(LoginRequiredMixin, View):
+    def get(self, request):
+        society_id = request.GET.get("society_id")
+        query = (request.GET.get("q") or "").strip()
+        if not society_id:
+            return JsonResponse({"success": False, "error": "society_id required"}, status=400)
+
+        units = Unit.objects.filter(structure__society_id=society_id)
+        if query:
+            units = units.filter(
+                Q(identifier__icontains=query) | Q(structure__name__icontains=query)
+            )
+
+        units = units.select_related("structure").order_by("identifier")[:20]
+        return JsonResponse(
+            {
+                "success": True,
+                "units": [
+                    {
+                        "id": unit.id,
+                        "identifier": unit.identifier,
+                        "structure_name": unit.structure.name,
+                        "label": f"{unit.identifier} / {unit.structure.name}",
+                    }
+                    for unit in units
+                ],
+            }
+        )
+
+
 member_form_options_api_view = MemberFormOptionsAPIView.as_view()
+unit_search_api_view = UnitSearchAPIView.as_view()
 
 
 class ChargeTemplateCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):

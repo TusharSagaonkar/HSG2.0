@@ -17,6 +17,12 @@
   <div class="page-actions">
     <a href="{% url 'housing:member-list' %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Members" %}</a>
     <a href="{% url 'housing:member-edit' member.pk %}" class="btn btn-primary"><i class="fas fa-edit me-1"></i>{% translate "Edit Member" %}</a>
+    <a href="{% url 'shares:allotment' %}?member={{ member.pk }}" class="btn btn-success">
+      <i class="fas fa-certificate me-1"></i>{% translate "Allot Shares" %}
+    </a>
+    <a href="{% url 'shares:member-share-history' member.pk %}" class="btn btn-outline-primary">
+      <i class="fas fa-chart-line me-1"></i>{% translate "Share History" %}
+    </a>
     <a href="{% url 'billing:bill-list' %}" class="btn btn-outline-primary"><i class="fas fa-file-invoice me-1"></i>{% translate "All Bills" %}</a>
     <a href="{% url 'receipts:receipt-list' %}" class="btn btn-outline-primary"><i class="fas fa-receipt me-1"></i>{% translate "All Receipts" %}</a>
   </div>
@@ -41,6 +47,62 @@
         <p class="mb-1"><strong>{% translate "Total Bills:" %}</strong> {{ member_bills|length }}</p>
         <p class="mb-1"><strong>{% translate "Total Receipts:" %}</strong> {{ member_receipts|length }}</p>
         <p class="mb-0"><strong>{% translate "Recent Reminders:" %}</strong> {{ member_reminders|length }}</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-lg-4">
+      <div class="quick-card h-100">
+        <h3 class="h6 mb-2">{% translate "Share Summary" %}</h3>
+        <p class="mb-1"><strong>{% translate "Current Balance:" %}</strong> {{ share_balance|floatformat:2 }}</p>
+        <p class="mb-1"><strong>{% translate "Certificates:" %}</strong> {{ share_certificate_count }}</p>
+        <p class="mb-0">
+          <strong>{% translate "Last Transaction:" %}</strong>
+          {% if last_share_transaction %}
+            {{ last_share_transaction.get_transaction_type_display }} on {{ last_share_transaction.transaction_date|date:"M d, Y" }}
+          {% else %}
+            -
+          {% endif %}
+        </p>
+      </div>
+    </div>
+    <div class="col-12 col-lg-8">
+      <div class="quick-card h-100">
+        <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
+          <h3 class="h6 mb-0">{% translate "Recent Share Activity" %}</h3>
+          <a href="{% url 'shares:member-share-history' member.pk %}" class="btn btn-sm btn-outline-primary">
+            {% translate "View Full History" %}
+          </a>
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>{% translate "Date" %}</th>
+                <th>{% translate "Type" %}</th>
+                <th class="text-end">{% translate "In" %}</th>
+                <th class="text-end">{% translate "Out" %}</th>
+                <th class="text-end">{% translate "Balance" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for entry in share_ledger %}
+                <tr>
+                  <td>{{ entry.transaction_date|date:"M d, Y" }}</td>
+                  <td>{{ entry.get_transaction_type_display }}</td>
+                  <td class="text-end text-success">{% if entry.shares_in > 0 %}+{{ entry.shares_in }}{% else %}-{% endif %}</td>
+                  <td class="text-end text-danger">{% if entry.shares_out > 0 %}-{{ entry.shares_out }}{% else %}-{% endif %}</td>
+                  <td class="text-end">{{ entry.balance_after }}</td>
+                </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="5" class="text-center text-muted py-3">{% translate "No share activity found for this member." %}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   </div>

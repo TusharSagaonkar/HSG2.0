@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Event Logs" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Event Logs" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Comprehensive audit trail for all share and member events." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="action-bar">
+    <a href="{% url 'shares:dashboard' %}" class="btn-action btn-action--secondary">
+      <i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}
+    </a>
+    <a href="{% url 'shares:event-log-list' %}?export=csv" class="btn-action btn-action--primary">
+      <i class="fas fa-download me-1"></i>{% translate "Export CSV" %}
+    </a>
+  </div>
+
+  <div class="content-card mb-4">
+    <div class="content-card__body">
+      <form method="get" class="row g-3">
+        <div class="col-12 col-md-3">
+          <label for="event_type" class="form-label">{% translate "Event Type" %}</label>
+          <select id="event_type" name="event_type" class="form-select">
+            <option value="">{% translate "All event types" %}</option>
+            {% for value, label in event_types %}
+              <option value="{{ value }}" {% if current_filters.event_type == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-3">
+          <label for="member" class="form-label">{% translate "Member" %}</label>
+          <select id="member" name="member" class="form-select">
+            <option value="">{% translate "All members" %}</option>
+            {% for member in members %}
+              <option value="{{ member.pk }}" {% if current_filters.member == member.pk|stringformat:"i" %}selected{% endif %}>
+                {{ member.full_name }} ({{ member.unit.identifier }})
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-2">
+          <label for="date_from" class="form-label">{% translate "From Date" %}</label>
+          <input type="date" id="date_from" name="date_from" class="form-control" value="{{ current_filters.date_from }}">
+        </div>
+        <div class="col-12 col-md-2">
+          <label for="date_to" class="form-label">{% translate "To Date" %}</label>
+          <input type="date" id="date_to" name="date_to" class="form-control" value="{{ current_filters.date_to }}">
+        </div>
+        <div class="col-12 col-md-2">
+          <label for="search" class="form-label">{% translate "Search" %}</label>
+          <input type="text" id="search" name="search" class="form-control" placeholder="{% translate "Description, certificate..." %}" value="{{ current_filters.search }}">
+        </div>
+        <div class="col-12 d-flex align-items-end gap-2">
+          <button type="submit" class="btn-action btn-action--primary">
+            <i class="fas fa-filter me-1"></i>{% translate "Apply Filters" %}
+          </button>
+          <a href="{% url 'shares:event-log-list' %}" class="btn-action btn-action--secondary">
+            <i class="fas fa-times me-1"></i>{% translate "Clear All" %}
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="content-card__body">
+      {% if event_logs %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead>
+              <tr>
+                <th>{% translate "Timestamp" %}</th>
+                <th>{% translate "Event Type" %}</th>
+                <th>{% translate "Member(s)" %}</th>
+                <th class="text-end">{% translate "Shares" %}</th>
+                <th>{% translate "Description" %}</th>
+                <th>{% translate "Performed By" %}</th>
+                <th>{% translate "Actions" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for event in event_logs %}
+                <tr>
+                  <td>
+                    <div class="text-nowrap">{{ event.timestamp|date:"d M Y" }}</div>
+                    <div class="text-muted small">{{ event.timestamp|time:"H:i:s" }}</div>
+                  </td>
+                  <td>
+                    <span class="badge bg-info">{{ event.get_event_type_display }}</span>
+                  </td>
+                  <td>
+                    {% if event.member %}
+                      <a href="{% url 'shares:member-share-history' pk=event.member.pk %}">{{ event.member.full_name }}</a>
+                      {% if event.from_member or event.to_member %}
+                        <div class="text-muted small">
+                          {% if event.from_member %}
+                            {% translate "From:" %} {{ event.from_member.full_name }}
+                          {% endif %}
+                          {% if event.to_member %}
+                            {% translate "To:" %} {{ event.to_member.full_name }}
+                          {% endif %}
+                        </div>
+                      {% endif %}
+                    {% elif event.from_member and event.to_member %}
+                      <div>
+                        <a href="{% url 'shares:member-share-history' pk=event.from_member.pk %}">{{ event.from_member.full_name }}</a>
+                        <i class="fas fa-arrow-right mx-1 text-muted"></i>
+                        <a href="{% url 'shares:member-share-history' pk=event.to_member.pk %}">{{ event.to_member.full_name }}</a>
+                      </div>
+                    {% else %}
+                      <span class="text-muted">{% translate "System" %}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">
+                    {% if event.share_count %}
+                      <strong>{{ event.share_count }}</strong>
+                      {% if event.share_value %}
+                        <div class="text-muted small">@ {{ event.share_value }}</div>
+                      {% endif %}
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="text-truncate" style="max-width: 250px;" title="{{ event.description }}">
+                      {{ event.description|truncatechars:80 }}
+                    </div>
+                    {% if event.certificate_number %}
+                      <div class="text-muted small">
+                        <i class="fas fa-certificate me-1"></i>{{ event.certificate_number }}
+                      </div>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {{ event.performed_by.get_full_name|default:event.performed_by.username }}
+                    <div class="text-muted small">{{ event.ip_address|default:"" }}</div>
+                  </td>
+                  <td>
+                    <a href="{% url 'shares:event-log-detail' pk=event.pk %}" class="btn-action btn-action--small btn-action--secondary">
+                      <i class="fas fa-eye me-1"></i>{% translate "View" %}
+                    </a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        {% if is_paginated %}
+          <nav aria-label="{% translate 'Event log pagination' %}" class="mt-4">
+            <ul class="pagination justify-content-center">
+              {% if page_obj.has_previous %}
+                <li class="page-item">
+                  <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                    <i class="fas fa-chevron-left"></i>
+                  </a>
+                </li>
+              {% else %}
+                <li class="page-item disabled">
+                  <span class="page-link"><i class="fas fa-chevron-left"></i></span>
+                </li>
+              {% endif %}
+              
+              {% for num in page_obj.paginator.page_range %}
+                {% if page_obj.number == num %}
+                  <li class="page-item active">
+                    <span class="page-link">{{ num }}</span>
+                  </li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                  <li class="page-item">
+                    <a class="page-link" href="?page={{ num }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">{{ num }}</a>
+                  </li>
+                {% endif %}
+              {% endfor %}
+              
+              {% if page_obj.has_next %}
+                <li class="page-item">
+                  <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">
+                    <i class="fas fa-chevron-right"></i>
+                  </a>
+                </li>
+              {% else %}
+                <li class="page-item disabled">
+                  <span class="page-link"><i class="fas fa-chevron-right"></i></span>
+                </li>
+              {% endif %}
+            </ul>
+          </nav>
+        {% endif %}
+      {% else %}
+        <div class="text-center py-5">
+          <i class="fas fa-history fa-3x text-muted mb-3"></i>
+          <h4 class="text-muted">{% translate "No event logs found" %}</h4>
+          <p class="text-muted">{% translate "Try adjusting your filters or check back later." %}</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}

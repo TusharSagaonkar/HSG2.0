@@ -495,9 +495,97 @@ const initAutoReloadUnitForms = () => {
   });
 };
 
+const initUnitSearchForms = () => {
+  const forms = Array.from(document.querySelectorAll("form[data-unit-search-url]"));
+  if (!forms.length) {
+    return;
+  }
+
+  forms.forEach((form) => {
+    const searchField = form.querySelector("#id_unit_search");
+    const hiddenUnitField = form.querySelector("#id_unit");
+    const resultsContainer = form.querySelector("[data-unit-search-results]");
+    const societyField = form.querySelector("#id_society");
+    const searchUrl = form.getAttribute("data-unit-search-url");
+
+    if (!searchField || !hiddenUnitField || !resultsContainer || !searchUrl) {
+      return;
+    }
+
+    let debounceTimer = null;
+
+    const clearResults = () => {
+      resultsContainer.innerHTML = "";
+      resultsContainer.classList.add("d-none");
+    };
+
+    const selectUnit = (unit) => {
+      hiddenUnitField.value = String(unit.id);
+      searchField.value = unit.label;
+      clearResults();
+    };
+
+    const renderResults = (units) => {
+      resultsContainer.innerHTML = "";
+      if (!units.length) {
+        clearResults();
+        return;
+      }
+      units.forEach((unit) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = "list-group-item list-group-item-action";
+        button.textContent = unit.label;
+        button.addEventListener("click", () => selectUnit(unit));
+        resultsContainer.appendChild(button);
+      });
+      resultsContainer.classList.remove("d-none");
+    };
+
+    const searchUnits = async () => {
+      const q = searchField.value.trim();
+      const societyId = societyField ? societyField.value : "";
+      if (!societyId || !q) {
+        clearResults();
+        return;
+      }
+
+      const url = new URL(searchUrl, window.location.origin);
+      url.searchParams.set("society_id", societyId);
+      url.searchParams.set("q", q);
+
+      try {
+        const response = await fetch(url.toString(), {
+          headers: {
+            "X-Requested-With": "XMLHttpRequest",
+          },
+        });
+        const data = await response.json();
+        renderResults(data.units || []);
+      } catch (error) {
+        clearResults();
+      }
+    };
+
+    searchField.addEventListener("input", () => {
+      hiddenUnitField.value = "";
+      window.clearTimeout(debounceTimer);
+      debounceTimer = window.setTimeout(searchUnits, 250);
+    });
+
+    searchField.addEventListener("focus", searchUnits);
+
+    document.addEventListener("click", (event) => {
+      if (!form.contains(event.target)) {
+        clearResults();
+      }
+    });
+  });
+};
+
 const initStructureHierarchyFilters = () => {
   const filterBar = document.querySelector("[data-structure-filters]");
-  if (!filterBar || !window.bootstrap) {
+  if (!filterBar) {
     return;
   }
 
@@ -561,7 +649,7 @@ const initStructureHierarchyFilters = () => {
         visibleUnitCount > 0 ||
         visibleChildCount > 0;
 
-      if (collapseElement) {
+      if (collapseElement && window.bootstrap && window.bootstrap.Collapse) {
         const collapseInstance = window.bootstrap.Collapse.getOrCreateInstance(collapseElement, {
           toggle: false,
         });
@@ -627,5 +715,6 @@ window.addEventListener("DOMContentLoaded", () => {
   initVoucherDetailModal();
   initAutoReloadSocietyForms();
   initAutoReloadUnitForms();
+  initUnitSearchForms();
   initStructureHierarchyFilters();
 });

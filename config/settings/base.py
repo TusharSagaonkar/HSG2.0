@@ -120,6 +120,7 @@ LOCAL_APPS = [
     # Your stuff: custom apps go here
     "societies",
     "members",
+    "shares",
     "billing",
     "receipts",
     "notifications",

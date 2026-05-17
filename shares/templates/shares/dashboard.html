@@ -1,0 +1,173 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Shares" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Share Management" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Track balances, certificates, and share transactions in one place." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="action-bar">
+    <a href="{% url 'shares:rules' %}" class="btn-action btn-action--secondary">
+      <i class="fas fa-cog me-1"></i>{% translate "Society Rules" %}
+    </a>
+    <a href="{% url 'shares:allotment' %}" class="btn-action btn-action--primary">
+      <i class="fas fa-plus-circle me-1"></i>{% translate "Allot Shares" %}
+    </a>
+    <a href="{% url 'shares:transfer' %}" class="btn-action btn-action--primary">
+      <i class="fas fa-exchange-alt me-1"></i>{% translate "Transfer Shares" %}
+    </a>
+    <a href="{% url 'shares:transmission' %}" class="btn-action btn-action--primary">
+      <i class="fas fa-share-alt me-1"></i>{% translate "Transmit Shares" %}
+    </a>
+    <a href="{% url 'shares:correction' %}" class="btn-action btn-action--warning">
+      <i class="fas fa-wrench me-1"></i>{% translate "Record Correction" %}
+    </a>
+    <a href="{% url 'shares:certificate-list' %}" class="btn-action btn-action--secondary">
+      <i class="fas fa-certificate me-1"></i>{% translate "Certificates" %}
+    </a>
+  </div>
+
+  <div class="row">
+    <div class="col-12 col-md-3 mb-4">
+      {% include "components/stat_card.html" with icon="fas fa-users" label=_("Members") value=member_count color="primary" %}
+    </div>
+    <div class="col-12 col-md-3 mb-4">
+      {% include "components/stat_card.html" with icon="fas fa-layer-group" label=_("Total Shares") value=total_shares color="success" %}
+    </div>
+    <div class="col-12 col-md-3 mb-4">
+      {% include "components/stat_card.html" with icon="fas fa-certificate" label=_("Certificates") value=certificate_count subtitle=_("Issued across the selected society") color="warning" %}
+    </div>
+    <div class="col-12 col-md-3 mb-4">
+      {% include "components/stat_card.html" with icon="fas fa-history" label=_("Ledger Entries") value=ledger_count color="info" %}
+    </div>
+  </div>
+
+  <div class="row">
+    <div class="col-12 col-lg-7 mb-4">
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{% translate "Recent Share Activity" %}</h3>
+          <a href="{% url 'shares:ledger-list' %}" class="btn-action btn-action--small">
+            {% translate "View all" %}
+          </a>
+        </div>
+        <div class="content-card__body">
+          {% if recent_ledger_entries %}
+            <div class="table-responsive">
+              <table class="table table-hover align-middle">
+                <thead>
+                  <tr>
+                    <th>{% translate "Date" %}</th>
+                    <th>{% translate "Member" %}</th>
+                    <th>{% translate "Type" %}</th>
+                    <th class="text-end">{% translate "In" %}</th>
+                    <th class="text-end">{% translate "Out" %}</th>
+                    <th class="text-end">{% translate "Balance" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for entry in recent_ledger_entries %}
+                    <tr>
+                      <td>{{ entry.transaction_date|date:"d M Y" }}</td>
+                      <td>
+                        <a href="{% url 'shares:member-share-history' pk=entry.member.pk %}">
+                          {{ entry.member.full_name }}
+                        </a>
+                        <div class="text-muted small">{{ entry.member.unit.identifier }}</div>
+                      </td>
+                      <td>{{ entry.get_transaction_type_display }}</td>
+                      <td class="text-end text-success">{% if entry.shares_in > 0 %}+{{ entry.shares_in }}{% else %}-{% endif %}</td>
+                      <td class="text-end text-danger">{% if entry.shares_out > 0 %}-{{ entry.shares_out }}{% else %}-{% endif %}</td>
+                      <td class="text-end"><strong>{{ entry.balance_after }}</strong></td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="empty-state">
+              <div class="empty-state__icon">
+                <i class="fas fa-history"></i>
+              </div>
+              <h3 class="empty-state__title">{% translate "No share activity yet" %}</h3>
+              <p class="empty-state__message">{% translate "Start by allotting or transferring shares for the selected society." %}</p>
+              <a href="{% url 'shares:allotment' %}" class="btn-action btn-action--primary mt-3">
+                <i class="fas fa-plus-circle me-1"></i>{% translate "Allot shares" %}
+              </a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-5 mb-4">
+      <div class="content-card mb-4">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{% translate "Top Holdings" %}</h3>
+        </div>
+        <div class="content-card__body">
+          {% if recent_members %}
+            <div class="list-group list-group-flush">
+              {% for member in recent_members %}
+                <a href="{% url 'shares:member-share-history' pk=member.pk %}" class="list-group-item list-group-item-action px-0">
+                  <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                      <div class="fw-semibold">{{ member.full_name }}</div>
+                      <div class="text-muted small">{{ member.unit.identifier }}</div>
+                    </div>
+                    <span class="badge bg-primary rounded-pill">{{ member.share_balance }}</span>
+                  </div>
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            {% include "components/empty_state.html" with icon="fa-users" title=_("No members found") message=_("Add members to start tracking share ownership.") %}
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{% translate "Recent Certificates" %}</h3>
+        </div>
+        <div class="content-card__body">
+          {% if recent_certificates %}
+            <ul class="list-unstyled mb-0">
+              {% for certificate in recent_certificates %}
+                <li class="d-flex justify-content-between align-items-start py-2 border-bottom">
+                  <div>
+                    <div class="fw-semibold">
+                      <a href="{% url 'shares:certificate-detail' pk=certificate.pk %}" class="text-decoration-none">
+                        {{ certificate.certificate_no }}
+                      </a>
+                    </div>
+                    <div class="text-muted small">{{ certificate.member.full_name }}</div>
+                  </div>
+                  <span class="badge bg-{% if certificate.status == 'ACTIVE' %}success{% elif certificate.status == 'CANCELLED' %}danger{% else %}warning{% endif %}">
+                    {{ certificate.get_status_display }}
+                  </span>
+                </li>
+              {% endfor %}
+            </ul>
+          {% else %}
+            <div class="empty-state">
+              <div class="empty-state__icon">
+                <i class="fas fa-certificate"></i>
+              </div>
+              <h3 class="empty-state__title">{% translate "No certificates yet" %}</h3>
+              <p class="empty-state__message">{% translate "Issue the first certificate from the allotment flow." %}</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+  {{ form_title }} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {{ form_title }}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {{ form_subtitle }}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="action-bar">
+    <a href="{% if cancel_url %}{{ cancel_url }}{% else %}{% url 'housing:dashboard' %}{% endif %}"
+       class="btn-action btn-action--secondary">
+      <i class="fas fa-arrow-left me-1"></i>{% if cancel_label %}{{ cancel_label }}{% else %}{% translate "Back" %}{% endif %}
+    </a>
+  </div>
+
+  <div class="content-card shadow-sm border-0 overflow-hidden">
+    <div class="content-card__body p-0">
+      <div class="row g-0">
+        <div class="col-12 col-xl-4 border-end bg-light">
+          <div class="p-4 p-xl-5 h-100">
+            <p class="text-uppercase text-muted small fw-semibold mb-2">{% translate "Member Setup" %}</p>
+            <h2 class="h4 mb-3">{% translate "Create a crisp, well-linked membership record." %}</h2>
+            <p class="text-muted mb-4">
+              {% translate "Start with the society and unit, then assign the member to the right receivable account so billing stays aligned from day one." %}
+            </p>
+            <div class="d-grid gap-2">
+              <div class="p-3 rounded-3 bg-white border">
+                <div class="small text-muted">{% translate "Default receivable" %}</div>
+                <div class="fw-semibold">
+                  {% if form.receivable_account.value %}
+                    {% translate "Pre-selected" %}
+                  {% else %}
+                    {% translate "Auto-selected from society" %}
+                  {% endif %}
+                </div>
+              </div>
+              <div class="p-3 rounded-3 bg-white border">
+                <div class="small text-muted">{% translate "Status" %}</div>
+                <div class="fw-semibold">{% translate "Active by default" %}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-xl-8">
+          <div class="p-4 p-xl-5">
+            <form method="post"
+                  novalidate
+                  {% if unit_search_url %}data-unit-search-url="{{ unit_search_url }}"{% endif %}
+                  {% if society_id %}data-society-id="{{ society_id }}"{% endif %}>
+              {% csrf_token %}
+
+              {% if form.non_field_errors %}
+                <div class="alert alert-danger" role="alert">
+                  {% for error in form.non_field_errors %}
+                    <div>{{ error }}</div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+
+              {{ form.unit }}
+
+              <div class="row g-3">
+                <div class="col-12">
+                  <div class="section-label mb-2">{% translate "Identity" %}</div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label" for="{{ form.society.id_for_label }}">{{ form.society.label }}</label>
+                  {{ form.society }}
+                  {% for error in form.society.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label" for="{{ form.unit_search.id_for_label }}">{{ form.unit_search.label }}</label>
+                  {{ form.unit_search }}
+                  {% if form.unit_search.help_text %}<div class="form-text">{{ form.unit_search.help_text }}</div>{% endif %}
+                  <div class="unit-search-results list-group mt-2 d-none" data-unit-search-results></div>
+                  {% for error in form.unit_search.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label" for="{{ form.full_name.id_for_label }}">{{ form.full_name.label }}</label>
+                  {{ form.full_name }}
+                  {% for error in form.full_name.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label" for="{{ form.user.id_for_label }}">{{ form.user.label }}</label>
+                  {{ form.user }}
+                  {% if form.user.help_text %}<div class="form-text">{{ form.user.help_text }}</div>{% endif %}
+                  {% for error in form.user.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                </div>
+
+                <div class="col-12">
+                  <div class="section-label mt-2 mb-2">{% translate "Contact" %}</div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label" for="{{ form.email.id_for_label }}">{{ form.email.label }}</label>
+                  {{ form.email }}
+                  {% for error in form.email.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label" for="{{ form.phone.id_for_label }}">{{ form.phone.label }}</label>
+                  {{ form.phone }}
+                  {% for error in form.phone.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                </div>
+
+                <div class="col-12">
+                  <div class="section-label mt-2 mb-2">{% translate "Membership" %}</div>
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label" for="{{ form.role.id_for_label }}">{{ form.role.label }}</label>
+                  {{ form.role }}
+                  {% for error in form.role.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label" for="{{ form.status.id_for_label }}">{{ form.status.label }}</label>
+                  {{ form.status }}
+                  {% for error in form.status.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-12 col-md-4 {% if form.role.value != 'OWNER' %}d-none{% endif %}" id="receivable-account-group">
+                  <label class="form-label" for="{{ form.receivable_account.id_for_label }}">{{ form.receivable_account.label }}</label>
+                  {{ form.receivable_account }}
+                  {% if form.receivable_account.help_text %}<div class="form-text">{{ form.receivable_account.help_text }}</div>{% endif %}
+                  <small class="text-muted d-block mt-1">{% translate "Available only for owner members." %}</small>
+                  {% for error in form.receivable_account.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                </div>
+
+                <div class="col-12">
+                  <div class="section-label mt-2 mb-2">{% translate "Dates" %}</div>
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label" for="{{ form.start_date.id_for_label }}">{{ form.start_date.label }}</label>
+                  {{ form.start_date }}
+                  {% for error in form.start_date.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label" for="{{ form.end_date.id_for_label }}">{{ form.end_date.label }}</label>
+                  {{ form.end_date }}
+                  {% for error in form.end_date.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                </div>
+              </div>
+
+              <div class="form-actions form-actions-inline mt-4">
+                <a href="{% if cancel_url %}{{ cancel_url }}{% else %}{% url 'housing:dashboard' %}{% endif %}"
+                   class="btn-action btn-action--secondary">
+                  <i class="fas fa-times me-1"></i>{% translate "Cancel" %}
+                </a>
+                <button type="submit" class="btn-action btn-action--primary">
+                  <i class="{% if submit_icon %}{{ submit_icon }}{% else %}fas fa-save{% endif %} me-1"></i>{% if submit_label %}{{ submit_label }}{% else %}{% translate "Save Member" %}{% endif %}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .section-label {
+      font-size: 0.78rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #6c757d;
+      font-weight: 700;
+    }
+  </style>
+  <script>
+    (function() {
+      const roleField = document.getElementById("{{ form.role.id_for_label }}");
+      const receivableGroup = document.getElementById("receivable-account-group");
+      const receivableField = document.getElementById("{{ form.receivable_account.id_for_label }}");
+
+      function syncReceivableVisibility() {
+        const isOwner = roleField && roleField.value === "OWNER";
+        receivableGroup.classList.toggle("d-none", !isOwner);
+        receivableField.disabled = !isOwner;
+        if (!isOwner) {
+          receivableField.value = "";
+        }
+      }
+
+      if (roleField && receivableGroup && receivableField) {
+        roleField.addEventListener("change", syncReceivableVisibility);
+        syncReceivableVisibility();
+      }
+    })();
+  </script>
+  <script>
+    (function() {
+      const form = document.querySelector('form[data-unit-search-url]');
+      if (!form) {
+        return;
+      }
+
+      const searchUrl = form.dataset.unitSearchUrl;
+      const societyId = form.dataset.societyId || "";
+      const searchInput = document.getElementById("{{ form.unit_search.id_for_label }}");
+      const unitHidden = document.getElementById("{{ form.unit.id_for_label }}");
+      const resultsBox = form.querySelector("[data-unit-search-results]");
+      const societyField = document.getElementById("{{ form.society.id_for_label }}");
+      let debounceTimer = null;
+      let activeRequest = null;
+
+      function getSocietyId() {
+        if (societyId) {
+          return societyId;
+        }
+        if (societyField && societyField.value) {
+          return societyField.value;
+        }
+        return "";
+      }
+
+      function clearResults(message) {
+        resultsBox.innerHTML = "";
+        resultsBox.classList.add("d-none");
+        if (message) {
+          const item = document.createElement("div");
+          item.className = "list-group-item text-muted";
+          item.textContent = message;
+          resultsBox.appendChild(item);
+          resultsBox.classList.remove("d-none");
+        }
+      }
+
+      function selectUnit(unit) {
+        searchInput.value = unit.label;
+        unitHidden.value = unit.id;
+        clearResults();
+      }
+
+      function renderResults(units) {
+        resultsBox.innerHTML = "";
+        if (!units.length) {
+          clearResults("{% translate 'No matching units found.' %}");
+          return;
+        }
+
+        units.forEach((unit) => {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "list-group-item list-group-item-action";
+          button.innerHTML = `<strong>${unit.identifier}</strong> <span class="text-muted">/ ${unit.structure_name}</span>`;
+          button.addEventListener("click", () => selectUnit(unit));
+          resultsBox.appendChild(button);
+        });
+
+        resultsBox.classList.remove("d-none");
+      }
+
+      async function searchUnits(query) {
+        const activeSocietyId = getSocietyId();
+        if (!activeSocietyId || !query.trim()) {
+          clearResults();
+          return;
+        }
+
+        if (activeRequest) {
+          activeRequest.abort();
+        }
+        activeRequest = new AbortController();
+
+        const url = new URL(searchUrl, window.location.origin);
+        url.searchParams.set("society_id", activeSocietyId);
+        url.searchParams.set("q", query.trim());
+
+        try {
+          const response = await fetch(url.toString(), { signal: activeRequest.signal });
+          if (!response.ok) {
+            clearResults("{% translate 'Search unavailable right now.' %}");
+            return;
+          }
+          const payload = await response.json();
+          renderResults(payload.units || []);
+        } catch (error) {
+          if (error.name !== "AbortError") {
+            clearResults("{% translate 'Search unavailable right now.' %}");
+          }
+        }
+      }
+
+      searchInput.addEventListener("input", () => {
+        unitHidden.value = "";
+        clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => searchUnits(searchInput.value), 250);
+      });
+
+      searchInput.addEventListener("focus", () => {
+        if (searchInput.value.trim()) {
+          searchUnits(searchInput.value);
+        }
+      });
+
+      if (societyField && !societyId) {
+        societyField.addEventListener("change", () => {
+          unitHidden.value = "";
+          clearResults();
+          if (searchInput.value.trim()) {
+            searchUnits(searchInput.value);
+          }
+        });
+      }
+
+      document.addEventListener("click", (event) => {
+        if (!resultsBox.contains(event.target) && event.target !== searchInput) {
+          resultsBox.classList.add("d-none");
+        }
+      });
+
+      if (searchInput.value.trim()) {
+        searchUnits(searchInput.value);
+      }
+    })();
+  </script>
+{% endblock content %}

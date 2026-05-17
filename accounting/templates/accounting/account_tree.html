@@ -14,27 +14,49 @@
 {% endblock dashboard_subtitle %}
 
 {% block content %}
+  <section class="tree-hero">
+    <div class="tree-hero-copy">
+      <div class="tree-kicker">{% translate "Account hierarchy" %}</div>
+      <h2 class="tree-hero-title">{% translate "Account Tree" %}</h2>
+      <p class="tree-hero-subtitle">
+        {% translate "A structured chart of accounts with parent groups, nested branches, and leaf accounts shown in reading order." %}
+      </p>
+    </div>
+
+    <div class="tree-hero-meta">
+      <div class="tree-stat">
+        <span class="tree-stat-value">{{ total_accounts }}</span>
+        <span class="tree-stat-label">{% translate "accounts" %}</span>
+      </div>
+      <div class="tree-stat">
+        <span class="tree-stat-value">{{ tree_groups|length }}</span>
+        <span class="tree-stat-label">{% translate "societies" %}</span>
+      </div>
+    </div>
+  </section>
+
   <div class="tree-page-actions">
-    <a href="{% url 'accounting:account-list' %}" class="tree-link">
-      <i class="fas fa-list me-1"></i>{% translate "Flat List" %}
-    </a>
     <a href="{% url 'accounting:dashboard' %}" class="tree-link">
       <i class="fas fa-arrow-left me-1"></i>{% translate "Dashboard" %}
     </a>
+    <a href="{% url 'accounting:account-list' %}" class="tree-link">
+      <i class="fas fa-list me-1"></i>{% translate "Flat List" %}
+    </a>
   </div>
 
-  <div class="tree-summary">
-    {{ total_accounts }} {% translate "accounts" %}
-    {% if tree_groups|length > 1 %}
-      {% translate "across" %} {{ tree_groups|length }} {% translate "societies" %}
-    {% endif %}
+  <div class="tree-legend" aria-label="{% translate 'Tree legend' %}">
+    <span class="tree-legend-item"><span class="tree-legend-swatch tree-legend-swatch--root"></span>{% translate "Root account" %}</span>
+    <span class="tree-legend-item"><span class="tree-legend-swatch tree-legend-swatch--branch"></span>{% translate "Child branch" %}</span>
+    <span class="tree-legend-item"><span class="tree-legend-swatch tree-legend-swatch--leaf"></span>{% translate "Leaf account" %}</span>
   </div>
 
   {% for group in tree_groups %}
     <div class="tree-group">
       <div class="tree-group-header">
-        <span class="tree-group-name">{{ group.society.name }}</span>
-        <span class="tree-group-count">{{ group.nodes|length }} {% translate "root" %}</span>
+        <div class="tree-group-title">
+          <span class="tree-group-name">{{ group.society.name }}</span>
+          <span class="tree-group-count">{{ group.nodes|length }} {% translate "root accounts" %}</span>
+        </div>
       </div>
 
       {% if group.nodes %}

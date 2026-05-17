@@ -19,3 +19,24 @@ class Society(models.Model):
 
     def __str__(self):
         return self.name
+
+    @property
+    def share_config(self):
+        """
+        Returns the related SocietyConfig or creates a default one if it doesn't exist.
+        """
+        from .model_SocietyConfig import SocietyConfig
+        
+        config, created = SocietyConfig.objects.get_or_create(
+            society=self,
+            defaults={
+                "share_value": 100.00,
+                "default_share_count": 1,
+                "entrance_fee": 0,
+                "transfer_fee": 0,
+                "premium_amount": 0,
+                "allow_multiple_nominees": False,
+                "require_approval": True,
+            }
+        )
+        return config

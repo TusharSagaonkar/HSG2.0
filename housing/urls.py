@@ -8,6 +8,7 @@ from housing.views import member_create_view
 from housing.views import member_list_view
 from housing.views import member_update_view
 from housing.views import member_form_options_api_view
+from housing.views import unit_search_api_view
 from housing.views import outstanding_dashboard_view
 from housing.views import receipt_post_view
 from housing.views import reminder_schedule_view
@@ -22,6 +23,7 @@ from housing.views import society_list_view
 from housing.views import structure_create_view
 from housing.views import structure_unit_dashboard_view
 from housing.views import bulk_unit_create_view
+from housing.views import unit_detail_view
 from housing.views import unit_create_view
 from housing.views import unit_occupancy_create_view
 from housing.views import unit_ownership_create_view
@@ -49,6 +51,7 @@ urlpatterns = [
         view=structure_unit_dashboard_view,
         name="structure-unit-dashboard",
     ),
+    path("units/<int:pk>/", view=unit_detail_view, name="unit-detail"),
     path("structures/add/", view=structure_create_view, name="structure-add"),
     path("units/add/", view=unit_create_view, name="unit-add"),
     path("units/bulk-add/", view=bulk_unit_create_view, name="unit-bulk-add"),
@@ -57,6 +60,7 @@ urlpatterns = [
     path("members/", view=member_list_view, name="member-list"),
     path("members/add/", view=member_create_view, name="member-add"),
     path("members/api/form-options/", view=member_form_options_api_view, name="member-form-options-api"),
+    path("members/api/unit-search/", view=unit_search_api_view, name="unit-search-api"),
     path("members/<int:pk>/edit/", view=member_update_view, name="member-edit"),
     path(
         "billing/templates/add/",

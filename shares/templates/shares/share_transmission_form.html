@@ -1,0 +1,78 @@
+{% extends "shares/share_form_base.html" %}
+{% load i18n %}
+
+{% block dashboard_title %}
+  {% translate "Transmit Shares to Nominee" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Transfer shares to a nominee (e.g., due to death, incapacitation)" %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {{ block.super }}
+  
+  <div class="content-card mt-4">
+    <div class="content-card__header">
+      <h3 class="content-card__title">{% translate "Transmission Information" %}</h3>
+    </div>
+    <div class="content-card__body">
+      <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        {% translate "Share transmission is typically used when a member passes away or becomes incapacitated. The shares are transferred to the nominee according to the nomination records." %}
+      </div>
+      
+      <div class="row mt-3">
+        <div class="col-12">
+          <h5>{% translate "Requirements" %}</h5>
+          <ul>
+            <li>{% translate "Member must have active nominees" %}</li>
+            <li>{% translate "Nominee must be eligible to receive shares" %}</li>
+            <li>{% translate "Appropriate documentation may be required" %}</li>
+            <li>{% translate "Transmission may trigger accounting entries" %}</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Filter nominees based on selected member
+      const memberSelect = document.querySelector('#id_member');
+      const nomineeSelect = document.querySelector('#id_nominee');
+      
+      if (memberSelect && nomineeSelect) {
+        const originalOptions = Array.from(nomineeSelect.options);
+        
+        function filterNominees() {
+          const memberId = memberSelect.value;
+          
+          // Clear current options
+          nomineeSelect.innerHTML = '';
+          
+          // Add empty option
+          const emptyOption = document.createElement('option');
+          emptyOption.value = '';
+          emptyOption.textContent = '---------';
+          nomineeSelect.appendChild(emptyOption);
+          
+          // Filter and add matching nominees
+          originalOptions.forEach(option => {
+            if (option.value === '') return;
+            
+            // In a real implementation, you would check data attributes
+            // For now, we'll just show all nominees and rely on server validation
+            nomineeSelect.appendChild(option.cloneNode(true));
+          });
+          
+          // If a member is selected, you could fetch nominees via AJAX
+          // This is a simplified implementation
+        }
+        
+        memberSelect.addEventListener('change', filterNominees);
+        filterNominees();
+      }
+    });
+  </script>
+{% endblock content %}

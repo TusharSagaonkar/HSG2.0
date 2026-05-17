@@ -101,7 +101,11 @@
               </a>
             </td>
             <td>{{ member.unit.structure.name }}</td>
-            <td>{{ member.unit.identifier }}</td>
+            <td>
+              <a href="{% url 'housing:unit-detail' member.unit.pk %}" class="text-decoration-none">
+                {{ member.unit.identifier }}
+              </a>
+            </td>
             <td>{{ member.get_role_display }}</td>
             <td>{{ member.get_status_display }}</td>
             <td>{{ member.receivable_account|default:"-" }}</td>

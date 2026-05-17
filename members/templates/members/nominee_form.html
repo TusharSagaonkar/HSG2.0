@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+  {% if object %}Edit{% else %}Add{% endif %} Nominee | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% if object %}Edit{% else %}Add{% endif %} Nominee
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {{ member.full_name }} / {{ member.society.name }}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="action-bar">
+    <a href="{% if cancel_url %}{{ cancel_url }}{% else %}{% url 'members:member-detail' member.pk %}{% endif %}"
+       class="btn-action btn-action--secondary">
+      <i class="fas fa-arrow-left me-1"></i>{% translate "Back to Member" %}
+    </a>
+  </div>
+
+  <div class="content-card">
+    <div class="content-card__body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        
+        <div class="row g-3">
+          {% if form.non_field_errors %}
+            <div class="col-12">
+              <div class="alert alert-danger mb-0" role="alert">
+                {% for error in form.non_field_errors %}
+                  <div>{{ error }}</div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
+          <!-- Member Information (read-only) -->
+          <div class="col-12">
+            <div class="alert alert-info mb-0" role="alert">
+              <i class="fas fa-info-circle me-2"></i>
+              {% translate "Adding nominee for" %} <strong>{{ member.full_name }}</strong> ({{ member.unit.identifier }})
+            </div>
+          </div>
+
+          {% for field in form %}
+            {% if field.field.widget.input_type == "checkbox" %}
+              <div class="col-12">
+                <div class="form-check mt-2">
+                  {{ field }}
+                  <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                </div>
+                {% if field.help_text %}
+                  <div class="form-text">{{ field.help_text }}</div>
+                {% endif %}
+                {% for error in field.errors %}
+                  <div class="form-error">{{ error }}</div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="{% if field.field.widget.input_type == 'textarea' or field.name == 'address' or field.name == 'notes' %}col-12{% else %}col-12 col-md-6{% endif %}">
+                <div class="form-group">
+                  <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                  {{ field }}
+                  {% if field.help_text %}
+                    <div class="form-text">{{ field.help_text }}</div>
+                  {% endif %}
+                  {% for error in field.errors %}
+                    <div class="form-error">{{ error }}</div>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+          {% endfor %}
+
+          <!-- Share Allocation Information -->
+          <div class="col-12">
+            <div class="alert alert-warning mb-0" role="alert">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              {% translate "Note: The total percentage of all active nominees cannot exceed 100%. Current active nominees total:" %} {{ current_total_percentage|floatformat:2 }}%
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions form-actions-inline">
+          <a href="{% if cancel_url %}{{ cancel_url }}{% else %}{% url 'members:member-detail' member.pk %}{% endif %}"
+             class="btn-action btn-action--secondary">
+            <i class="fas fa-times me-1"></i>{% translate "Cancel" %}
+          </a>
+          <button type="submit" class="btn-action btn-action--primary">
+            <i class="fas fa-save me-1"></i>{% translate "Save Nominee" %}
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- JavaScript for percentage validation -->
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      const percentageField = document.getElementById('{{ form.percentage.id_for_label }}');
+      const currentTotal = parseFloat('{{ current_total_percentage|default:"0" }}');
+      const maxPercentage = 100 - currentTotal;
+      
+      if (percentageField) {
+        // Update help text dynamically
+        const helpText = percentageField.parentElement.querySelector('.form-text');
+        if (helpText) {
+          helpText.textContent = 'Maximum allowed: ' + maxPercentage.toFixed(2) + '% (100% - current total ' + currentTotal.toFixed(2) + '%)';
+        }
+        
+        // Add validation
+        percentageField.addEventListener('change', function() {
+          const value = parseFloat(this.value);
+          if (value > maxPercentage) {
+            this.setCustomValidity('Percentage cannot exceed ' + maxPercentage.toFixed(2) + '%');
+          } else {
+            this.setCustomValidity('');
+          }
+        });
+      }
+    });
+  </script>
+{% endblock content %}

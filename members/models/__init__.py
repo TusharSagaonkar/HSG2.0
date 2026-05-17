@@ -1,4 +1,5 @@
 from .model_Member import Member
+from .model_Nominee import Nominee
 from .model_Structure import Structure
 from .model_Unit import Unit
 from .model_UnitOccupancy import UnitOccupancy
@@ -15,4 +16,5 @@ __all__ = [
     "Ownership",
     "UnitOccupancy",
     "Member",
+    "Nominee",
 ]

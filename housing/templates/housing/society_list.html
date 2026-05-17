@@ -34,7 +34,12 @@
                   </a>
                 </h3>
                 <p class="mb-0 text-muted">
-                  {% translate "Created by" %} {{ society.created_by.name|default:society.created_by.email|default:"-" }}
+                  {% translate "Created by" %}
+                  {% if society.created_by %}
+                    {{ society.created_by.name|default:society.created_by.email|default:"-" }}
+                  {% else %}
+                    -
+                  {% endif %}
                 </p>
               </div>
               <div class="society-overview-badges">

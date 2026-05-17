@@ -1,3 +1,4 @@
+from datetime import date
 from decimal import Decimal
 
 import pytest
@@ -7,9 +8,14 @@ from accounting.models import AccountingPeriod
 from accounting.models import LedgerEntry
 from accounting.models import Voucher
 from housing.models import Society
+from members.models import Member
 from members.models import Structure
+from members.models import Nominee
 from members.models import Unit
+from reports.services import build_active_member_list_report
 from reports.services import build_gst_reports
+from reports.services import build_member_register_report
+from shares.models import ShareCertificate
 
 
 pytestmark = pytest.mark.django_db
@@ -106,3 +112,168 @@ def test_build_gst_reports_returns_empty_note_when_no_gst_entries():
     report = build_gst_reports(society=society, to_date=today)
     assert report["rows"] == []
     assert report["status_note"] == "No GST-tagged accounts found in posted vouchers."
+
+
+def test_build_member_register_report_includes_share_and_nominee_details():
+    society = Society.objects.create(name="Form I Society")
+    structure = Structure.objects.create(
+        society=society,
+        structure_type=Structure.StructureType.BUILDING,
+        name="A",
+    )
+    unit = Unit.objects.create(
+        structure=structure,
+        unit_type=Unit.UnitType.FLAT,
+        identifier="101",
+    )
+    member = Member.objects.create(
+        society=society,
+        unit=unit,
+        full_name="Tushar Sagaonkar",
+        role=Member.MemberRole.OWNER,
+        status=Member.MemberStatus.ACTIVE,
+        join_date=date(2024, 1, 1),
+        start_date=date(2024, 1, 1),
+        share_balance=10,
+    )
+    Nominee.objects.create(
+        member=member,
+        name="Priya Sagaonkar",
+        relationship="Spouse",
+        percentage=100,
+        priority_order=1,
+    )
+    ShareCertificate.objects.create(
+        member=member,
+        certificate_no="45",
+        share_count=Decimal("10.00"),
+        issued_date=date(2024, 1, 5),
+        status=ShareCertificate.Status.ACTIVE,
+    )
+
+    report = build_member_register_report(society=society)
+
+    assert report["total_members"] == 1
+    assert report["active_members"] == 1
+    row = report["rows"][0]
+    assert row["full_name"] == "Tushar Sagaonkar"
+    assert row["share_certificate_no"] == "45"
+    assert row["nominee_name"] == "Priya Sagaonkar"
+    assert row["no_of_shares"] == Decimal("10.00")
+
+
+def test_build_member_register_report_excludes_tenant_members():
+    society = Society.objects.create(name="Form I Tenant Filter Society")
+    structure = Structure.objects.create(
+        society=society,
+        structure_type=Structure.StructureType.BUILDING,
+        name="A",
+    )
+    unit = Unit.objects.create(
+        structure=structure,
+        unit_type=Unit.UnitType.FLAT,
+        identifier="103",
+    )
+    Member.objects.create(
+        society=society,
+        unit=unit,
+        full_name="Owner Member",
+        role=Member.MemberRole.OWNER,
+        status=Member.MemberStatus.ACTIVE,
+        join_date=date(2024, 1, 1),
+        start_date=date(2024, 1, 1),
+        share_balance=10,
+    )
+    Member.objects.create(
+        society=society,
+        unit=unit,
+        full_name="Tenant Member",
+        role=Member.MemberRole.TENANT,
+        status=Member.MemberStatus.ACTIVE,
+        join_date=date(2024, 1, 2),
+        start_date=date(2024, 1, 2),
+        share_balance=2,
+    )
+
+    report = build_member_register_report(society=society)
+
+    assert report["total_members"] == 1
+    assert [row["full_name"] for row in report["rows"]] == ["Owner Member"]
+
+
+def test_build_active_member_list_report_only_returns_active_members():
+    society = Society.objects.create(name="Form J Society")
+    structure = Structure.objects.create(
+        society=society,
+        structure_type=Structure.StructureType.BUILDING,
+        name="A",
+    )
+    unit = Unit.objects.create(
+        structure=structure,
+        unit_type=Unit.UnitType.FLAT,
+        identifier="102",
+    )
+    Member.objects.create(
+        society=society,
+        unit=unit,
+        full_name="Active Member",
+        role=Member.MemberRole.OWNER,
+        status=Member.MemberStatus.ACTIVE,
+        join_date=date(2024, 1, 1),
+        start_date=date(2024, 1, 1),
+        share_balance=10,
+    )
+    Member.objects.create(
+        society=society,
+        unit=unit,
+        full_name="Inactive Member",
+        role=Member.MemberRole.OWNER,
+        status=Member.MemberStatus.INACTIVE,
+        join_date=date(2024, 1, 1),
+        start_date=date(2024, 1, 1),
+        share_balance=5,
+    )
+
+    report = build_active_member_list_report(society=society)
+
+    assert report["total_active_members"] == 1
+    assert [row["member_name"] for row in report["rows"]] == ["Active Member"]
+
+
+def test_build_active_member_list_report_excludes_tenant_members():
+    society = Society.objects.create(name="Form J Tenant Filter Society")
+    structure = Structure.objects.create(
+        society=society,
+        structure_type=Structure.StructureType.BUILDING,
+        name="A",
+    )
+    unit = Unit.objects.create(
+        structure=structure,
+        unit_type=Unit.UnitType.FLAT,
+        identifier="104",
+    )
+    Member.objects.create(
+        society=society,
+        unit=unit,
+        full_name="Owner Member",
+        role=Member.MemberRole.OWNER,
+        status=Member.MemberStatus.ACTIVE,
+        join_date=date(2024, 1, 1),
+        start_date=date(2024, 1, 1),
+        share_balance=10,
+    )
+    Member.objects.create(
+        society=society,
+        unit=unit,
+        full_name="Tenant Member",
+        role=Member.MemberRole.TENANT,
+        status=Member.MemberStatus.ACTIVE,
+        join_date=date(2024, 1, 2),
+        start_date=date(2024, 1, 2),
+        share_balance=2,
+    )
+
+    report = build_active_member_list_report(society=society)
+
+    assert report["total_active_members"] == 1
+    assert [row["member_name"] for row in report["rows"]] == ["Owner Member"]

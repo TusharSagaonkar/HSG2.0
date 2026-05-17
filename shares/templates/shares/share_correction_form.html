@@ -1,0 +1,95 @@
+{% extends "shares/share_form_base.html" %}
+{% load i18n %}
+
+{% block dashboard_title %}
+  {% translate "Record Share Correction" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Correct share balance errors (add or deduct shares)" %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {{ block.super }}
+  
+  <div class="content-card mt-4">
+    <div class="content-card__header">
+      <h3 class="content-card__title">{% translate "Correction Guidelines" %}</h3>
+    </div>
+    <div class="content-card__body">
+      <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle me-2"></i>
+        <strong>{% translate "Important:" %}</strong>
+        {% translate "Share corrections should only be used to fix accounting errors. All corrections require a detailed reason and should be documented properly." %}
+      </div>
+      
+      <div class="row mt-3">
+        <div class="col-12 col-md-6">
+          <div class="card">
+            <div class="card-header bg-primary text-white">
+              <i class="fas fa-plus-circle me-2"></i>
+              {% translate "Add Shares" %}
+            </div>
+            <div class="card-body">
+              <p>{% translate "Use when:" %}</p>
+              <ul>
+                <li>{% translate "Shares were under-recorded" %}</li>
+                <li>{% translate "Historical allotment was missed" %}</li>
+                <li>{% translate "Error in previous transaction" %}</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="card">
+            <div class="card-header bg-danger text-white">
+              <i class="fas fa-minus-circle me-2"></i>
+              {% translate "Deduct Shares" %}
+            </div>
+            <div class="card-body">
+              <p>{% translate "Use when:" %}</p>
+              <ul>
+                <li>{% translate "Shares were over-recorded" %}</li>
+                <li>{% translate "Unauthorized allotment needs reversal" %}</li>
+                <li>{% translate "Error in previous transaction" %}</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Show/hide warning based on adjustment type
+      const adjustmentTypeSelect = document.querySelector('#id_adjustment_type');
+      const warningDiv = document.createElement('div');
+      warningDiv.className = 'alert alert-danger mt-3';
+      warningDiv.style.display = 'none';
+      
+      if (adjustmentTypeSelect) {
+        const formGroup = adjustmentTypeSelect.closest('.form-group');
+        if (formGroup) {
+          formGroup.parentNode.insertBefore(warningDiv, formGroup.nextSibling);
+        }
+        
+        function updateWarning() {
+          if (adjustmentTypeSelect.value === 'DEDUCT') {
+            warningDiv.innerHTML = `
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              <strong>{% translate "Warning:" %}</strong>
+              {% translate "Deducting shares reduces the member's ownership. Ensure you have proper authorization and documentation." %}
+            `;
+            warningDiv.style.display = 'block';
+          } else {
+            warningDiv.style.display = 'none';
+          }
+        }
+        
+        adjustmentTypeSelect.addEventListener('change', updateWarning);
+        updateWarning();
+      }
+    });
+  </script>
+{% endblock content %}

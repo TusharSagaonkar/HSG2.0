@@ -1,0 +1,79 @@
+{% extends "shares/share_form_base.html" %}
+{% load i18n %}
+
+{% block dashboard_title %}
+  {% translate "Transfer Shares" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Transfer shares between members" %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {{ block.super }}
+  
+  <div class="content-card mt-4">
+    <div class="content-card__header">
+      <h3 class="content-card__title">{% translate "Transfer Rules" %}</h3>
+    </div>
+    <div class="content-card__body">
+      <ul class="list-group list-group-flush">
+        <li class="list-group-item">
+          <i class="fas fa-info-circle text-primary me-2"></i>
+          {% translate "Both members must belong to the same society" %}
+        </li>
+        <li class="list-group-item">
+          <i class="fas fa-info-circle text-primary me-2"></i>
+          {% translate "Transferring member must have sufficient shares" %}
+        </li>
+        <li class="list-group-item">
+          <i class="fas fa-info-circle text-primary me-2"></i>
+          {% translate "Transfer cannot be to the same member" %}
+        </li>
+        <li class="list-group-item">
+          <i class="fas fa-info-circle text-primary me-2"></i>
+          {% translate "Transfer will create two ledger entries (out and in)" %}
+        </li>
+      </ul>
+    </div>
+  </div>
+  
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      // Update available shares when from_member changes
+      const fromMemberSelect = document.querySelector('#id_from_member');
+      const shareCountField = document.querySelector('#id_share_count');
+      const availableSharesSpan = document.createElement('span');
+      availableSharesSpan.className = 'form-text text-muted';
+      availableSharesSpan.id = 'available-shares';
+      
+      if (fromMemberSelect && shareCountField) {
+        // Insert after share count field
+        const shareCountGroup = shareCountField.closest('.form-group');
+        if (shareCountGroup) {
+          shareCountGroup.appendChild(availableSharesSpan);
+        }
+        
+        function updateAvailableShares() {
+          const memberId = fromMemberSelect.value;
+          if (!memberId) {
+            availableSharesSpan.textContent = '';
+            return;
+          }
+          
+          // In a real implementation, you would fetch via AJAX
+          // For now, we'll just show a placeholder
+          availableSharesSpan.textContent = '{% translate "Fetching available shares..." %}';
+          
+          // Simulate AJAX call - in production, implement actual API endpoint
+          setTimeout(() => {
+            availableSharesSpan.textContent = '{% translate "Available shares will be shown here" %}';
+          }, 500);
+        }
+        
+        fromMemberSelect.addEventListener('change', updateAvailableShares);
+        updateAvailableShares();
+      }
+    });
+  </script>
+{% endblock content %}

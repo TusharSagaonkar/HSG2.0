@@ -1,0 +1,404 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+  {{ member.full_name }} - {% translate "Share History" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {{ member.full_name }}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Share Ownership History" %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="action-bar">
+    <a href="{% url 'members:member-detail' pk=member.pk %}" class="btn-action btn-action--secondary">
+      <i class="fas fa-user me-1"></i>{% translate "Back to Member" %}
+    </a>
+    <a href="{% url 'shares:allotment' %}" class="btn-action btn-action--primary">
+      <i class="fas fa-plus-circle me-1"></i>{% translate "Allot Shares" %}
+    </a>
+    <a href="{% url 'shares:transfer' %}" class="btn-action btn-action--primary">
+      <i class="fas fa-exchange-alt me-1"></i>{% translate "Transfer Shares" %}
+    </a>
+    <a href="{% url 'shares:correction' %}" class="btn-action btn-action--warning">
+      <i class="fas fa-wrench me-1"></i>{% translate "Record Correction" %}
+    </a>
+  </div>
+
+  <div class="row">
+    <!-- Member Details Card -->
+    <div class="col-12 col-md-4 mb-4">
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{% translate "Member Details" %}</h3>
+        </div>
+        <div class="content-card__body">
+          <div class="info-item">
+            <span class="info-item__label">{% translate "Full Name" %}</span>
+            <span class="info-item__value">{{ member.full_name }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-item__label">{% translate "Email" %}</span>
+            <span class="info-item__value">{{ member.email|default:"-" }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-item__label">{% translate "Phone" %}</span>
+            <span class="info-item__value">{{ member.phone|default:"-" }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-item__label">{% translate "Role" %}</span>
+            <span class="info-item__value">{{ member.get_role_display }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-item__label">{% translate "Status" %}</span>
+            <span class="info-item__value">
+              <span class="badge bg-{% if member.status == 'ACTIVE' %}success{% else %}secondary{% endif %}">
+                {{ member.get_status_display }}
+              </span>
+            </span>
+          </div>
+          <div class="info-item">
+            <span class="info-item__label">{% translate "Unit" %}</span>
+            <span class="info-item__value">
+              {% if member.unit %}
+                {{ member.unit.name }}
+                {% if member.unit.structure %}
+                  <br><small class="text-muted">{{ member.unit.structure.name }}</small>
+                {% endif %}
+              {% else %}
+                <span class="text-muted">-</span>
+              {% endif %}
+            </span>
+          </div>
+          <div class="info-item">
+            <span class="info-item__label">{% translate "Join Date" %}</span>
+            <span class="info-item__value">{{ member.join_date|date:"d M Y" }}</span>
+          </div>
+          <div class="info-item">
+            <span class="info-item__label">{% translate "Start Date" %}</span>
+            <span class="info-item__value">{{ member.start_date|date:"d M Y" }}</span>
+          </div>
+          {% if member.end_date %}
+          <div class="info-item">
+            <span class="info-item__label">{% translate "End Date" %}</span>
+            <span class="info-item__value">{{ member.end_date|date:"d M Y" }}</span>
+          </div>
+          {% endif %}
+          {% if member.exit_date %}
+          <div class="info-item">
+            <span class="info-item__label">{% translate "Exit Date" %}</span>
+            <span class="info-item__value">{{ member.exit_date|date:"d M Y" }}</span>
+          </div>
+          {% endif %}
+          <div class="info-item">
+            <span class="info-item__label">{% translate "Created At" %}</span>
+            <span class="info-item__value">{{ member.created_at|date:"d M Y H:i" }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Share Summary Card -->
+    <div class="col-12 col-md-8 mb-4">
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{% translate "Share Summary" %}</h3>
+        </div>
+        <div class="content-card__body">
+          <div class="row g-3">
+            <div class="col-6 col-md-3">
+              {% include "components/stat_card.html" with icon="fas fa-wallet" label=_("Current Balance") value=total_shares color="primary" %}
+            </div>
+            <div class="col-6 col-md-3">
+              {% include "components/stat_card.html" with icon="fas fa-plus-circle" label=_("Total Allotted") value=total_allotted color="success" %}
+            </div>
+            <div class="col-6 col-md-3">
+              {% include "components/stat_card.html" with icon="fas fa-arrow-down" label=_("Transferred In") value=total_transferred_in color="info" %}
+            </div>
+            <div class="col-6 col-md-3">
+              {% include "components/stat_card.html" with icon="fas fa-arrow-up" label=_("Transferred Out") value=total_transferred_out color="danger" %}
+            </div>
+          </div>
+          <hr>
+          <div class="row g-3">
+            <div class="col-6">
+              {% include "components/stat_card.html" with icon="fas fa-certificate" label=_("Active Certificates") value=active_certificates.count color="warning" %}
+            </div>
+            <div class="col-6">
+              {% include "components/stat_card.html" with icon="fas fa-user-friends" label=_("Active Nominees") value=active_nominees.count color="secondary" %}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Nominees Card -->
+  <div class="content-card mb-4">
+    <div class="content-card__header">
+      <h3 class="content-card__title">{% translate "Nominees" %}</h3>
+      <a href="{% url 'members:nominee-list' member_pk=member.pk %}" class="btn-action btn-action--small">
+        <i class="fas fa-edit me-1"></i>{% translate "Manage" %}
+      </a>
+    </div>
+    <div class="content-card__body">
+      {% if nominees %}
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>{% translate "Name" %}</th>
+                <th>{% translate "Relationship" %}</th>
+                <th>{% translate "Percentage" %}</th>
+                <th>{% translate "Priority" %}</th>
+                <th>{% translate "Contact" %}</th>
+                <th>{% translate "Status" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for nominee in nominees %}
+                <tr>
+                  <td>{{ nominee.name }}</td>
+                  <td>{{ nominee.get_relationship_display|default:nominee.relationship }}</td>
+                  <td>{{ nominee.percentage }}%</td>
+                  <td>{{ nominee.priority_order }}</td>
+                  <td>
+                    {% if nominee.phone %}{{ nominee.phone }}{% endif %}
+                    {% if nominee.email %}<br>{{ nominee.email }}{% endif %}
+                    {% if not nominee.phone and not nominee.email %}-{% endif %}
+                  </td>
+                  <td>
+                    <span class="badge bg-{% if nominee.is_active %}success{% else %}secondary{% endif %}">
+                      {% if nominee.is_active %}{% translate "Active" %}{% else %}{% translate "Inactive" %}{% endif %}
+                    </span>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          {% translate "No nominees registered for this member." %}
+          <a href="{% url 'members:nominee-create' member_pk=member.pk %}" class="alert-link">
+            {% translate "Add nominee" %}
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Share Certificates -->
+  <div class="content-card mb-4">
+    <div class="content-card__header">
+      <h3 class="content-card__title">{% translate "Share Certificates" %}</h3>
+      <span class="badge bg-secondary">{{ certificates.count }} {% translate "Total" %}</span>
+    </div>
+    <div class="content-card__body">
+      {% if certificates %}
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>{% translate "Certificate No." %}</th>
+                <th>{% translate "Shares" %}</th>
+                <th>{% translate "Issued Date" %}</th>
+                <th>{% translate "Issued By" %}</th>
+                <th>{% translate "Status" %}</th>
+                <th>{% translate "Transfer Details" %}</th>
+                <th>{% translate "Actions" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for certificate in certificates %}
+                <tr>
+                  <td>
+                    <a href="{% url 'shares:certificate-detail' pk=certificate.pk %}" class="fw-semibold text-decoration-none">
+                      {{ certificate.certificate_no }}
+                    </a>
+                  </td>
+                  <td>{{ certificate.share_count }}</td>
+                  <td>{{ certificate.issued_date|date:"d M Y" }}</td>
+                  <td>{{ certificate.issued_by.get_full_name|default:certificate.issued_by.username|default:"-" }}</td>
+                  <td>
+                    <span class="badge bg-{% if certificate.status == 'ACTIVE' %}success{% elif certificate.status == 'CANCELLED' %}danger{% elif certificate.status == 'TRANSFERRED' %}info{% else %}warning{% endif %}">
+                      {{ certificate.get_status_display }}
+                    </span>
+                  </td>
+                  <td>
+                    {% if certificate.transferred_to %}
+                      <small>
+                        {% translate "To:" %} {{ certificate.transferred_to.full_name }}<br>
+                        {% translate "Date:" %} {{ certificate.transferred_date|date:"d M Y" }}
+                      </small>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <a href="{% url 'shares:certificate-detail' pk=certificate.pk %}" class="btn-action btn-action--small">
+                      <i class="fas fa-eye me-1"></i>{% translate "View" %}
+                    </a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          {% translate "No share certificates issued for this member." %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Share Ledger -->
+  <div class="content-card mb-4">
+    <div class="content-card__header">
+      <h3 class="content-card__title">{% translate "Share Ledger" %}</h3>
+      <span class="badge bg-secondary">{{ ledger_entries.count }} {% translate "Entries" %}</span>
+    </div>
+    <div class="content-card__body">
+      {% if ledger_entries %}
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>{% translate "Date" %}</th>
+                <th>{% translate "Type" %}</th>
+                <th>{% translate "Shares In" %}</th>
+                <th>{% translate "Shares Out" %}</th>
+                <th>{% translate "Balance After" %}</th>
+                <th>{% translate "Reference" %}</th>
+                <th>{% translate "Reason" %}</th>
+                <th>{% translate "Accounting Entry" %}</th>
+                <th>{% translate "Created By" %}</th>
+                <th>{% translate "Created At" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for entry in ledger_entries %}
+                <tr>
+                  <td>{{ entry.transaction_date|date:"d M Y" }}</td>
+                  <td>
+                    <span class="badge bg-{% if entry.shares_in > 0 %}success{% elif entry.shares_out > 0 %}danger{% else %}info{% endif %}">
+                      {{ entry.get_transaction_type_display }}
+                    </span>
+                  </td>
+                  <td class="text-success">{% if entry.shares_in > 0 %}+{{ entry.shares_in }}{% endif %}</td>
+                  <td class="text-danger">{% if entry.shares_out > 0 %}-{{ entry.shares_out }}{% endif %}</td>
+                  <td><strong>{{ entry.balance_after }}</strong></td>
+                  <td>{{ entry.reference_id|default:"-" }}</td>
+                  <td>
+                    {% if entry.reason %}
+                      <span title="{{ entry.reason }}">{{ entry.reason|truncatewords:5 }}</span>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if entry.voucher %}
+                      <a
+                        href="{% url 'accounting:voucher-detail' entry.voucher.pk %}"
+                        class="btn-action btn-action--small"
+                        data-voucher-detail-url="{% url 'accounting:voucher-detail' entry.voucher.pk %}"
+                        data-voucher-label="{{ entry.voucher.display_number }}"
+                      >
+                        <i class="fas fa-receipt me-1"></i>
+                        {{ entry.voucher.voucher_type }}
+                      </a>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ entry.created_by.get_full_name|default:entry.created_by.username|default:"-" }}</td>
+                  <td><small class="text-muted">{{ entry.created_at|date:"d M Y H:i" }}</small></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          {% translate "No share transactions recorded for this member." %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Event Log -->
+  <div class="content-card">
+    <div class="content-card__header">
+      <h3 class="content-card__title">{% translate "Event Log" %}</h3>
+      <a href="{% url 'shares:event-log-list' %}?member={{ member.pk }}" class="btn-action btn-action--small">
+        <i class="fas fa-list me-1"></i>{% translate "View All" %}
+      </a>
+    </div>
+    <div class="content-card__body">
+      {% if event_logs %}
+        <div class="table-responsive">
+          <table class="table table-hover">
+            <thead>
+              <tr>
+                <th>{% translate "Timestamp" %}</th>
+                <th>{% translate "Event Type" %}</th>
+                <th>{% translate "Description" %}</th>
+                <th>{% translate "Shares" %}</th>
+                <th>{% translate "Certificate" %}</th>
+                <th>{% translate "Performed By" %}</th>
+                <th>{% translate "Actions" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for event in event_logs %}
+                <tr>
+                  <td><small>{{ event.timestamp|date:"d M Y H:i" }}</small></td>
+                  <td>
+                    <span class="badge bg-{% if 'ALLOTMENT' in event.event_type %}success{% elif 'TRANSFER' in event.event_type %}info{% elif 'CANCEL' in event.event_type %}danger{% elif 'CORRECTION' in event.event_type %}warning{% else %}secondary{% endif %}">
+                      {{ event.get_event_type_display }}
+                    </span>
+                  </td>
+                  <td>{{ event.description|truncatewords:10 }}</td>
+                  <td>
+                    {% if event.share_count %}
+                      <span class="{% if event.event_type == 'SHARE_ALLOTMENT' or event.event_type == 'SHARE_TRANSFER' and event.to_member == member %}text-success{% else %}text-danger{% endif %}">
+                        {{ event.share_count }}
+                      </span>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ event.certificate_number|default:"-" }}</td>
+                  <td>{{ event.performed_by.get_full_name|default:event.performed_by.username }}</td>
+                  <td>
+                    <a href="{% url 'shares:event-log-detail' pk=event.pk %}" class="btn-action btn-action--small">
+                      <i class="fas fa-eye me-1"></i>{% translate "View" %}
+                    </a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="alert alert-info">
+          <i class="fas fa-info-circle me-2"></i>
+          {% translate "No events recorded for this member." %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}
+
+{% block modal %}
+  {% include "accounting/partials/voucher_detail_modal.html" %}
+{% endblock modal %}

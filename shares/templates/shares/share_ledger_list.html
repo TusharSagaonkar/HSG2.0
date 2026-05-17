@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Share Ledger" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Share Ledger" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Browse every share movement for the selected society." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="action-bar">
+    <a href="{% url 'shares:dashboard' %}" class="btn-action btn-action--secondary">
+      <i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}
+    </a>
+    <a href="{% url 'shares:allotment' %}" class="btn-action btn-action--primary">
+      <i class="fas fa-plus-circle me-1"></i>{% translate "Allot Shares" %}
+    </a>
+    <a href="{% url 'shares:transfer' %}" class="btn-action btn-action--primary">
+      <i class="fas fa-exchange-alt me-1"></i>{% translate "Transfer Shares" %}
+    </a>
+  </div>
+
+  <div class="content-card mb-4">
+    <div class="content-card__body">
+      <form method="get" class="row g-3">
+        <div class="col-12 col-md-4">
+          <label for="member" class="form-label">{% translate "Member" %}</label>
+          <select id="member" name="member" class="form-select">
+            <option value="">{% translate "All members" %}</option>
+            {% for member in members %}
+              <option value="{{ member.pk }}" {% if request.GET.member == member.pk|stringformat:"i" %}selected{% endif %}>
+                {{ member.full_name }} ({{ member.unit.identifier }})
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-4">
+          <label for="transaction_type" class="form-label">{% translate "Transaction Type" %}</label>
+          <select id="transaction_type" name="transaction_type" class="form-select">
+            <option value="">{% translate "All types" %}</option>
+            {% for value, label in transaction_types %}
+              <option value="{{ value }}" {% if request.GET.transaction_type == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-4 d-flex align-items-end gap-2">
+          <button type="submit" class="btn-action btn-action--primary">
+            <i class="fas fa-filter me-1"></i>{% translate "Filter" %}
+          </button>
+          <a href="{% url 'shares:ledger-list' %}" class="btn-action btn-action--secondary">
+            <i class="fas fa-times me-1"></i>{% translate "Clear" %}
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="content-card__body">
+      {% if ledger_entries %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead>
+              <tr>
+                <th>{% translate "Date" %}</th>
+                <th>{% translate "Member" %}</th>
+                <th>{% translate "Type" %}</th>
+                <th class="text-end">{% translate "Shares In" %}</th>
+                <th class="text-end">{% translate "Shares Out" %}</th>
+                <th class="text-end">{% translate "Balance After" %}</th>
+                <th>{% translate "Reference" %}</th>
+                <th>{% translate "Created By" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for entry in ledger_entries %}
+                <tr>
+                  <td>{{ entry.transaction_date|date:"d M Y" }}</td>
+                  <td>
+                    <a href="{% url 'shares:member-share-history' pk=entry.member.pk %}">{{ entry.member.full_name }}</a>
+                    <div class="text-muted small">{{ entry.member.unit.identifier }}</div>
+                  </td>
+                  <td>{{ entry.get_transaction_type_display }}</td>
+                  <td class="text-end text-success">{% if entry.shares_in > 0 %}+{{ entry.shares_in }}{% else %}-{% endif %}</td>
+                  <td class="text-end text-danger">{% if entry.shares_out > 0 %}-{{ entry.shares_out }}{% else %}-{% endif %}</td>
+                  <td class="text-end"><strong>{{ entry.balance_after }}</strong></td>
+                  <td>{{ entry.reference_id|default:"-" }}</td>
+                  <td>{{ entry.created_by.get_full_name|default:entry.created_by.username|default:"-" }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        {% if is_paginated %}
+          <nav class="mt-4" aria-label="{% translate 'Share ledger pagination' %}">
+            <ul class="pagination justify-content-center">
+              {% if page_obj.has_previous %}
+                <li class="page-item">
+                  <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if request.GET.member %}&member={{ request.GET.member }}{% endif %}{% if request.GET.transaction_type %}&transaction_type={{ request.GET.transaction_type }}{% endif %}">{% translate "Previous" %}</a>
+                </li>
+              {% endif %}
+              <li class="page-item disabled">
+                <span class="page-link">{{ page_obj.number }} / {{ page_obj.paginator.num_pages }}</span>
+              </li>
+              {% if page_obj.has_next %}
+                <li class="page-item">
+                  <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if request.GET.member %}&member={{ request.GET.member }}{% endif %}{% if request.GET.transaction_type %}&transaction_type={{ request.GET.transaction_type }}{% endif %}">{% translate "Next" %}</a>
+                </li>
+              {% endif %}
+            </ul>
+          </nav>
+        {% endif %}
+      {% else %}
+        <div class="empty-state">
+          <div class="empty-state__icon">
+            <i class="fas fa-history"></i>
+          </div>
+          <h3 class="empty-state__title">{% translate "No ledger entries found" %}</h3>
+          <p class="empty-state__message">{% translate "Try changing the filters or record the first share transaction." %}</p>
+          <a href="{% url 'shares:allotment' %}" class="btn-action btn-action--primary mt-3">
+            <i class="fas fa-plus-circle me-1"></i>{% translate "Allot shares" %}
+          </a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}

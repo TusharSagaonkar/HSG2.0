@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Society Share Rules" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Society Share Rules" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {{ selected_society.name }}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="action-bar">
+    <a href="{% url 'shares:dashboard' %}" class="btn-action btn-action--secondary">
+      <i class="fas fa-arrow-left me-1"></i>{% translate "Back to Shares" %}
+    </a>
+  </div>
+
+  <div class="row">
+    <div class="col-12 col-lg-8">
+      <div class="content-card">
+        <div class="content-card__body">
+          <form method="post" novalidate>
+            {% csrf_token %}
+            <div class="row g-3">
+              {% if form.non_field_errors %}
+                <div class="col-12">
+                  <div class="alert alert-danger mb-0" role="alert">
+                    {% for error in form.non_field_errors %}
+                      <div>{{ error }}</div>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endif %}
+
+              {% for field in form %}
+                <div class="{% if field.name == 'share_value' or field.name == 'default_share_count' or field.name == 'entrance_fee' or field.name == 'transfer_fee' or field.name == 'premium_amount' %}col-12 col-md-6{% else %}col-12{% endif %}">
+                  <div class="form-group">
+                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}
+                      <div class="form-text">{{ field.help_text }}</div>
+                    {% endif %}
+                    {% for error in field.errors %}
+                      <div class="form-error">{{ error }}</div>
+                    {% endfor %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+
+            <div class="form-actions form-actions-inline mt-4">
+              <a href="{% url 'shares:dashboard' %}" class="btn-action btn-action--secondary">
+                <i class="fas fa-times me-1"></i>{% translate "Cancel" %}
+              </a>
+              <button type="submit" class="btn-action btn-action--primary">
+                <i class="fas fa-save me-1"></i>{% translate "Save Rules" %}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{% translate "What these rules control" %}</h3>
+        </div>
+        <div class="content-card__body">
+          <ul class="mb-0">
+            <li>{% translate "Share face value and default allotment size" %}</li>
+            <li>{% translate "Entrance and transfer fees" %}</li>
+            <li>{% translate "Premium amount for above-face-value issues" %}</li>
+            <li>{% translate "Whether multiple nominees are allowed" %}</li>
+            <li>{% translate "Whether approval is required for share actions" %}</li>
+            <li>{% translate "Whether vouchers are auto-generated" %}</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

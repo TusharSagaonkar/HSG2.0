@@ -974,6 +974,101 @@
           </table>
         </div>
       {% endwith %}
+    {% elif report_data.mode == "form_i" %}
+      {% with form_i=report_data.form_i %}
+        <div class="statement-panel">
+          <div class="statement-panel-header">
+            <span>{% translate "Register of Members" %}</span>
+            <span>{% translate "Historical Record" %}</span>
+          </div>
+          <table class="statement-table">
+            <thead class="statement-table-head">
+              <tr>
+                <th>{% translate "Sr No" %}</th>
+                <th>{% translate "Member No" %}</th>
+                <th>{% translate "Member Name" %}</th>
+                <th>{% translate "Flat / Unit" %}</th>
+                <th>{% translate "Membership Date" %}</th>
+                <th>{% translate "Share Certificate No" %}</th>
+                <th class="text-end">{% translate "Shares" %}</th>
+                <th>{% translate "Nominee" %}</th>
+                <th>{% translate "Status" %}</th>
+                <th>{% translate "Transfer" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in form_i.rows %}
+                <tr>
+                  <td>{{ row.sr_no }}</td>
+                  <td>{{ row.member_no }}</td>
+                  <td>{{ row.full_name }}</td>
+                  <td>{{ row.unit_label|default:row.flat_no }}</td>
+                  <td>{{ row.membership_date|default:"-" }}</td>
+                  <td>{{ row.share_certificate_no|default:"-" }}</td>
+                  <td class="text-end">{{ row.no_of_shares }}</td>
+                  <td>{{ row.nominee_name|default:"-" }}</td>
+                  <td>{{ row.status }}</td>
+                  <td>
+                    {% if row.transfer_date %}
+                      {{ row.transfer_date }}{% if row.transfer_to %} / {{ row.transfer_to }}{% endif %}
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="10" class="text-muted">{% translate "No members found." %}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <div class="small text-muted mt-2">
+            {% translate "Total Members" %}: {{ form_i.total_members }} |
+            {% translate "Active Members" %}: {{ form_i.active_members }}
+          </div>
+        </div>
+      {% endwith %}
+    {% elif report_data.mode == "form_j" %}
+      {% with form_j=report_data.form_j %}
+        <div class="statement-panel">
+          <div class="statement-panel-header">
+            <span>{% translate "List of Members" %}</span>
+            <span>{% translate "Active Members Only" %}</span>
+          </div>
+          <table class="statement-table">
+            <thead class="statement-table-head">
+              <tr>
+                <th>{% translate "Sr No" %}</th>
+                <th>{% translate "Member No" %}</th>
+                <th>{% translate "Member Name" %}</th>
+                <th>{% translate "Flat No" %}</th>
+                <th>{% translate "Share Certificate No" %}</th>
+                <th class="text-end">{% translate "No of Shares" %}</th>
+                <th>{% translate "Entrance Fee Paid" %}</th>
+                <th>{% translate "Status" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in form_j.rows %}
+                <tr>
+                  <td>{{ row.sr_no }}</td>
+                  <td>{{ row.member_no }}</td>
+                  <td>{{ row.member_name }}</td>
+                  <td>{{ row.flat_no|default:"-" }}</td>
+                  <td>{{ row.share_certificate_no|default:"-" }}</td>
+                  <td class="text-end">{{ row.no_of_shares }}</td>
+                  <td>{{ row.entrance_fee_paid }}</td>
+                  <td>{{ row.active_status }}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="8" class="text-muted">{% translate "No active members found." %}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          <div class="small text-muted mt-2">
+            {% translate "Total Active Members" %}: {{ form_j.total_active_members }}
+          </div>
+        </div>
+      {% endwith %}
     {% elif report_data.mode == "planned" %}
       {% with planned=report_data.planned %}
         <div class="statement-panel">

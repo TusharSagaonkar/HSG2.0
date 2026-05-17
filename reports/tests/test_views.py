@@ -11,6 +11,9 @@ from accounting.models import FinancialYear
 from accounting.models import LedgerEntry
 from accounting.models import Voucher
 from housing.models import Society
+from members.models import Member
+from members.models import Structure
+from members.models import Unit
 from housing_accounting.selection import SESSION_SELECTED_FINANCIAL_YEAR_ID
 from housing_accounting.selection import SESSION_SELECTED_SOCIETY_ID
 
@@ -55,6 +58,8 @@ def test_reports_index_renders(client, user):
     content = response.content.decode()
     assert "Trial Balance" in content
     assert "Profit and Loss" in content
+    assert "Form I - Register of Members" in content
+    assert "Form J - List of Members" in content
 
 
 def test_accounting_trial_balance_url_uses_reports_view(client, user):
@@ -101,6 +106,8 @@ def test_reports_pages_render_with_selected_scope(client, user):
         reverse("reports:bank-reconciliation-statement"),
         reverse("reports:transaction-reconciliation"),
         reverse("reports:exception-report"),
+        reverse("reports:form-i-register-of-members"),
+        reverse("reports:form-j-list-of-members"),
         reverse("reports:gst-reports"),
         reverse("reports:tds-reports"),
         reverse("reports:inventory-costing-reports"),
@@ -231,3 +238,45 @@ def test_phase_3_to_5_reports_render_sections(client, user):
     assert "Risk Summary" in control.content.decode()
     assert advanced.status_code == HTTPStatus.OK
     assert "Advanced Regulatory Summary" in advanced.content.decode()
+
+
+def test_form_i_and_form_j_reports_render(client, user):
+    society = Society.objects.create(name="Membership Reports Society")
+    financial_year = FinancialYear.objects.create(
+        society=society,
+        name="FY 2024-25",
+        start_date=date(2024, 4, 1),
+        end_date=date(2025, 3, 31),
+        is_open=True,
+    )
+    structure = Structure.objects.create(
+        society=society,
+        structure_type=Structure.StructureType.BUILDING,
+        name="A",
+    )
+    unit = Unit.objects.create(
+        structure=structure,
+        unit_type=Unit.UnitType.FLAT,
+        identifier="101",
+    )
+    Member.objects.create(
+        society=society,
+        unit=unit,
+        full_name="Active Member",
+        role=Member.MemberRole.OWNER,
+        status=Member.MemberStatus.ACTIVE,
+        join_date=date(2024, 1, 1),
+        start_date=date(2024, 1, 1),
+        share_balance=10,
+    )
+
+    client.force_login(user)
+    _set_scope(client, society, financial_year)
+
+    form_i = client.get(reverse("reports:form-i-register-of-members"))
+    form_j = client.get(reverse("reports:form-j-list-of-members"))
+
+    assert form_i.status_code == HTTPStatus.OK
+    assert "Register of Members" in form_i.content.decode()
+    assert form_j.status_code == HTTPStatus.OK
+    assert "List of Members" in form_j.content.decode()

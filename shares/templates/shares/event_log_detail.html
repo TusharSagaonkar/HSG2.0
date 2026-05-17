@@ -1,0 +1,217 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Event Log" %} #{{ event_log.pk }} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Event Log" %} #{{ event_log.pk }}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {{ event_log.get_event_type_display }} - {{ event_log.timestamp|date:"d M Y H:i:s" }}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="action-bar">
+    <a href="{% url 'shares:event-log-list' %}" class="btn-action btn-action--secondary">
+      <i class="fas fa-arrow-left me-1"></i>{% translate "Back to Event Logs" %}
+    </a>
+    {% if request.user.is_staff %}
+      <a href="{% url 'admin:shares_eventlog_change' event_log.pk %}" class="btn-action btn-action--secondary" target="_blank">
+        <i class="fas fa-edit me-1"></i>{% translate "Admin Edit" %}
+      </a>
+    {% endif %}
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-6">
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="h6 mb-0">{% translate "Event Details" %}</h3>
+        </div>
+        <div class="content-card__body">
+          <dl class="row mb-0">
+            <dt class="col-sm-4">{% translate "Event Type" %}</dt>
+            <dd class="col-sm-8">
+              <span class="badge bg-info">{{ event_log.get_event_type_display }}</span>
+            </dd>
+            
+            <dt class="col-sm-4">{% translate "Timestamp" %}</dt>
+            <dd class="col-sm-8">
+              {{ event_log.timestamp|date:"d M Y H:i:s" }}
+              <div class="text-muted small">{% translate "Created:" %} {{ event_log.created_at|date:"d M Y H:i:s" }}</div>
+            </dd>
+            
+            <dt class="col-sm-4">{% translate "Description" %}</dt>
+            <dd class="col-sm-8">{{ event_log.description }}</dd>
+            
+            {% if event_log.share_count %}
+              <dt class="col-sm-4">{% translate "Share Count" %}</dt>
+              <dd class="col-sm-8">
+                <strong>{{ event_log.share_count }}</strong>
+                {% if event_log.share_value %}
+                  <div class="text-muted small">{% translate "Value per share:" %} {{ event_log.share_value }}</div>
+                {% endif %}
+              </dd>
+            {% endif %}
+            
+            {% if event_log.certificate_number %}
+              <dt class="col-sm-4">{% translate "Certificate" %}</dt>
+              <dd class="col-sm-8">
+                {% if related_certificate %}
+                  <a href="{% url 'shares:certificate-detail' pk=related_certificate.pk %}" class="text-decoration-none">
+                    <i class="fas fa-certificate me-1"></i>{{ event_log.certificate_number }}
+                  </a>
+                {% else %}
+                  {{ event_log.certificate_number }}
+                {% endif %}
+              </dd>
+            {% endif %}
+          </dl>
+        </div>
+      </div>
+    </div>
+    
+    <div class="col-12 col-md-6">
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="h6 mb-0">{% translate "Participants" %}</h3>
+        </div>
+        <div class="content-card__body">
+          <dl class="row mb-0">
+            {% if event_log.member %}
+              <dt class="col-sm-4">{% translate "Primary Member" %}</dt>
+              <dd class="col-sm-8">
+                <a href="{% url 'shares:member-share-history' pk=event_log.member.pk %}" class="text-decoration-none">
+                  {{ event_log.member.full_name }}
+                </a>
+                <div class="text-muted small">{{ event_log.member.unit.identifier }}</div>
+              </dd>
+            {% endif %}
+            
+            {% if event_log.from_member %}
+              <dt class="col-sm-4">{% translate "From Member" %}</dt>
+              <dd class="col-sm-8">
+                <a href="{% url 'shares:member-share-history' pk=event_log.from_member.pk %}" class="text-decoration-none">
+                  {{ event_log.from_member.full_name }}
+                </a>
+                <div class="text-muted small">{{ event_log.from_member.unit.identifier }}</div>
+              </dd>
+            {% endif %}
+            
+            {% if event_log.to_member %}
+              <dt class="col-sm-4">{% translate "To Member" %}</dt>
+              <dd class="col-sm-8">
+                <a href="{% url 'shares:member-share-history' pk=event_log.to_member.pk %}" class="text-decoration-none">
+                  {{ event_log.to_member.full_name }}
+                </a>
+                <div class="text-muted small">{{ event_log.to_member.unit.identifier }}</div>
+              </dd>
+            {% endif %}
+            
+            {% if event_log.nominee %}
+              <dt class="col-sm-4">{% translate "Nominee" %}</dt>
+              <dd class="col-sm-8">
+                {{ event_log.nominee.full_name }}
+                <div class="text-muted small">{{ event_log.nominee.relationship }}</div>
+              </dd>
+            {% endif %}
+            
+            <dt class="col-sm-4">{% translate "Performed By" %}</dt>
+            <dd class="col-sm-8">
+              {{ event_log.performed_by.get_full_name|default:event_log.performed_by.username }}
+              {% if event_log.ip_address %}
+                <div class="text-muted small">{% translate "IP:" %} {{ event_log.ip_address }}</div>
+              {% endif %}
+            </dd>
+            
+            <dt class="col-sm-4">{% translate "Society" %}</dt>
+            <dd class="col-sm-8">
+              <a href="{% url 'housing:society-detail' event_log.society.pk %}" class="text-decoration-none">
+                {{ event_log.society.name }}
+              </a>
+            </dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if event_log.metadata and event_log.metadata != {} %}
+    <div class="content-card mb-4">
+      <div class="content-card__header">
+        <h3 class="h6 mb-0">{% translate "Additional Metadata" %}</h3>
+      </div>
+      <div class="content-card__body">
+        <pre class="mb-0 bg-light p-3 rounded" style="max-height: 300px; overflow: auto;"><code>{{ event_log.metadata|pprint }}</code></pre>
+      </div>
+    </div>
+  {% endif %}
+
+  {% if related_ledger_entries %}
+    <div class="content-card mb-4">
+      <div class="content-card__header">
+        <h3 class="h6 mb-0">{% translate "Related Ledger Entries" %}</h3>
+      </div>
+      <div class="content-card__body">
+        <div class="table-responsive">
+          <table class="table table-hover align-middle">
+            <thead>
+              <tr>
+                <th>{% translate "Date" %}</th>
+                <th>{% translate "Member" %}</th>
+                <th>{% translate "Type" %}</th>
+                <th class="text-end">{% translate "Shares In" %}</th>
+                <th class="text-end">{% translate "Shares Out" %}</th>
+                <th class="text-end">{% translate "Balance After" %}</th>
+                <th>{% translate "Created By" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for entry in related_ledger_entries %}
+                <tr>
+                  <td>{{ entry.transaction_date|date:"d M Y" }}</td>
+                  <td>
+                    <a href="{% url 'shares:member-share-history' pk=entry.member.pk %}">{{ entry.member.full_name }}</a>
+                  </td>
+                  <td>{{ entry.get_transaction_type_display }}</td>
+                  <td class="text-end text-success">{% if entry.shares_in > 0 %}+{{ entry.shares_in }}{% else %}-{% endif %}</td>
+                  <td class="text-end text-danger">{% if entry.shares_out > 0 %}-{{ entry.shares_out }}{% else %}-{% endif %}</td>
+                  <td class="text-end"><strong>{{ entry.balance_after }}</strong></td>
+                  <td>{{ entry.created_by.get_full_name|default:entry.created_by.username }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="content-card">
+    <div class="content-card__header">
+      <h3 class="h6 mb-0">{% translate "Technical Details" %}</h3>
+    </div>
+    <div class="content-card__body">
+      <dl class="row mb-0">
+        <dt class="col-sm-3">{% translate "Event Log ID" %}</dt>
+        <dd class="col-sm-9">{{ event_log.pk }}</dd>
+        
+        <dt class="col-sm-3">{% translate "User Agent" %}</dt>
+        <dd class="col-sm-9">
+          <div class="text-truncate" style="max-width: 500px;" title="{{ event_log.user_agent }}">
+            {{ event_log.user_agent|default:"-" }}
+          </div>
+        </dd>
+        
+        <dt class="col-sm-3">{% translate "IP Address" %}</dt>
+        <dd class="col-sm-9">{{ event_log.ip_address|default:"-" }}</dd>
+        
+        <dt class="col-sm-3">{% translate "Created At" %}</dt>
+        <dd class="col-sm-9">{{ event_log.created_at|date:"d M Y H:i:s" }}</dd>
+      </dl>
+    </div>
+  </div>
+{% endblock content %}

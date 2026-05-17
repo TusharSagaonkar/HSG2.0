@@ -3,12 +3,16 @@ from __future__ import annotations
 from collections import defaultdict
 from dataclasses import dataclass
 from decimal import Decimal
+from django.db import models
 from django.db.models import Count
 
 from accounting.models import Account
 from accounting.models import LedgerEntry
 from accounting.models import Voucher
 from accounting.services.reporting import build_trial_balance
+from members.models import Member
+from shares.models import ShareCertificate
+from shares.models import ShareLedger
 
 # Account code constants for reliable lookups
 class AccountCodes:
@@ -100,6 +104,121 @@ def _to_date_or_year_end(financial_year, to_date):
     if financial_year is not None:
         return financial_year.end_date
     return None
+
+
+def _member_unit_label(member: Member) -> str:
+    unit = getattr(member, "unit", None)
+    if unit is None:
+        return ""
+    parts = [unit.identifier]
+    structure = getattr(unit, "structure", None)
+    if structure is not None:
+        wing = getattr(structure, "wing", "") or ""
+        name = getattr(structure, "name", "") or ""
+        if wing:
+            parts.append(wing)
+        elif name:
+            parts.append(name)
+    return " - ".join(part for part in parts if part)
+
+
+def build_member_register_report(*, society, financial_year=None, to_date=None):
+    queryset = (
+        Member.objects.filter(society=society)
+        .exclude(role=Member.MemberRole.TENANT)
+        .select_related("unit", "unit__structure", "receivable_account")
+        .prefetch_related("nominees", "share_certificates", "share_transactions")
+        .order_by("join_date", "id")
+    )
+    if to_date is not None:
+        queryset = queryset.filter(
+            models.Q(join_date__lte=to_date)
+            & (models.Q(exit_date__isnull=True) | models.Q(exit_date__lte=to_date))
+        )
+
+    rows = []
+    for index, member in enumerate(queryset, start=1):
+        certificates = list(member.share_certificates.all().order_by("issued_date", "certificate_no"))
+        active_nominees = list(member.nominees.filter(is_active=True).order_by("priority_order", "id"))
+        latest_certificate = certificates[-1] if certificates else None
+        latest_transfer = (
+            ShareLedger.objects.filter(member=member, transaction_type=ShareLedger.TransactionType.TRANSFER)
+            .order_by("-transaction_date", "-created_at")
+            .first()
+        )
+        rows.append(
+            {
+                "sr_no": index,
+                "member_id": member.id,
+                "member_no": getattr(member, "member_number", "") or member.id,
+                "membership_date": member.join_date,
+                "full_name": member.full_name,
+                "address": str(member.unit) if member.unit else "",
+                "pan": getattr(member, "pan", ""),
+                "aadhaar": getattr(member, "aadhaar", ""),
+                "flat_no": member.unit.identifier if member.unit else "",
+                "wing": getattr(member.unit.structure, "wing", "") if member.unit and member.unit.structure else "",
+                "floor": getattr(member.unit, "floor", "") if hasattr(member.unit, "floor") else "",
+                "share_certificate_no": latest_certificate.certificate_no if latest_certificate else "",
+                "distinctive_share_nos": "",
+                "no_of_shares": latest_certificate.share_count if latest_certificate else member.share_balance,
+                "agreement_date": getattr(member, "agreement_date", ""),
+                "registration_no": getattr(member, "registration_no", ""),
+                "membership_type": member.role.title(),
+                "nominee_name": ", ".join(nominee.name for nominee in active_nominees),
+                "status": member.status.title(),
+                "transfer_date": latest_transfer.transaction_date if latest_transfer else "",
+                "transfer_to": latest_transfer.reference_id if latest_transfer else "",
+                "remarks": "",
+                "share_balance": member.share_balance,
+                "unit_label": _member_unit_label(member),
+                "active_nominees": active_nominees,
+                "certificates": certificates,
+            }
+        )
+
+    return {
+        "rows": rows,
+        "total_members": len(rows),
+        "active_members": sum(1 for row in rows if row["status"] == Member.MemberStatus.ACTIVE.title()),
+    }
+
+
+def build_active_member_list_report(*, society, financial_year=None, to_date=None):
+    queryset = (
+        Member.objects.filter(society=society, status=Member.MemberStatus.ACTIVE)
+        .exclude(role=Member.MemberRole.TENANT)
+        .select_related("unit", "unit__structure")
+        .prefetch_related("share_certificates")
+        .order_by("full_name", "id")
+    )
+    if to_date is not None:
+        queryset = queryset.filter(join_date__lte=to_date).exclude(exit_date__isnull=False, exit_date__lt=to_date)
+
+    rows = []
+    for index, member in enumerate(queryset, start=1):
+        active_certificate = (
+            member.share_certificates.filter(status=ShareCertificate.Status.ACTIVE)
+            .order_by("issued_date", "certificate_no")
+            .first()
+        )
+        rows.append(
+            {
+                "sr_no": index,
+                "member_no": getattr(member, "member_number", "") or member.id,
+                "member_name": member.full_name,
+                "flat_no": member.unit.identifier if member.unit else "",
+                "share_certificate_no": active_certificate.certificate_no if active_certificate else "",
+                "no_of_shares": active_certificate.share_count if active_certificate else member.share_balance,
+                "entrance_fee_paid": "Yes",
+                "active_status": "Active",
+            }
+        )
+
+    return {
+        "rows": rows,
+        "total_active_members": len(rows),
+    }
 
 
 def _is_cash_bank_account(account) -> bool:
