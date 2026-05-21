@@ -461,6 +461,9 @@ function showShortcutHelp() {
                             <span class="badge bg-primary">Current Page:</span>
                             <code>${CURRENT_PAGE || 'Global'}</code>
                         </div>
+                        <div class="alert alert-info py-2 small mb-3">
+                            Use the navbar <strong>Shortcuts</strong> button or press <kbd>Ctrl</kbd>+<kbd>Q</kbd> to open this dialog.
+                        </div>
                         <div id="shortcut-help-content">
                             <p>Loading shortcuts...</p>
                         </div>
@@ -494,12 +497,21 @@ function showShortcutHelp() {
                 html += '<ul class="list-group mb-3">';
                 globalShortcuts.forEach(shortcut => {
                     html += `
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <span class="badge bg-info me-2">${shortcut.key}</span>
-                                <strong>${shortcut.name}</strong>
-                                <small class="text-muted d-block">${shortcut.type}: ${shortcut.value}</small>
-                            </div>
+                        <li class="list-group-item p-0 border-0 mb-2">
+                            <button
+                                type="button"
+                                class="btn btn-outline-info w-100 text-start shortcut-launcher"
+                                data-shortcut-key="${shortcut.key}"
+                            >
+                                <div class="d-flex justify-content-between align-items-start gap-3">
+                                    <div>
+                                        <span class="badge bg-info me-2">${shortcut.key}</span>
+                                        <strong>${shortcut.name}</strong>
+                                        <small class="text-muted d-block">${shortcut.type}: ${shortcut.value}</small>
+                                    </div>
+                                    <span class="badge bg-light text-dark">${shortcut.scope}</span>
+                                </div>
+                            </button>
                         </li>
                     `;
                 });
@@ -511,12 +523,21 @@ function showShortcutHelp() {
                 html += '<ul class="list-group mb-3">';
                 pageShortcuts.forEach(shortcut => {
                     html += `
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <span class="badge bg-success me-2">${shortcut.key}</span>
-                                <strong>${shortcut.name}</strong>
-                                <small class="text-muted d-block">${shortcut.type}: ${shortcut.value}</small>
-                            </div>
+                        <li class="list-group-item p-0 border-0 mb-2">
+                            <button
+                                type="button"
+                                class="btn btn-outline-success w-100 text-start shortcut-launcher"
+                                data-shortcut-key="${shortcut.key}"
+                            >
+                                <div class="d-flex justify-content-between align-items-start gap-3">
+                                    <div>
+                                        <span class="badge bg-success me-2">${shortcut.key}</span>
+                                        <strong>${shortcut.name}</strong>
+                                        <small class="text-muted d-block">${shortcut.type}: ${shortcut.value}</small>
+                                    </div>
+                                    <span class="badge bg-light text-dark">${shortcut.page || ''}</span>
+                                </div>
+                            </button>
                         </li>
                     `;
                 });
@@ -528,12 +549,21 @@ function showShortcutHelp() {
                 html += '<ul class="list-group mb-3">';
                 sequenceCommands.forEach(command => {
                     html += `
-                        <li class="list-group-item d-flex justify-content-between align-items-center">
-                            <div>
-                                <span class="badge bg-warning text-dark me-2">${command.key}</span>
-                                <strong>${command.name}</strong>
-                                <small class="text-muted d-block">${command.type}: ${command.value}</small>
-                            </div>
+                        <li class="list-group-item p-0 border-0 mb-2">
+                            <button
+                                type="button"
+                                class="btn btn-outline-warning w-100 text-start shortcut-launcher"
+                                data-shortcut-key="${command.key}"
+                            >
+                                <div class="d-flex justify-content-between align-items-start gap-3">
+                                    <div>
+                                        <span class="badge bg-warning text-dark me-2">${command.key}</span>
+                                        <strong>${command.name}</strong>
+                                        <small class="text-muted d-block">${command.type}: ${command.value}</small>
+                                    </div>
+                                    <span class="badge bg-light text-dark">Sequence</span>
+                                </div>
+                            </button>
                         </li>
                     `;
                 });
@@ -541,6 +571,22 @@ function showShortcutHelp() {
             }
             
             content.innerHTML = html;
+            content.querySelectorAll("[data-shortcut-key]").forEach((button) => {
+                button.addEventListener("click", () => {
+                    const shortcut = getMergedCommands().find((item) => item.key === button.dataset.shortcutKey);
+                    if (!shortcut) {
+                        return;
+                    }
+                    executeShortcut(shortcut);
+                    const modalElement = document.getElementById('shortcut-help-modal');
+                    if (modalElement && typeof bootstrap !== 'undefined' && bootstrap.Modal) {
+                        const instance = bootstrap.Modal.getInstance(modalElement);
+                        if (instance) {
+                            instance.hide();
+                        }
+                    }
+                });
+            });
         }
     }
     

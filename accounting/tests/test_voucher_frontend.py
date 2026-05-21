@@ -24,6 +24,16 @@ def test_voucher_entry_requires_authentication(client):
     assert response.status_code == HTTPStatus.FOUND
 
 
+def test_voucher_entry_shows_shortcuts_navbar_button(client, user):
+    society = Society.objects.create(name="Shortcut Button Society")
+    client.force_login(user)
+
+    response = client.get(reverse("accounting:voucher-entry"), {"society": society.pk})
+
+    assert response.status_code == HTTPStatus.OK
+    assert 'data-shortcut-help-trigger' in response.content.decode()
+
+
 def test_voucher_posting_menu_requires_authentication(client):
     response = client.get(reverse("accounting:voucher-posting"))
     assert response.status_code == HTTPStatus.FOUND

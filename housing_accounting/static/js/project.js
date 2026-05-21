@@ -9,6 +9,21 @@ const handleSocietySelection = (selectElement) => {
   selectElement.form.submit();
 };
 
+const initShortcutHelpTrigger = () => {
+  const triggers = Array.from(document.querySelectorAll("[data-shortcut-help-trigger]"));
+  if (!triggers.length) {
+    return;
+  }
+
+  triggers.forEach((trigger) => {
+    trigger.addEventListener("click", () => {
+      if (window.ShortcutEngine && typeof window.ShortcutEngine.showHelp === "function") {
+        window.ShortcutEngine.showHelp();
+      }
+    });
+  });
+};
+
 const stopToggleEvent = (event) => {
   event.preventDefault();
   event.stopPropagation();
@@ -717,4 +732,5 @@ window.addEventListener("DOMContentLoaded", () => {
   initAutoReloadUnitForms();
   initUnitSearchForms();
   initStructureHierarchyFilters();
+  initShortcutHelpTrigger();
 });
