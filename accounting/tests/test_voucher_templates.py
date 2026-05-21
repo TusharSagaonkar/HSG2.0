@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.urls import reverse
 
 from accounting.models import Account
+from accounting.models import AccountCategory
 from accounting.models import VoucherTemplate
 from accounting.models import VoucherTemplateRow
 from housing.models import Society
@@ -25,6 +26,21 @@ def _build_unit(society, identifier="101"):
         structure=structure,
         unit_type=Unit.UnitType.FLAT,
         identifier=identifier,
+    )
+
+
+def _build_account(society, *, name, code, account_type):
+    category = AccountCategory.objects.create(
+        society=society,
+        name=f"{name} Category",
+        account_type=account_type,
+    )
+    return Account.objects.create(
+        society=society,
+        name=name,
+        code=code,
+        category=category,
+        account_type=account_type,
     )
 
 
@@ -92,7 +108,12 @@ def test_voucher_template_row_rejects_cross_society_account_and_unit():
         voucher_type="GENERAL",
         name="Cross Society",
     )
-    foreign_account = Account.objects.get(society=society_two, name="Cash in Hand")
+    foreign_account = _build_account(
+        society_two,
+        name="Cash in Hand",
+        code="101",
+        account_type=Account.AccountType.ASSET,
+    )
     foreign_unit = _build_unit(society_two, identifier="202")
 
     row = VoucherTemplateRow(
@@ -149,15 +170,24 @@ def test_voucher_entry_orders_templates_and_hides_inactive_ones(client, user):
     assert content.index(f"template_id={first.id}") < content.index(f"template_id={second.id}")
     assert content.index(f"template_id={second.id}") < content.index(f"template_id={third.id}")
     assert "Hidden Inactive" not in content
-    assert "Ctrl+1" in content
     assert 'data-template-shortcut-index="1"' in content
 
 
 def test_voucher_entry_prefills_rows_and_tracks_usage(client, user):
     society = Society.objects.create(name="Prefill Society")
     client.force_login(user)
-    cash = Account.objects.get(society=society, name="Cash in Hand")
-    income = Account.objects.get(society=society, name="Maintenance Charges")
+    cash = _build_account(
+        society,
+        name="Cash in Hand",
+        code="101",
+        account_type=Account.AccountType.ASSET,
+    )
+    income = _build_account(
+        society,
+        name="Maintenance Charges",
+        code="401",
+        account_type=Account.AccountType.INCOME,
+    )
     unit = _build_unit(society)
     template = VoucherTemplate.objects.create(
         society=society,
@@ -204,7 +234,12 @@ def test_voucher_entry_prefills_rows_and_tracks_usage(client, user):
 def test_voucher_entry_skips_inactive_template_row_references(client, user):
     society = Society.objects.create(name="Inactive Row Society")
     client.force_login(user)
-    inactive_account = Account.objects.get(society=society, name="Cash in Hand")
+    inactive_account = _build_account(
+        society,
+        name="Cash in Hand",
+        code="101",
+        account_type=Account.AccountType.ASSET,
+    )
     inactive_account.is_active = False
     inactive_account.save(update_fields=["is_active"])
     template = VoucherTemplate.objects.create(
@@ -229,3 +264,77 @@ def test_voucher_entry_skips_inactive_template_row_references(client, user):
     content = response.content.decode()
     assert "Some template rows were skipped because they reference inactive data" in content
     assert response.context["entry_formset"].forms[0].initial == {}
+
+
+def test_voucher_template_pages_render_in_app(client, user):
+    society = Society.objects.create(name="Template UI Society")
+    client.force_login(user)
+
+    list_response = client.get(reverse("accounting:voucher-template-list"), {"society": society.pk})
+    add_response = client.get(reverse("accounting:voucher-template-add"), {"society": society.pk})
+
+    assert list_response.status_code == HTTPStatus.OK
+    assert add_response.status_code == HTTPStatus.OK
+    assert "Voucher Templates" in list_response.content.decode()
+    assert "Create Voucher Template" in add_response.content.decode()
+
+
+def test_voucher_template_create_and_delete_flow(client, user):
+    society = Society.objects.create(name="Template Flow Society")
+    client.force_login(user)
+
+    cash = _build_account(
+        society,
+        name="Cash in Hand",
+        code="101",
+        account_type=Account.AccountType.ASSET,
+    )
+    maintenance = _build_account(
+        society,
+        name="Maintenance Charges",
+        code="401",
+        account_type=Account.AccountType.INCOME,
+    )
+
+    create_response = client.post(
+        reverse("accounting:voucher-template-add"),
+        data={
+            "society": str(society.pk),
+            "voucher_type": "GENERAL",
+            "name": "Monthly Transfer",
+            "is_active": "on",
+            "is_pinned": "",
+            "sort_order": "10",
+            "narration": "Template narration",
+            "payment_mode": "",
+            "reference_number_pattern": "",
+            "rows-TOTAL_FORMS": "2",
+            "rows-INITIAL_FORMS": "0",
+            "rows-MIN_NUM_FORMS": "0",
+            "rows-MAX_NUM_FORMS": "1000",
+            "rows-0-account": str(cash.pk),
+            "rows-0-unit": "",
+            "rows-0-side": "DEBIT",
+            "rows-0-default_amount": "1000.00",
+            "rows-0-order": "1",
+            "rows-0-DELETE": "",
+            "rows-1-account": str(maintenance.pk),
+            "rows-1-unit": "",
+            "rows-1-side": "CREDIT",
+            "rows-1-default_amount": "1000.00",
+            "rows-1-order": "2",
+            "rows-1-DELETE": "",
+        },
+    )
+
+    assert create_response.status_code == HTTPStatus.FOUND
+    assert create_response.url == reverse("accounting:voucher-template-list")
+
+    template = VoucherTemplate.objects.get(society=society, name="Monthly Transfer")
+    assert template.rows.count() == 2
+
+    delete_response = client.post(
+        reverse("accounting:voucher-template-delete", kwargs={"pk": template.pk}) + f"?society={society.pk}"
+    )
+    assert delete_response.status_code == HTTPStatus.FOUND
+    assert VoucherTemplate.objects.filter(pk=template.pk).exists() is False

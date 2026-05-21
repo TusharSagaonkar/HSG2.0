@@ -1,11 +1,14 @@
 from decimal import Decimal
 
 from django import forms
+from django.forms import inlineformset_factory
 from django.forms import BaseFormSet
 from django.utils import timezone
 
 from accounting.models import Account
 from accounting.models import Voucher
+from accounting.models import VoucherTemplate
+from accounting.models import VoucherTemplateRow
 from members.models import Unit
 
 
@@ -57,6 +60,79 @@ class VoucherForm(forms.ModelForm):
         if voucher_date > timezone.localdate():
             raise forms.ValidationError("Voucher date cannot be in the future.")
         return voucher_date
+
+
+class VoucherTemplateForm(forms.ModelForm):
+    class Meta:
+        model = VoucherTemplate
+        fields = [
+            "society",
+            "voucher_type",
+            "name",
+            "is_active",
+            "is_pinned",
+            "sort_order",
+            "narration",
+            "payment_mode",
+            "reference_number_pattern",
+        ]
+        widgets = {
+            "narration": forms.Textarea(attrs={"rows": 3}),
+            "reference_number_pattern": forms.TextInput(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        society = kwargs.pop("society", None)
+        super().__init__(*args, **kwargs)
+        for field in self.fields.values():
+            css = "form-select" if isinstance(field.widget, forms.Select) else "form-control"
+            field.widget.attrs["class"] = css
+
+        if society:
+            self.fields["society"].initial = society
+            self.fields["society"].widget = forms.HiddenInput()
+            self.fields["society"].queryset = self.fields["society"].queryset.filter(pk=society.pk)
+
+
+class VoucherTemplateRowForm(forms.ModelForm):
+    class Meta:
+        model = VoucherTemplateRow
+        fields = [
+            "account",
+            "unit",
+            "side",
+            "default_amount",
+            "order",
+        ]
+
+    def __init__(self, *args, **kwargs):
+        society = kwargs.pop("society", None)
+        super().__init__(*args, **kwargs)
+        self.society = society
+        self.fields["account"].queryset = (
+            Account.objects.filter(society=society).order_by("name")
+            if society
+            else Account.objects.none()
+        )
+        self.fields["unit"].queryset = (
+            Unit.objects.filter(structure__society=society)
+            .select_related("structure__society")
+            .order_by("identifier")
+            if society
+            else Unit.objects.none()
+        )
+        for field in self.fields.values():
+            css = "form-select" if isinstance(field.widget, forms.Select) else "form-control"
+            field.widget.attrs["class"] = css
+
+
+VoucherTemplateRowFormSet = inlineformset_factory(
+    VoucherTemplate,
+    VoucherTemplateRow,
+    form=VoucherTemplateRowForm,
+    extra=2,
+    can_delete=True,
+)
 
 
 class LedgerEntryRowForm(forms.Form):

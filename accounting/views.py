@@ -12,6 +12,7 @@ from django.shortcuts import redirect
 from django.shortcuts import render
 from django.http import Http404
 from django.http import HttpResponse
+from django.urls import reverse
 from django.views import View
 from django.views.generic import ListView
 from django.views.generic import TemplateView
@@ -23,6 +24,8 @@ import csv
 from accounting.forms import LedgerEntryRowForm
 from accounting.forms import LedgerEntryRowBaseFormSet
 from accounting.forms import VoucherForm
+from accounting.forms import VoucherTemplateForm
+from accounting.forms import VoucherTemplateRowFormSet
 from accounting.models import Account
 from accounting.models import AccountingPeriod
 from accounting.models import LedgerEntry
@@ -437,6 +440,193 @@ class VoucherListView(LoginRequiredMixin, ListView):
 
 
 voucher_list_view = VoucherListView.as_view()
+
+
+class VoucherTemplateScopeMixin:
+    def get_selected_society(self):
+        society_id = self.request.GET.get("society") or self.request.POST.get("society")
+        if society_id:
+            return get_object_or_404(Society, pk=society_id)
+        selected_society, _ = get_selected_scope(self.request)
+        return selected_society
+
+    def dispatch(self, request, *args, **kwargs):
+        self.selected_society = self.get_selected_society()
+        if not self.selected_society:
+            messages.warning(request, "Please select a society first.")
+            return redirect("housing:dashboard")
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_template_queryset(self):
+        return (
+            VoucherTemplate.objects.filter(society=self.selected_society)
+            .select_related("society")
+            .prefetch_related("rows__account", "rows__unit")
+            .order_by("-is_pinned", "-usage_count", "sort_order", "voucher_type", "name", "id")
+        )
+
+
+class VoucherTemplateListView(VoucherTemplateScopeMixin, LoginRequiredMixin, ListView):
+    model = VoucherTemplate
+    template_name = "accounting/voucher_template_list.html"
+    context_object_name = "templates"
+
+    def get_queryset(self):
+        return self.get_template_queryset()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["selected_society"] = self.selected_society
+        context["template_count"] = context["templates"].count()
+        return context
+
+
+voucher_template_list_view = VoucherTemplateListView.as_view()
+
+
+class VoucherTemplateEditBaseView(VoucherTemplateScopeMixin, LoginRequiredMixin, TemplateView):
+    template_name = "accounting/voucher_template_form.html"
+    success_message = None
+    mode = "create"
+
+    def get_object(self):
+        if not hasattr(self, "object"):
+            pk = self.kwargs.get("pk")
+            if pk:
+                self.object = get_object_or_404(
+                    VoucherTemplate.objects.select_related("society").prefetch_related("rows__account", "rows__unit"),
+                    pk=pk,
+                    society=self.selected_society,
+                )
+            else:
+                self.object = None
+        return self.object
+
+    def get_initial(self):
+        initial = {}
+        if self.selected_society:
+            initial["society"] = self.selected_society
+
+        for key in ("voucher_type", "name", "narration", "payment_mode", "reference_number_pattern"):
+            value = self.request.GET.get(key)
+            if value:
+                initial[key] = value
+        return initial
+
+    def get_form(self):
+        return VoucherTemplateForm(
+            self.request.POST or None,
+            instance=self.get_object(),
+            initial=self.get_initial() if self.request.method == "GET" else None,
+            society=self.selected_society,
+        )
+
+    def get_formset(self, *, instance=None, data=None):
+        instance = self.get_object() if instance is None else instance
+        data = self.request.POST if data is None and self.request.method == "POST" else data
+        if data is not None:
+            return VoucherTemplateRowFormSet(
+                data,
+                instance=instance,
+                form_kwargs={"society": self.selected_society},
+            )
+        return VoucherTemplateRowFormSet(
+            instance=instance,
+            form_kwargs={"society": self.selected_society},
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        form = kwargs.get("form") or self.get_form()
+        formset = kwargs.get("formset") or self.get_formset()
+        template = self.get_object()
+
+        context["selected_society"] = self.selected_society
+        context["form"] = form
+        context["formset"] = formset
+        context["template"] = template
+        context["form_title"] = "Create Voucher Template" if template is None else f"Edit Template: {template.name or template.get_voucher_type_display()}"
+        context["form_subtitle"] = (
+            "Create a reusable voucher template with rows, defaults, and quick-entry settings."
+            if template is None
+            else "Update the template and its ledger rows."
+        )
+        context["cancel_url"] = reverse("accounting:voucher-template-list")
+        context["list_url"] = reverse("accounting:voucher-template-list")
+        return context
+
+    def form_valid(self, form, formset):
+        with transaction.atomic():
+            template = form.save(commit=False)
+            if not template.society_id:
+                template.society = self.selected_society
+            template.save()
+            form.instance = template
+            formset.instance = template
+            formset.save()
+        messages.success(
+            self.request,
+            "Voucher template saved successfully.",
+        )
+        return redirect(reverse("accounting:voucher-template-list"))
+
+    def post(self, request, *args, **kwargs):
+        form = self.get_form()
+        if form.is_valid():
+            template = form.save(commit=False)
+            if not template.society_id:
+                template.society = self.selected_society
+            formset = self.get_formset(instance=template, data=request.POST)
+            if formset.is_valid():
+                return self.form_valid(form, formset)
+        else:
+            formset = self.get_formset()
+        messages.warning(request, "Template not saved. Please fix the highlighted issues.")
+        return self.render_to_response(self.get_context_data(form=form, formset=formset))
+
+
+class VoucherTemplateCreateView(VoucherTemplateEditBaseView):
+    mode = "create"
+    object = None
+
+
+voucher_template_create_view = VoucherTemplateCreateView.as_view()
+
+
+class VoucherTemplateUpdateView(VoucherTemplateEditBaseView):
+    mode = "update"
+
+
+voucher_template_update_view = VoucherTemplateUpdateView.as_view()
+
+
+class VoucherTemplateDeleteView(VoucherTemplateScopeMixin, LoginRequiredMixin, TemplateView):
+    template_name = "accounting/voucher_template_confirm_delete.html"
+
+    def get_object(self):
+        return get_object_or_404(
+            VoucherTemplate,
+            pk=self.kwargs["pk"],
+            society=self.selected_society,
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        template = self.get_object()
+        context["selected_society"] = self.selected_society
+        context["template"] = template
+        context["cancel_url"] = reverse("accounting:voucher-template-list")
+        return context
+
+    def post(self, request, *args, **kwargs):
+        template = self.get_object()
+        name = str(template)
+        template.delete()
+        messages.success(request, f"Deleted voucher template: {name}")
+        return redirect(reverse("accounting:voucher-template-list"))
+
+
+voucher_template_delete_view = VoucherTemplateDeleteView.as_view()
 
 
 class VoucherEntryView(LoginRequiredMixin, TemplateView):

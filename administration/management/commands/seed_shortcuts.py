@@ -16,7 +16,9 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         self.stdout.write("Seeding default keyboard shortcuts...")
         
-        # Default shortcuts for common actions - NO BROWSER CONFLICTS
+        # Default shortcuts for common actions.
+        # Note: browser-safe sequential navigation and the command palette are
+        # implemented in the client shortcut engine and are not stored here.
         default_shortcuts = [
             # ==================== NAVIGATION SHORTCUTS (Global, no role restriction) ====================
             {
@@ -291,9 +293,10 @@ class Command(BaseCommand):
             f"Successfully seeded shortcuts: {created_count} created, {updated_count} updated, {deactivated_count} deactivated."
         ))
         self.stdout.write("\n=== SHORTCUT SUMMARY ===")
-        self.stdout.write("Navigation: Ctrl+H (Home), Ctrl+Shift+[H,A,R,B,P,M] for modules")
-        self.stdout.write("Actions: F2 (Search), F4 (New), F7 (Dashboard), F8 (Print), Ctrl+Q (Help)")
-        self.stdout.write("Accounting (page-specific): F9-F12 for vouchers")
+        self.stdout.write("Navigation: Ctrl+H (Home), Ctrl+Shift+[H,A,R,B,P,M] legacy module shortcuts")
+        self.stdout.write("Client navigation: g+h, g+d, g+a, g+r, g+b, g+m, g+p, g+v")
+        self.stdout.write("Actions: F2 (Search), F4 (New), F7 (Dashboard), F8 (Print), Ctrl+Q (Help), Ctrl+K (Command Palette)")
+        self.stdout.write("Accounting (page-specific): F9-F12 legacy voucher shortcuts")
         self.stdout.write("Modals: Ctrl+Shift+[F,E,N] for member/email/notification modals")
         self.stdout.write("System: Ctrl+Shift+? (Show all shortcuts), Ctrl+Shift+S (Society switch)")
         self.stdout.write("\nAll shortcuts are available to ALL users (no role restrictions).")

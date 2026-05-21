@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {{ form_title }} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {{ form_title }}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {{ form_subtitle }}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="action-bar action-bar--responsive">
+    <a href="{{ cancel_url }}{% if selected_society %}?society={{ selected_society.id }}{% endif %}" class="btn-action btn-action--secondary">
+      <i class="fas fa-arrow-left me-1"></i>{% translate "Back" %}
+    </a>
+    <a href="{{ list_url }}{% if selected_society %}?society={{ selected_society.id }}{% endif %}" class="btn-action btn-action--outline-primary">
+      <i class="fas fa-list me-1"></i>{% translate "Manage Templates" %}
+    </a>
+  </div>
+
+  <div class="content-card shadow-sm border-0 overflow-hidden">
+    <div class="content-card__body p-0">
+      <div class="row g-0">
+        <div class="col-12 col-xl-4 border-end bg-light">
+          <div class="p-4 p-xl-5 h-100">
+            <p class="text-uppercase text-muted small fw-semibold mb-2">{% translate "Voucher Template" %}</p>
+            <h2 class="h4 mb-3">
+              {% if template %}
+                {% translate "Edit an existing template without leaving the app." %}
+              {% else %}
+                {% translate "Create a reusable voucher template once, then use it everywhere." %}
+              {% endif %}
+            </h2>
+            <p class="text-muted mb-4">
+              {% translate "A template stores the default voucher type, narration, payment mode, and ledger rows so the voucher entry screen can stay fast and consistent." %}
+            </p>
+            <div class="d-grid gap-2">
+              <div class="p-3 rounded-3 bg-white border">
+                <div class="small text-muted">{% translate "Society" %}</div>
+                <div class="fw-semibold">
+                  {% if selected_society %}
+                    {{ selected_society.name }}
+                  {% else %}
+                    {% translate "Select a society first" %}
+                  {% endif %}
+                </div>
+              </div>
+              <div class="p-3 rounded-3 bg-white border">
+                <div class="small text-muted">{% translate "Rows" %}</div>
+                <div class="fw-semibold">{% translate "Add debit and credit lines below" %}</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="col-12 col-xl-8">
+          <div class="p-4 p-xl-5">
+            <form method="post" novalidate>
+              {% csrf_token %}
+
+              {% if form.non_field_errors %}
+                <div class="alert alert-danger" role="alert">
+                  {% for error in form.non_field_errors %}
+                    <div>{{ error }}</div>
+                  {% endfor %}
+                </div>
+              {% endif %}
+
+              {{ form.society }}
+
+              <div class="row g-3 mb-3">
+                <div class="col-12 col-md-6">
+                  <label class="form-label" for="{{ form.voucher_type.id_for_label }}">{{ form.voucher_type.label }}</label>
+                  {{ form.voucher_type }}
+                  {% for error in form.voucher_type.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-12 col-md-6">
+                  <label class="form-label" for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
+                  {{ form.name }}
+                  {% for error in form.name.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label" for="{{ form.payment_mode.id_for_label }}">{{ form.payment_mode.label }}</label>
+                  {{ form.payment_mode }}
+                  {% for error in form.payment_mode.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label" for="{{ form.sort_order.id_for_label }}">{{ form.sort_order.label }}</label>
+                  {{ form.sort_order }}
+                  {% for error in form.sort_order.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-12 col-md-4">
+                  <label class="form-label" for="{{ form.reference_number_pattern.id_for_label }}">{{ form.reference_number_pattern.label }}</label>
+                  {{ form.reference_number_pattern }}
+                  {% for error in form.reference_number_pattern.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-12">
+                  <label class="form-label" for="{{ form.narration.id_for_label }}">{{ form.narration.label }}</label>
+                  {{ form.narration }}
+                  {% for error in form.narration.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                </div>
+                <div class="col-12 d-flex flex-wrap gap-4">
+                  <div class="form-check">
+                    {{ form.is_active }}
+                    <label class="form-check-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+                  </div>
+                  <div class="form-check">
+                    {{ form.is_pinned }}
+                    <label class="form-check-label" for="{{ form.is_pinned.id_for_label }}">{{ form.is_pinned.label }}</label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="content-card shadow-sm mb-3">
+                <div class="content-card__header py-2 px-3 d-flex justify-content-between align-items-center">
+                  <h3 class="content-card__title mb-0">{% translate "Template Rows" %}</h3>
+                  <span class="text-muted small">{% translate "Use blank rows to add new lines." %}</span>
+                </div>
+                <div class="content-card__body p-0">
+                  {{ formset.management_form }}
+                  {% if formset.non_form_errors %}
+                    <div class="px-3 pt-3">
+                      <div class="alert alert-danger py-2 small mb-0">
+                        {% for error in formset.non_form_errors %}
+                          <div>{{ error }}</div>
+                        {% endfor %}
+                      </div>
+                    </div>
+                  {% endif %}
+
+                  <div class="table-responsive">
+                    <table class="table table-sm align-middle mb-0">
+                      <thead>
+                        <tr>
+                          <th>{% translate "Account" %}</th>
+                          <th>{% translate "Unit" %}</th>
+                          <th>{% translate "Side" %}</th>
+                          <th>{% translate "Amount" %}</th>
+                          <th>{% translate "Order" %}</th>
+                          <th class="text-center">{% translate "Remove" %}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for row_form in formset %}
+                          <tr>
+                            <td>
+                              {{ row_form.account }}
+                              {% for error in row_form.account.errors %}<div class="form-error small mt-1">{{ error }}</div>{% endfor %}
+                            </td>
+                            <td>
+                              {{ row_form.unit }}
+                              {% for error in row_form.unit.errors %}<div class="form-error small mt-1">{{ error }}</div>{% endfor %}
+                            </td>
+                            <td>
+                              {{ row_form.side }}
+                              {% for error in row_form.side.errors %}<div class="form-error small mt-1">{{ error }}</div>{% endfor %}
+                            </td>
+                            <td>
+                              {{ row_form.default_amount }}
+                              {% for error in row_form.default_amount.errors %}<div class="form-error small mt-1">{{ error }}</div>{% endfor %}
+                            </td>
+                            <td>
+                              {{ row_form.order }}
+                              {% for error in row_form.order.errors %}<div class="form-error small mt-1">{{ error }}</div>{% endfor %}
+                            </td>
+                            <td class="text-center">
+                              <div class="form-check d-inline-flex align-items-center justify-content-center">
+                                {{ row_form.DELETE }}
+                              </div>
+                            </td>
+                          </tr>
+                          {% if row_form.non_field_errors %}
+                            <tr>
+                              <td colspan="6" class="pt-0">
+                                <div class="alert alert-danger py-1 small mb-2">
+                                  {% for error in row_form.non_field_errors %}
+                                    <div>{{ error }}</div>
+                                  {% endfor %}
+                                </div>
+                              </td>
+                            </tr>
+                          {% endif %}
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div class="form-actions form-actions-inline mt-4">
+                <a href="{{ cancel_url }}{% if selected_society %}?society={{ selected_society.id }}{% endif %}" class="btn-action btn-action--secondary">
+                  <i class="fas fa-times me-1"></i>{% translate "Cancel" %}
+                </a>
+                <button type="submit" class="btn-action btn-action--primary">
+                  <i class="fas fa-save me-1"></i>{% translate "Save Template" %}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

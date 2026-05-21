@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% translate "Delete Voucher Template" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Delete Voucher Template" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "This will permanently remove the template from the selected society." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="action-bar">
+    <a href="{{ cancel_url }}{% if selected_society %}?society={{ selected_society.id }}{% endif %}" class="btn-action btn-action--secondary">
+      <i class="fas fa-arrow-left me-1"></i>{% translate "Back" %}
+    </a>
+  </div>
+
+  <div class="content-card shadow-sm border-0 overflow-hidden">
+    <div class="content-card__body p-0">
+      <div class="row g-0">
+        <div class="col-12 col-xl-4 border-end bg-light">
+          <div class="p-4 p-xl-5 h-100">
+            <p class="text-uppercase text-muted small fw-semibold mb-2">{% translate "Confirm Delete" %}</p>
+            <h2 class="h4 mb-3">{% translate "Are you sure?" %}</h2>
+            <p class="text-muted mb-0">
+              {% translate "Deleting a template removes it from voucher entry quick actions and from the template list." %}
+            </p>
+          </div>
+        </div>
+        <div class="col-12 col-xl-8">
+          <div class="p-4 p-xl-5">
+            <div class="alert alert-warning">
+              <strong>{{ template.name|default:template.get_voucher_type_display }}</strong>
+              <div class="small mt-1">
+                {{ template.get_voucher_type_display }} · {{ template.society.name }}
+              </div>
+            </div>
+
+            <form method="post" class="d-flex gap-2">
+              {% csrf_token %}
+              <a href="{{ cancel_url }}{% if selected_society %}?society={{ selected_society.id }}{% endif %}" class="btn-action btn-action--secondary">
+                <i class="fas fa-times me-1"></i>{% translate "Cancel" %}
+              </a>
+              <button type="submit" class="btn-action btn-action--danger">
+                <i class="fas fa-trash me-1"></i>{% translate "Delete Template" %}
+              </button>
+            </form>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

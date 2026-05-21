@@ -12,6 +12,10 @@ from accounting.views import voucher_posting_menu_view
 from accounting.views import voucher_reverse_view
 from accounting.views import account_ledger_view
 from accounting.views import account_ledger_export_csv_view
+from accounting.views import voucher_template_create_view
+from accounting.views import voucher_template_delete_view
+from accounting.views import voucher_template_list_view
+from accounting.views import voucher_template_update_view
 from reports.views import trial_balance_export_csv_view
 from reports.views import trial_balance_report_view
 
@@ -35,6 +39,10 @@ urlpatterns = [
     ),
     path("vouchers/", view=voucher_list_view, name="voucher-list"),
     path("vouchers/entry/", view=voucher_entry_view, name="voucher-entry"),
+    path("vouchers/templates/", view=voucher_template_list_view, name="voucher-template-list"),
+    path("vouchers/templates/add/", view=voucher_template_create_view, name="voucher-template-add"),
+    path("vouchers/templates/<int:pk>/edit/", view=voucher_template_update_view, name="voucher-template-edit"),
+    path("vouchers/templates/<int:pk>/delete/", view=voucher_template_delete_view, name="voucher-template-delete"),
     path("vouchers/posting/", view=voucher_posting_menu_view, name="voucher-posting"),
     path("vouchers/<int:pk>/detail/", view=voucher_detail_view, name="voucher-detail"),
     path("vouchers/<int:pk>/post/", view=voucher_post_view, name="voucher-post"),

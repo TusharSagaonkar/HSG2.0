@@ -3,6 +3,8 @@
 ## Overview
 A production-grade, database-driven keyboard shortcut system for the Housing Accounting Django application. The system allows administrators to configure keyboard shortcuts via Django admin, with role-based access control, page-specific scopes, and HTMX integration.
 
+> Policy update: the engine now also supports browser-safe client-side sequences such as `g h` and a `Ctrl+K` command palette. The database still owns the main shortcut catalog, but the recommended UX direction is now sequence-first rather than function-key-heavy.
+
 ## Features Implemented
 
 ### ✅ Core Features
@@ -12,6 +14,8 @@ A production-grade, database-driven keyboard shortcut system for the Housing Acc
 - **HTMX integration**: Modal actions load content dynamically via HTMX
 - **Fast lookup**: 5-minute caching, no database hits during keypress
 - **Key normalization**: Consistent key combination matching (e.g., "CTRL+ALT+R")
+- **Client-side sequences**: Browser-safe `g`-prefixed navigation is handled in the shortcut engine
+- **Command palette**: `Ctrl+K` opens the built-in command palette
 
 ### ✅ Action Types
 1. **URL**: Redirect to specified URL
