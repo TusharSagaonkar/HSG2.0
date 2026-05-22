@@ -19,11 +19,13 @@ services:
         value: "False"
       - key: DJANGO_ALLOWED_HOSTS
         # Replace with your Render service hostname (or use '*' for testing)
-        value: "housing-accounting.onrender.com,hsg2-0.onrender.com"
-      - key: DJANGO_CSRF_TRUSTED_ORIGINS
-        value: "https://housing-accounting.onrender.com,https://hsg2-0.onrender.com"
+        value: "housing-accounting.onrender.com,hsg2-0.onrender.com,hsg-8i4a.onrender.com"
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://housing-accounting.onrender.com,https://hsg2-0.onrender.com,https://hsg-8i4a.onrender.com"
       - key: DJANGO_ADMIN_URL
         value: "admin/"
+      - key: BASE_URL
+        value: "https://housing-accounting.onrender.com"
       - key: WEB_CONCURRENCY
         value: "2"
       - key: DJANGO_SECRET_KEY
@@ -53,11 +55,13 @@ services:
       - key: DJANGO_DEBUG
         value: "False"
       - key: DJANGO_ALLOWED_HOSTS
-        value: "housing-accounting.onrender.com,hsg2-0.onrender.com"
-      - key: DJANGO_CSRF_TRUSTED_ORIGINS
-        value: "https://housing-accounting.onrender.com,https://hsg2-0.onrender.com"
+        value: "housing-accounting.onrender.com,hsg2-0.onrender.com,hsg-8i4a.onrender.com"
+      - key: CSRF_TRUSTED_ORIGINS
+        value: "https://housing-accounting.onrender.com,https://hsg2-0.onrender.com,https://hsg-8i4a.onrender.com"
       - key: DJANGO_ADMIN_URL
         value: "admin/"
+      - key: BASE_URL
+        value: "https://housing-accounting.onrender.com"
       - key: DJANGO_SECRET_KEY
         sync: false
       - key: USE_SUPABASE_DB

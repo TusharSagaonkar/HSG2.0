@@ -7,6 +7,7 @@ from pathlib import Path
 
 import dj_database_url
 import environ
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
 # housing_accounting/
@@ -33,7 +34,10 @@ DEBUG = env.bool("DJANGO_DEBUG", False)
 TIME_ZONE = "Asia/Kolkata"
 # https://docs.djangoproject.com/en/dev/ref/settings/#language-code
 LANGUAGE_CODE = "en-us"
-CSRF_TRUSTED_ORIGINS = env.list("CSRF_TRUSTED_ORIGINS")
+CSRF_TRUSTED_ORIGINS = env.list(
+    "CSRF_TRUSTED_ORIGINS",
+    default=env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[]),
+)
 # https://docs.djangoproject.com/en/dev/ref/settings/#languages
 # from django.utils.translation import gettext_lazy as _
 # LANGUAGES = [
@@ -54,8 +58,24 @@ LOCALE_PATHS = [str(BASE_DIR / "locale")]
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 
+
+def _default_database_url() -> str:
+    database_url = os.getenv("DATABASE_URL")
+    if database_url:
+        return database_url
+
+    if env.bool("USE_SUPABASE_DB", default=False):
+        supabase_url = os.getenv("SUPABASE_POOLER_URL") or os.getenv("SUPABASE_DATABASE_URL")
+        if supabase_url:
+            return supabase_url
+        raise ImproperlyConfigured(
+            "USE_SUPABASE_DB is true, but neither SUPABASE_POOLER_URL nor SUPABASE_DATABASE_URL is set.",
+        )
+
+    return "sqlite:///db.sqlite3"
+
 db_config = dj_database_url.config(
-    default=os.getenv("DATABASE_URL", "sqlite:///db.sqlite3"),
+    default=_default_database_url(),
     conn_max_age=600,
 )
 
@@ -91,7 +111,7 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 ROOT_URLCONF = "config.urls"
 # https://docs.djangoproject.com/en/dev/ref/settings/#wsgi-application
 WSGI_APPLICATION = "config.wsgi.application"
-BASE_URL = env.str("BASE_URL")
+BASE_URL = env.str("BASE_URL", default="")
 
 # APPS
 # ------------------------------------------------------------------------------
