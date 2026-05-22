@@ -1,0 +1,39 @@
+/**
+ * Parking App - Vehicle Form Styles
+ * Optimizes the unit selection dropdown with structured optgroups
+ */
+
+/* Style for unit selection optgroups */
+select[id*="unit"] optgroup {
+  background-color: #f8f9fa;
+  color: #333;
+  font-weight: 600;
+  font-style: normal;
+  padding-left: 10px;
+  border-bottom: 1px solid #dee2e6;
+}
+
+select[id*="unit"] optgroup option {
+  background-color: white;
+  color: #333;
+  font-weight: 400;
+  padding-left: 20px;
+  font-style: normal;
+}
+
+select[id*="unit"] optgroup option:hover {
+  background-color: #e9ecef;
+}
+
+select[id*="unit"] optgroup option:checked {
+  background: linear-gradient(#0d6efd, #0d6efd);
+  background-color: #0d6efd;
+}
+
+/* Improve readability with better spacing */
+.unit-field-help {
+  display: block;
+  margin-top: 0.5rem;
+  font-size: 0.875rem;
+  color: #6c757d;
+}
