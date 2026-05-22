@@ -14,6 +14,15 @@ BASE_DIR = Path(__file__).resolve(strict=True).parent.parent.parent
 APPS_DIR = BASE_DIR / "housing_accounting"
 env = environ.Env()
 
+
+def _merged_env_list(name: str, default: list[str] | None = None) -> list[str]:
+    values = env.list(name, default=[])
+    merged = list(default or [])
+    for value in values:
+        if value not in merged:
+            merged.append(value)
+    return merged
+
 default_env_file = BASE_DIR / ".env"
 if default_env_file.exists():
     # OS environment variables take precedence over variables from .env
@@ -34,9 +43,9 @@ DEBUG = env.bool("DJANGO_DEBUG", False)
 TIME_ZONE = "Asia/Kolkata"
 # https://docs.djangoproject.com/en/dev/ref/settings/#language-code
 LANGUAGE_CODE = "en-us"
-CSRF_TRUSTED_ORIGINS = env.list(
+CSRF_TRUSTED_ORIGINS = _merged_env_list(
     "CSRF_TRUSTED_ORIGINS",
-    default=env.list("DJANGO_CSRF_TRUSTED_ORIGINS", default=[]),
+    default=["https://*.onrender.com"],
 )
 # https://docs.djangoproject.com/en/dev/ref/settings/#languages
 # from django.utils.translation import gettext_lazy as _
