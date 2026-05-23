@@ -1,6 +1,9 @@
 from django.db import models, transaction
 from django.core.exceptions import ValidationError
 from datetime import date, timedelta
+
+from django.utils.timezone import localdate
+
 from societies.models import Society
 
 class FinancialYear(models.Model):
@@ -69,10 +72,12 @@ class FinancialYear(models.Model):
         with transaction.atomic():
             AccountingPeriod.objects.bulk_create(periods)
 
-            # Open only the first period
+            # Cumulative multi-open: all periods from FY start up to and
+            # including the period containing today are opened by default.
+            today = localdate()
             AccountingPeriod.objects.filter(
                 financial_year=self,
-                start_date=periods[0].start_date,
+                start_date__lte=today,
             ).update(is_open=True)
 
     def __str__(self):

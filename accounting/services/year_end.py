@@ -8,9 +8,9 @@ from accounting.models import Account
 from accounting.models import AccountingPeriod
 from accounting.models import FinancialYear
 from accounting.models import LedgerEntry
+from accounting.models import PeriodStatusLog
 from accounting.models import Voucher
 from accounting.models import YearEndCloseLog
-from accounting.services.period_workflow import close_period
 from accounting.services.reporting import build_trial_balance
 
 
@@ -46,19 +46,23 @@ def close_financial_year_with_carry_forward(financial_year, *, performed_by=None
             is_open=True,
         ).order_by("start_date")
     )
-    if len(open_periods) > 1:
-        raise ValidationError(
-            "Multiple open periods found. Close periods in sequence before year close."
-        )
 
+    # Close all open periods in bulk with individual audit logs.
     if open_periods:
-        period = open_periods[0]
-        while period:
-            period = close_period(
-                period,
-                performed_by=performed_by,
-                reason=f"Year-end close for {financial_year.name}",
-            )
+        for period in open_periods:
+            with transaction.atomic():
+                period.is_open = False
+                period.save(update_fields=["is_open"])
+                PeriodStatusLog.objects.create(
+                    period=period,
+                    action=PeriodStatusLog.Action.CLOSED,
+                    reason=f"Year-end close for {financial_year.name}",
+                    performed_by=performed_by,
+                )
+
+        # If the FY was closed by last-period logic, this is idempotent.
+        financial_year.is_open = False
+        financial_year.save(update_fields=["is_open"])
 
     duration = financial_year.end_date - financial_year.start_date
     next_start = financial_year.end_date + timedelta(days=1)

@@ -14,20 +14,72 @@
 {% endblock dashboard_subtitle %}
 
 {% block content %}
+  <div class="content-card mb-4">
+    <div class="content-card__header">
+      <div>
+        <h3 class="content-card__title">{% translate "Find reports fast" %}</h3>
+        <p class="text-muted mb-0 small">{% blocktranslate with count=report_count %}{{ count }} report{{ count|pluralize }} matched your current filters.{% endblocktranslate %}</p>
+      </div>
+      <a href="{% url 'reports:index' %}" class="btn-action btn-action--outline-secondary btn-action--sm">
+        <i class="fas fa-rotate-left me-1"></i>{% translate "Reset" %}
+      </a>
+    </div>
+    <div class="content-card__body">
+      <form method="get" class="row g-3 align-items-end">
+        <div class="col-12 col-lg-8">
+          <label for="id_q" class="form-label fw-semibold">{% translate "Search reports" %}</label>
+          <div class="input-group">
+            <span class="input-group-text bg-white"><i class="fas fa-magnifying-glass"></i></span>
+            <input
+              id="id_q"
+              type="search"
+              name="q"
+              value="{{ search_query }}"
+              class="form-control"
+              placeholder="{% translate 'Search by title, description, or type' %}"
+            >
+          </div>
+        </div>
+        <div class="col-12 col-lg-4">
+          <label for="id_type" class="form-label fw-semibold">{% translate "Type" %}</label>
+          <select id="id_type" name="type" class="form-select">
+            <option value="">{% translate "All Types" %}</option>
+            {% for report_type in report_types %}
+              <option value="{{ report_type }}" {% if selected_type == report_type %}selected{% endif %}>{{ report_type }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div class="row g-3">
     {% for report in report_links %}
       <div class="col-12 col-md-6 col-xl-4">
-        <div class="content-card h-100 shadow-sm">
+        <div class="content-card h-100 report-card">
           <div class="content-card__header">
-            <h5 class="content-card__title mb-2">{{ report.title }}</h5>
+            <div class="d-flex align-items-center gap-3">
+              <div class="report-card__icon report-card__icon--{{ report.type|slugify }}">
+                <i class="fas {{ report.icon }}"></i>
+              </div>
+              <div>
+                <h5 class="content-card__title mb-1">{{ report.title }}</h5>
+                <span class="badge-status badge-status--info">{{ report.type }}</span>
+              </div>
+            </div>
+            <span class="badge-status badge-status--success">{{ report.status }}</span>
           </div>
           <div class="content-card__body">
             <p class="text-muted mb-3">{{ report.description }}</p>
             <a href="{% url report.url_name %}" class="btn-action btn-action--outline-primary">
-              <i class="fas fa-chart-bar me-1"></i>{% translate "Open Report" %}
+              <i class="fas fa-arrow-up-right-from-square me-1"></i>{% translate "Open Report" %}
             </a>
           </div>
         </div>
+      </div>
+    {% empty %}
+      <div class="col-12">
+        {% include "components/empty_state.html" with icon="fa-folder-open" title=_("No reports match your filters") message=_("Try a different search term or switch the type filter.") %}
       </div>
     {% endfor %}
   </div>

@@ -23,24 +23,13 @@ def close_period(period, *, performed_by=None, reason=""):
     if not period.is_open:
         raise ValidationError("Selected period is already closed.")
 
-    earlier_open = AccountingPeriod.objects.filter(
-        society=period.society,
-        financial_year=period.financial_year,
-        start_date__lt=period.start_date,
-        is_open=True,
-    ).exists()
-    if earlier_open:
-        raise ValidationError(
-            "Cannot close this period while earlier periods are still open."
-        )
-
     _ensure_no_draft_vouchers(period)
 
-    next_period = AccountingPeriod.objects.filter(
+    is_last_period = not AccountingPeriod.objects.filter(
         society=period.society,
         financial_year=period.financial_year,
         start_date__gt=period.end_date,
-    ).order_by("start_date").first()
+    ).exists()
 
     with transaction.atomic():
         period.is_open = False
@@ -52,52 +41,19 @@ def close_period(period, *, performed_by=None, reason=""):
             performed_by=performed_by,
         )
 
-        if next_period:
-            next_period.is_open = True
-            next_period.save(update_fields=["is_open"])
-            PeriodStatusLog.objects.create(
-                period=next_period,
-                action=PeriodStatusLog.Action.OPENED,
-                reason=f"Auto-open after closing {period.start_date} to {period.end_date}",
-                performed_by=performed_by,
-            )
-        else:
+        # If this was the last period in the FY and the FY is still open, close it.
+        if is_last_period and period.financial_year.is_open:
             period.financial_year.is_open = False
             period.financial_year.save(update_fields=["is_open"])
 
-    return next_period
+    return None
 
 
 def reopen_period(period, *, performed_by=None, reason=""):
     if period.is_open:
         raise ValidationError("Selected period is already open.")
 
-    later_open_periods = list(
-        AccountingPeriod.objects.filter(
-            society=period.society,
-            financial_year=period.financial_year,
-            start_date__gt=period.start_date,
-            is_open=True,
-        ).order_by("start_date")
-    )
-
-    if len(later_open_periods) > 1:
-        raise ValidationError(
-            "Cannot reopen period while multiple later periods are open."
-        )
-
     with transaction.atomic():
-        if later_open_periods:
-            later_period = later_open_periods[0]
-            later_period.is_open = False
-            later_period.save(update_fields=["is_open"])
-            PeriodStatusLog.objects.create(
-                period=later_period,
-                action=PeriodStatusLog.Action.CLOSED,
-                reason=f"Auto-close while reopening {period.start_date} to {period.end_date}",
-                performed_by=performed_by,
-            )
-
         period.is_open = True
         period.save(update_fields=["is_open"])
         PeriodStatusLog.objects.create(
@@ -107,6 +63,7 @@ def reopen_period(period, *, performed_by=None, reason=""):
             performed_by=performed_by,
         )
 
+        # If the financial year was closed, re-open it.
         if not period.financial_year.is_open:
             period.financial_year.is_open = True
             period.financial_year.save(update_fields=["is_open"])

@@ -35,27 +35,45 @@ class ReportsHomeView(LoginRequiredMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context["report_links"] = [
-            {"title": "General Ledger (GL)", "url_name": "accounting:account-list", "description": "Account-wise drill-down to ledger entries.", "status": "Live"},
-            {"title": "Trial Balance", "url_name": "reports:trial-balance", "description": "Debit, credit, and net balances from posted vouchers.", "status": "Live"},
-            {"title": "Profit and Loss", "url_name": "reports:profit-and-loss", "description": "Income, expenses, and net profit for the selected period.", "status": "Live"},
-            {"title": "Balance Sheet", "url_name": "reports:balance-sheet", "description": "Assets, liabilities, equity, and current-period surplus.", "status": "Live"},
-            {"title": "AR Aging", "url_name": "reports:accounts-receivable-aging", "description": "Outstanding member receivables by aging bucket.", "status": "Live"},
-            {"title": "AP Aging", "url_name": "reports:accounts-payable-aging", "description": "Outstanding vendor payables by aging bucket.", "status": "Live"},
-            {"title": "Exception Report", "url_name": "reports:exception-report", "description": "Duplicate references and suspense balance exceptions.", "status": "Live"},
-            {"title": "Cash Flow Statement", "url_name": "reports:cash-flow-statement", "description": "Operating, investing, and financing cash movement.", "status": "Live"},
-            {"title": "Fixed Assets Register", "url_name": "reports:fixed-assets-register", "description": "Asset-level balances, additions, and movements.", "status": "Live"},
-            {"title": "Bank Reconciliation Statement (BRS)", "url_name": "reports:bank-reconciliation-statement", "description": "Bank balance vs books with break-up of differences.", "status": "Live"},
-            {"title": "Transaction Reconciliation", "url_name": "reports:transaction-reconciliation", "description": "IC vs Switch vs Host matched/unmatched lifecycle.", "status": "Live"},
-            {"title": "GST Reports", "url_name": "reports:gst-reports", "description": "GSTR-1, GSTR-3B, and Input Tax Credit views.", "status": "Live"},
-            {"title": "TDS Reports", "url_name": "reports:tds-reports", "description": "TDS deducted, payable, and return-ready summaries.", "status": "Live"},
-            {"title": "Inventory and Costing", "url_name": "reports:inventory-costing-reports", "description": "Inventory valuation, stock ledger, and costing analysis.", "status": "Live"},
-            {"title": "Management Analytics", "url_name": "reports:management-analytics-reports", "description": "Budget vs actual, variance, profitability, and KPI dashboards.", "status": "Live"},
-            {"title": "Control and Risk", "url_name": "reports:control-risk-reports", "description": "Audit trail, suspense monitoring, and anomaly tracking.", "status": "Live"},
-            {"title": "Advanced Regulatory", "url_name": "reports:advanced-regulatory-reports", "description": "Regulatory, settlement, liquidity, and revenue-leakage outputs.", "status": "Live"},
-            {"title": "Form I - Register of Members", "url_name": "reports:form-i-register-of-members", "description": "Permanent historical membership register with share and nominee details.", "status": "Live"},
-            {"title": "Form J - List of Members", "url_name": "reports:form-j-list-of-members", "description": "Current active member list for AGM, voting, and statutory notices.", "status": "Live"},
+        report_links = [
+            {"title": "General Ledger (GL)", "url_name": "accounting:account-list", "description": "Account-wise drill-down to ledger entries.", "status": "Live", "type": "Core", "icon": "fa-book-open"},
+            {"title": "Trial Balance", "url_name": "reports:trial-balance", "description": "Debit, credit, and net balances from posted vouchers.", "status": "Live", "type": "Core", "icon": "fa-scale-balanced"},
+            {"title": "Profit and Loss", "url_name": "reports:profit-and-loss", "description": "Income, expenses, and net profit for the selected period.", "status": "Live", "type": "Core", "icon": "fa-chart-line"},
+            {"title": "Balance Sheet", "url_name": "reports:balance-sheet", "description": "Assets, liabilities, equity, and current-period surplus.", "status": "Live", "type": "Core", "icon": "fa-file-invoice-dollar"},
+            {"title": "AR Aging", "url_name": "reports:accounts-receivable-aging", "description": "Outstanding member receivables by aging bucket.", "status": "Live", "type": "Aging", "icon": "fa-clock-rotate-left"},
+            {"title": "AP Aging", "url_name": "reports:accounts-payable-aging", "description": "Outstanding vendor payables by aging bucket.", "status": "Live", "type": "Aging", "icon": "fa-hourglass-half"},
+            {"title": "Exception Report", "url_name": "reports:exception-report", "description": "Duplicate references and suspense balance exceptions.", "status": "Live", "type": "Audit", "icon": "fa-triangle-exclamation"},
+            {"title": "Cash Flow Statement", "url_name": "reports:cash-flow-statement", "description": "Operating, investing, and financing cash movement.", "status": "Live", "type": "Core", "icon": "fa-sack-dollar"},
+            {"title": "Fixed Assets Register", "url_name": "reports:fixed-assets-register", "description": "Asset-level balances, additions, and movements.", "status": "Live", "type": "Assets", "icon": "fa-building"},
+            {"title": "Bank Reconciliation Statement (BRS)", "url_name": "reports:bank-reconciliation-statement", "description": "Bank balance vs books with break-up of differences.", "status": "Live", "type": "Reconciliation", "icon": "fa-university"},
+            {"title": "Transaction Reconciliation", "url_name": "reports:transaction-reconciliation", "description": "IC vs Switch vs Host matched/unmatched lifecycle.", "status": "Live", "type": "Reconciliation", "icon": "fa-right-left"},
+            {"title": "GST Reports", "url_name": "reports:gst-reports", "description": "GSTR-1, GSTR-3B, and Input Tax Credit views.", "status": "Live", "type": "Compliance", "icon": "fa-receipt"},
+            {"title": "TDS Reports", "url_name": "reports:tds-reports", "description": "TDS deducted, payable, and return-ready summaries.", "status": "Live", "type": "Compliance", "icon": "fa-file-contract"},
+            {"title": "Inventory and Costing", "url_name": "reports:inventory-costing-reports", "description": "Inventory valuation, stock ledger, and costing analysis.", "status": "Live", "type": "Operations", "icon": "fa-boxes-stacked"},
+            {"title": "Management Analytics", "url_name": "reports:management-analytics-reports", "description": "Budget vs actual, variance, profitability, and KPI dashboards.", "status": "Live", "type": "Insights", "icon": "fa-chart-column"},
+            {"title": "Control and Risk", "url_name": "reports:control-risk-reports", "description": "Audit trail, suspense monitoring, and anomaly tracking.", "status": "Live", "type": "Audit", "icon": "fa-shield-halved"},
+            {"title": "Advanced Regulatory", "url_name": "reports:advanced-regulatory-reports", "description": "Regulatory, settlement, liquidity, and revenue-leakage outputs.", "status": "Live", "type": "Compliance", "icon": "fa-gavel"},
+            {"title": "Form I - Register of Members", "url_name": "reports:form-i-register-of-members", "description": "Permanent historical membership register with share and nominee details.", "status": "Live", "type": "Membership", "icon": "fa-address-card"},
+            {"title": "Form J - List of Members", "url_name": "reports:form-j-list-of-members", "description": "Current active member list for AGM, voting, and statutory notices.", "status": "Live", "type": "Membership", "icon": "fa-users"},
         ]
+        search_query = (self.request.GET.get("q") or "").strip().lower()
+        selected_type = (self.request.GET.get("type") or "").strip()
+        report_types = sorted({report["type"] for report in report_links})
+        if search_query:
+            report_links = [
+                report
+                for report in report_links
+                if search_query in report["title"].lower()
+                or search_query in report["description"].lower()
+                or search_query in report["type"].lower()
+            ]
+        if selected_type:
+            report_links = [report for report in report_links if report["type"] == selected_type]
+        context["report_links"] = report_links
+        context["report_types"] = report_types
+        context["search_query"] = search_query
+        context["selected_type"] = selected_type
+        context["report_count"] = len(report_links)
         return context
 
 

@@ -131,3 +131,87 @@ def test_posting_uses_financial_year_of_same_society_only():
 
     with pytest.raises(ValidationError):
         v.post()
+
+
+@pytest.mark.django_db
+def test_posting_allowed_in_open_period_when_earlier_period_closed():
+    """
+    Under cumulative multi-open, closing an earlier period does not
+    prevent posting in a later open period.
+    """
+    society = Society.objects.create(name="Multi-Open Posting Society")
+    fy = FinancialYear.objects.create(
+        society=society,
+        name="FY 2024-25",
+        start_date=date(2024, 4, 1),
+        end_date=date(2025, 3, 31),
+        is_open=True,
+    )
+
+    # Close April but keep May open.
+    AccountingPeriod.objects.filter(
+        society=society,
+        financial_year=fy,
+        start_date=date(2024, 4, 1),
+    ).update(is_open=False)
+
+    cat, _ = AccountCategory.objects.get_or_create(
+        society=society, name="Cash", account_type="ASSET",
+    )
+    income_cat, _ = AccountCategory.objects.get_or_create(
+        society=society, name="Income", account_type="INCOME",
+    )
+    cash_acc = Account.objects.create(
+        society=society, name="Cash", category=cat,
+        account_type=Account.AccountType.ASSET,
+    )
+    income_acc = Account.objects.create(
+        society=society, name="Income", category=income_cat,
+        account_type=Account.AccountType.INCOME,
+    )
+
+    v = Voucher.objects.create(
+        society=society,
+        voucher_type="GENERAL",
+        voucher_date=date(2024, 5, 10),
+    )
+    LedgerEntry.objects.create(voucher=v, account=cash_acc, debit=20)
+    LedgerEntry.objects.create(voucher=v, account=income_acc, credit=20)
+
+    # Should succeed — May is open despite April being closed.
+    v.post()
+    v.refresh_from_db()
+    assert v.posted_at is not None
+
+
+@pytest.mark.django_db
+def test_multiple_periods_open_on_fy_creation(monkeypatch):
+    """
+    When a FinancialYear is created mid-year, all periods from
+    start_date up to today are open (cumulative multi-open).
+    """
+    from django.utils.timezone import localdate
+
+    society = Society.objects.create(name="Mid-Year Creation Society")
+    fake_today = date(2025, 8, 10)
+    monkeypatch.setattr(
+        "accounting.models.model_FinancialYear.localdate",
+        lambda: fake_today,
+    )
+
+    fy = FinancialYear.objects.create(
+        society=society,
+        name="FY 2025-26",
+        start_date=date(2025, 4, 1),
+        end_date=date(2026, 3, 31),
+        is_open=True,
+    )
+
+    open_periods = AccountingPeriod.objects.filter(
+        society=society, financial_year=fy, is_open=True,
+    ).order_by("start_date")
+
+    # April through August should be open (5 periods).
+    assert open_periods.count() == 5
+    assert open_periods.first().start_date == date(2025, 4, 1)
+    assert open_periods.last().start_date == date(2025, 8, 1)
