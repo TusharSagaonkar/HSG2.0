@@ -5,6 +5,7 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.urls import reverse
 
+from accounting.forms import VoucherTemplateForm
 from accounting.models import Account
 from accounting.models import AccountCategory
 from accounting.models import VoucherTemplate
@@ -338,3 +339,75 @@ def test_voucher_template_create_and_delete_flow(client, user):
     )
     assert delete_response.status_code == HTTPStatus.FOUND
     assert VoucherTemplate.objects.filter(pk=template.pk).exists() is False
+
+
+def test_voucher_template_boolean_fields_render_as_checkboxes():
+    form = VoucherTemplateForm()
+
+    assert form.fields["is_active"].widget.attrs["class"] == "form-check-input"
+    assert form.fields["is_pinned"].widget.attrs["class"] == "form-check-input"
+
+
+def test_voucher_template_edit_does_not_add_blank_rows(client, user):
+    society = Society.objects.create(name="Edit Rows Society")
+    client.force_login(user)
+    cash = _build_account(
+        society,
+        name="Cash in Hand",
+        code="101",
+        account_type=Account.AccountType.ASSET,
+    )
+    template = VoucherTemplate.objects.create(
+        society=society,
+        voucher_type="GENERAL",
+        name="No Extra Rows",
+    )
+    VoucherTemplateRow.objects.create(
+        template=template,
+        account=cash,
+        side=VoucherTemplateRow.Side.DEBIT,
+        default_amount="100.00",
+        order=1,
+    )
+
+    response = client.get(
+        reverse("accounting:voucher-template-edit", kwargs={"pk": template.pk}),
+        {"society": society.pk},
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.context["formset"].total_form_count() == 1
+
+
+def test_voucher_template_edit_updates_boolean_fields(client, user):
+    society = Society.objects.create(name="Edit Boolean Society")
+    client.force_login(user)
+    template = VoucherTemplate.objects.create(
+        society=society,
+        voucher_type="GENERAL",
+        name="Boolean Template",
+        is_active=True,
+        is_pinned=True,
+    )
+
+    response = client.post(
+        reverse("accounting:voucher-template-edit", kwargs={"pk": template.pk}) + f"?society={society.pk}",
+        data={
+            "society": str(society.pk),
+            "voucher_type": "GENERAL",
+            "name": "Boolean Template",
+            "sort_order": "0",
+            "narration": "",
+            "payment_mode": "",
+            "reference_number_pattern": "",
+            "rows-TOTAL_FORMS": "0",
+            "rows-INITIAL_FORMS": "0",
+            "rows-MIN_NUM_FORMS": "0",
+            "rows-MAX_NUM_FORMS": "1000",
+        },
+    )
+
+    assert response.status_code == HTTPStatus.FOUND
+    template.refresh_from_db()
+    assert template.is_active is False
+    assert template.is_pinned is False

@@ -26,6 +26,7 @@ urlpatterns = [
     path("notifications/", include("notifications.urls", namespace="notifications")),
     path("members/", include("members.urls", namespace="members")),
     path("administration/", include("administration.urls", namespace="administration")),
+    path("reconciliation/", include("reconciliation.urls", namespace="reconciliation")),
     # Your stuff: custom urls includes go here
     # ...
     # Media files

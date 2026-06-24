@@ -1,0 +1,109 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% translate "Import Detail" %} | {{ block.super }}{% endblock %}
+
+{% block dashboard_title %}{% translate "Statement Import Detail" %}{% endblock %}
+{% block dashboard_subtitle %}
+  {% blocktranslate with date=statement_import.uploaded_at|date:"d M Y H:i" %}Uploaded {{ date }}{% endblocktranslate %}
+{% endblock %}
+
+{% block content %}
+  <div class="row mb-4">
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted text-uppercase small">{% translate "Status" %}</h6>
+          <span class="badge {% if statement_import.import_status == 'COMPLETED' %}bg-success{% elif statement_import.import_status == 'FAILED' %}bg-danger{% else %}bg-secondary{% endif %} fs-6">
+            {{ statement_import.get_import_status_display }}
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted text-uppercase small">{% translate "Transactions" %}</h6>
+          <div class="display-6 fw-bold">{{ statement_import.transactions.count }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted text-uppercase small">{% translate "Bank" %}</h6>
+          <div>{{ statement_import.bank_name|default:"—" }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {% if statement_import.error_log %}
+    <div class="alert alert-danger">
+      <strong>{% translate "Errors:" %}</strong>
+      <pre class="mb-0 mt-2">{{ statement_import.error_log }}</pre>
+    </div>
+  {% endif %}
+
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="fas fa-list me-2"></i>{% translate "Transaction List" %}</h5>
+      <span class="text-muted small">{{ transactions|length }} {% translate "entries" %}</span>
+    </div>
+    <div class="card-body p-0">
+      {% if transactions %}
+        <div class="table-responsive" style="max-height: 70vh; overflow-y: auto;">
+          <table class="table table-hover mb-0">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>{% translate "Date" %}</th>
+                <th>{% translate "Narration" %}</th>
+                <th>{% translate "Reference" %}</th>
+                <th>{% translate "DR/CR" %}</th>
+                <th class="text-end">{% translate "Amount" %}</th>
+                <th class="text-end">{% translate "Balance" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for tx in transactions %}
+                <tr class="{% if tx.is_duplicate %}table-warning{% endif %}">
+                  <td>{{ tx.transaction_date|date:"d/m/Y" }}</td>
+                  <td>
+                    <div class="text-truncate" style="max-width: 300px;" title="{{ tx.narration }}">
+                      {{ tx.narration|truncatechars:80 }}
+                    </div>
+                    {% if tx.is_duplicate %}
+                      <span class="badge bg-warning text-dark">{% translate "Duplicate" %}</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ tx.reference_no }}</td>
+                  <td>
+                    <span class="badge {% if tx.dr_cr == 'CREDIT' %}bg-success{% else %}bg-danger{% endif %}">
+                      {{ tx.get_dr_cr_display }}
+                    </span>
+                  </td>
+                  <td class="text-end">₹ {{ tx.amount|floatformat:2|intcomma }}</td>
+                  <td class="text-end text-muted">{% if tx.balance %}₹ {{ tx.balance|floatformat:2|intcomma }}{% else %}—{% endif %}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-4 text-center text-muted">
+          {% translate "No transactions in this import." %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="mt-3">
+    <a href="{% url 'reconciliation:import-history' %}" class="btn btn-outline-secondary">
+      <i class="fas fa-arrow-left me-1"></i>{% translate "Back to Import History" %}
+    </a>
+    <a href="{% url 'reconciliation:workspace' %}" class="btn btn-outline-primary ms-2">
+      <i class="fas fa-tasks me-1"></i>{% translate "Reconciliation Workspace" %}
+    </a>
+  </div>
+{% endblock content %}

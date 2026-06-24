@@ -1,0 +1,488 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% translate "Audit Trail: Link" %} #{{ link.id }} | {{ block.super }}{% endblock %}
+
+{% block dashboard_title %}{% translate "Audit Trail — Link" %} #{{ link.id }}{% endblock %}
+{% block dashboard_subtitle %}{% translate "Complete timeline of all status changes for this reconciliation link." %}{% endblock %}
+
+{% block extra_head %}
+  <style>
+    /* ------------------------------------------------------------------
+       Vertical Timeline CSS
+       ------------------------------------------------------------------ */
+    .timeline {
+      position: relative;
+      padding-left: 2.5rem;
+    }
+    .timeline::before {
+      content: "";
+      position: absolute;
+      left: 1rem;
+      top: 0;
+      bottom: 0;
+      width: 3px;
+      background: linear-gradient(to bottom, #dee2e6, #adb5bd);
+      border-radius: 2px;
+    }
+    .timeline-entry {
+      position: relative;
+      margin-bottom: 1.5rem;
+      padding-bottom: 0.5rem;
+    }
+    .timeline-entry:last-child {
+      margin-bottom: 0;
+    }
+    .timeline-dot {
+      position: absolute;
+      left: -2.5rem;
+      top: 0.25rem;
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #6c757d;
+      border: 3px solid #fff;
+      box-shadow: 0 0 0 2px #6c757d;
+      z-index: 2;
+    }
+    .timeline-dot--created { background: #198754; box-shadow: 0 0 0 3px #198754; }
+    .timeline-dot--confirmed { background: #0d6efd; box-shadow: 0 0 0 3px #0d6efd; }
+    .timeline-dot--force_matched { background: #6f42c1; box-shadow: 0 0 0 3px #6f42c1; }
+    .timeline-dot--reversed { background: #dc3545; box-shadow: 0 0 0 3px #dc3545; }
+    .timeline-dot--duplicate { background: #ffc107; box-shadow: 0 0 0 3px #ffc107; }
+    .timeline-dot--exception { background: #fd7e14; box-shadow: 0 0 0 3px #fd7e14; }
+    .timeline-dot--ignored { background: #adb5bd; box-shadow: 0 0 0 3px #adb5bd; }
+    .timeline-dot--updated { background: #0dcaf0; box-shadow: 0 0 0 3px #0dcaf0; }
+    .timeline-dot--unmatched { background: #dc3545; box-shadow: 0 0 0 3px #dc3545; }
+    .timeline-body {
+      background: #f8f9fa;
+      border: 1px solid #e9ecef;
+      border-radius: 0.5rem;
+      padding: 1rem;
+    }
+    .timeline-body:hover {
+      background: #e9ecef;
+    }
+    .status-transition-arrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+    }
+    .status-transition-arrow .arrow-icon {
+      color: #6c757d;
+      font-size: 0.85rem;
+    }
+    .snapshot-toggle {
+      cursor: pointer;
+      user-select: none;
+      color: #6c757d;
+      font-size: 0.85rem;
+    }
+    .snapshot-toggle:hover {
+      color: #0d6efd;
+    }
+    .snapshot-content {
+      margin-top: 0.5rem;
+      padding: 0.75rem;
+      background: #fff;
+      border: 1px dashed #dee2e6;
+      border-radius: 0.375rem;
+      font-family: 'Courier New', monospace;
+      font-size: 0.8rem;
+      max-height: 300px;
+      overflow-y: auto;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    .summary-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      color: #6c757d;
+      letter-spacing: 0.5px;
+    }
+    .summary-value {
+      font-weight: 600;
+    }
+  </style>
+{% endblock extra_head %}
+
+{% block content %}
+  {# --- Action Bar --- #}
+  <div class="action-bar action-bar--responsive mb-3">
+    <div class="action-bar__group">
+      <a href="{% url 'reconciliation:audit-log' %}" class="btn-action btn-action--secondary">
+        <i class="fas fa-arrow-left me-1"></i>{% translate "Audit Log" %}
+      </a>
+    </div>
+    <div class="action-bar__group">
+      <a href="{% url 'reconciliation:workspace' %}" class="btn-action btn-action--primary">
+        <i class="fas fa-tasks me-1"></i>{% translate "Workspace" %}
+      </a>
+    </div>
+    <div class="action-bar__group">
+      <a href="{% url 'reconciliation:dashboard' %}" class="btn-action btn-action--primary">
+        <i class="fas fa-home me-1"></i>{% translate "Dashboard" %}
+      </a>
+    </div>
+  </div>
+
+  {# --- Header Card --- #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-body">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <h4 class="mb-1">
+            {% translate "Reconciliation Link" %} <strong>#{{ link.id }}</strong>
+          </h4>
+          <div class="text-muted small">
+            {% translate "Created" %}: {{ link.matched_at|naturaltime|default:"—" }}
+          </div>
+        </div>
+        <div class="d-flex gap-2 align-items-center">
+          <span class="badge fs-6
+            {% if link.status == 'MATCHED' %}bg-success
+            {% elif link.status == 'SUGGESTED' %}bg-info
+            {% elif link.status == 'FORCE_MATCHED' %}bg-primary
+            {% elif link.status == 'EXCEPTION' %}bg-danger
+            {% elif link.status == 'DUPLICATE' %}bg-warning text-dark
+            {% elif link.status == 'PARTIAL' %}bg-warning
+            {% elif link.status == 'REVERSED' %}bg-secondary
+            {% elif link.status == 'PENDING' %}bg-secondary
+            {% elif link.status == 'IGNORED' %}bg-light text-dark
+            {% endif %}">
+            {{ link.get_status_display }}
+          </span>
+          <span class="badge bg-light text-dark fs-6">
+            {{ link.get_match_type_display }}
+          </span>
+          <span class="badge bg-light text-dark fs-6">
+            <i class="fas fa-percent me-1"></i>{{ link.confidence_score }}%
+          </span>
+        </div>
+      </div>
+
+      <hr>
+
+      {# --- Matched Amount --- #}
+      <div class="row g-3 mb-3">
+        <div class="col-md-4">
+          <div class="summary-label">{% translate "Matched Amount" %}</div>
+          <div class="summary-value fs-5">₹ {{ link.matched_amount|floatformat:2|intcomma }}</div>
+        </div>
+        <div class="col-md-4">
+          <div class="summary-label">{% translate "Match Type" %}</div>
+          <div class="summary-value">{{ link.get_match_type_display }}</div>
+        </div>
+        <div class="col-md-4">
+          <div class="summary-label">{% translate "Matched By" %}</div>
+          <div class="summary-value">
+            {% if link.matched_by %}
+              {{ link.matched_by.name|default:link.matched_by.email }}
+            {% elif link.is_manual %}
+              <em class="text-muted">{% translate "Manual" %}</em>
+            {% else %}
+              <em class="text-muted">{% translate "Auto-matched" %}</em>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      {% if link.remarks %}
+        <div class="row mb-3">
+          <div class="col-12">
+            <div class="summary-label">{% translate "Remarks" %}</div>
+            <div class="text-muted">{{ link.remarks|linebreaksbr }}</div>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# --- Summary: Book Entry vs Bank Transaction --- #}
+  <div class="row g-4 mb-4">
+    {# Book Entry Card #}
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white border-0">
+          <h6 class="mb-0"><i class="fas fa-book me-2"></i>{% translate "Book Entry Details" %}</h6>
+        </div>
+        <div class="card-body">
+          <table class="table table-sm table-borderless mb-0">
+            <tbody>
+              <tr>
+                <td class="text-muted small" style="width: 40%;">{% translate "Voucher" %}</td>
+                <td>
+                  {% if link.voucher_entry %}
+                    <a href="{% url 'accounting:voucher-detail' link.voucher_entry.voucher_id %}" class="text-decoration-none fw-bold">
+                      {{ link.voucher_entry.voucher.display_number }}
+                    </a>
+                  {% else %}
+                    <span class="text-muted">—</span>
+                  {% endif %}
+                </td>
+              </tr>
+              <tr>
+                <td class="text-muted small">{% translate "Account" %}</td>
+                <td>{{ link.voucher_entry.account.name|default:"—" }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted small">{% translate "Voucher Date" %}</td>
+                <td>{{ link.voucher_entry.voucher.voucher_date|date:"d M Y"|default:"—" }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted small">{% translate "Voucher Type" %}</td>
+                <td>{{ link.voucher_entry.voucher.get_voucher_type_display|default:"—" }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted small">{% translate "Payment Mode" %}</td>
+                <td>{{ link.voucher_entry.voucher.get_payment_mode_display|default:"—" }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted small">{% translate "Debit" %}</td>
+                <td>₹ {{ link.voucher_entry.debit|floatformat:2|intcomma }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted small">{% translate "Credit" %}</td>
+                <td>₹ {{ link.voucher_entry.credit|floatformat:2|intcomma }}</td>
+              </tr>
+              {% if link.voucher_entry.unit %}
+                <tr>
+                  <td class="text-muted small">{% translate "Unit" %}</td>
+                  <td>{{ link.voucher_entry.unit.unit_number|default:"—" }}</td>
+                </tr>
+              {% endif %}
+              <tr>
+                <td class="text-muted small">{% translate "Narration" %}</td>
+                <td class="text-truncate" style="max-width: 200px;" title="{{ link.voucher_entry.voucher.narration }}">
+                  {{ link.voucher_entry.voucher.narration|default:"—"|truncatechars:100 }}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    {# Bank Transaction Card #}
+    <div class="col-md-6">
+      <div class="card border-0 shadow-sm h-100">
+        <div class="card-header bg-white border-0">
+          <h6 class="mb-0"><i class="fas fa-university me-2"></i>{% translate "Bank Transaction Details" %}</h6>
+        </div>
+        <div class="card-body">
+          <table class="table table-sm table-borderless mb-0">
+            <tbody>
+              <tr>
+                <td class="text-muted small" style="width: 40%;">{% translate "Transaction Date" %}</td>
+                <td>{{ link.bank_transaction.transaction_date|date:"d M Y" }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted small">{% translate "Value Date" %}</td>
+                <td>{{ link.bank_transaction.value_date|date:"d M Y"|default:"—" }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted small">{% translate "Amount" %}</td>
+                <td>
+                  <span class="fw-bold {% if link.bank_transaction.dr_cr == 'CREDIT' %}text-success{% else %}text-danger{% endif %}">
+                    ₹ {{ link.bank_transaction.amount|floatformat:2|intcomma }}
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <td class="text-muted small">{% translate "DR/CR" %}</td>
+                <td>
+                  <span class="badge {% if link.bank_transaction.dr_cr == 'CREDIT' %}bg-success{% else %}bg-danger{% endif %}">
+                    {{ link.bank_transaction.get_dr_cr_display }}
+                  </span>
+                </td>
+              </tr>
+              <tr>
+                <td class="text-muted small">{% translate "Reference No" %}</td>
+                <td>{{ link.bank_transaction.reference_no|default:"—" }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted small">{% translate "Cheque No" %}</td>
+                <td>{{ link.bank_transaction.cheque_no|default:"—" }}</td>
+              </tr>
+              <tr>
+                <td class="text-muted small">{% translate "Narration" %}</td>
+                <td class="text-truncate" style="max-width: 200px;" title="{{ link.bank_transaction.narration }}">
+                  {{ link.bank_transaction.narration|default:"—"|truncatechars:100 }}
+                </td>
+              </tr>
+              {% if link.bank_transaction.normalized %}
+                <tr>
+                  <td class="text-muted small">{% translate "Extracted UTR" %}</td>
+                  <td>{{ link.bank_transaction.normalized.extracted_utr|default:"—" }}</td>
+                </tr>
+                {% if link.bank_transaction.normalized.extracted_flat_no %}
+                  <tr>
+                    <td class="text-muted small">{% translate "Extracted Flat No" %}</td>
+                    <td>{{ link.bank_transaction.normalized.extracted_flat_no }}</td>
+                  </tr>
+                {% endif %}
+              {% endif %}
+              <tr>
+                <td class="text-muted small">{% translate "Statement Import" %}</td>
+                <td>
+                  <a href="{% url 'reconciliation:statement-import-detail' link.bank_transaction.bank_statement_import_id %}" class="text-decoration-none">
+                    {{ link.bank_transaction.bank_statement_import.file_name|truncatechars:40 }}
+                  </a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# --- Status Timeline --- #}
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="fas fa-stream me-2"></i>{% translate "Status Change Timeline" %}</h5>
+      <span class="text-muted small">{{ history_entries|length }} {% translate "events" %}</span>
+    </div>
+    <div class="card-body">
+      {% if history_entries %}
+        <div class="timeline">
+          {% for entry in history_entries %}
+            <div class="timeline-entry">
+              <div class="timeline-dot
+                {% if entry.action == 'CREATED' %}timeline-dot--created
+                {% elif entry.action == 'CONFIRMED' %}timeline-dot--confirmed
+                {% elif entry.action == 'FORCE_MATCHED' %}timeline-dot--force_matched
+                {% elif entry.action == 'REVERSED' %}timeline-dot--reversed
+                {% elif entry.action == 'DUPLICATE' %}timeline-dot--duplicate
+                {% elif entry.action == 'EXCEPTION' %}timeline-dot--exception
+                {% elif entry.action == 'IGNORED' %}timeline-dot--ignored
+                {% elif entry.action == 'UPDATED' %}timeline-dot--updated
+                {% elif entry.action == 'UNMATCHED' %}timeline-dot--unmatched
+                {% endif %}">
+              </div>
+              <div class="timeline-body">
+                {# Action label #}
+                <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                  <div>
+                    <span class="badge bg-dark small me-2">{{ entry.get_action_display }}</span>
+
+                    {# Status transition #}
+                    <span class="status-transition-arrow">
+                      {% if entry.previous_status %}
+                        <span class="badge
+                          {% if entry.previous_status == 'MATCHED' %}bg-success
+                          {% elif entry.previous_status == 'SUGGESTED' %}bg-info
+                          {% elif entry.previous_status == 'FORCE_MATCHED' %}bg-primary
+                          {% elif entry.previous_status == 'EXCEPTION' %}bg-danger
+                          {% elif entry.previous_status == 'DUPLICATE' %}bg-warning text-dark
+                          {% elif entry.previous_status == 'PARTIAL' %}bg-warning
+                          {% elif entry.previous_status == 'REVERSED' %}bg-secondary
+                          {% elif entry.previous_status == 'PENDING' %}bg-secondary
+                          {% elif entry.previous_status == 'IGNORED' %}bg-light text-dark
+                          {% endif %}">
+                          {{ entry.previous_status }}
+                        </span>
+                        <i class="fas fa-arrow-right arrow-icon"></i>
+                      {% endif %}
+                      <span class="badge
+                        {% if entry.new_status == 'MATCHED' %}bg-success
+                        {% elif entry.new_status == 'SUGGESTED' %}bg-info
+                        {% elif entry.new_status == 'FORCE_MATCHED' %}bg-primary
+                        {% elif entry.new_status == 'EXCEPTION' %}bg-danger
+                        {% elif entry.new_status == 'DUPLICATE' %}bg-warning text-dark
+                        {% elif entry.new_status == 'PARTIAL' %}bg-warning
+                        {% elif entry.new_status == 'REVERSED' %}bg-secondary
+                        {% elif entry.new_status == 'PENDING' %}bg-secondary
+                        {% elif entry.new_status == 'IGNORED' %}bg-light text-dark
+                        {% endif %}">
+                        {{ entry.new_status }}
+                      </span>
+                    </span>
+                  </div>
+
+                  <div class="text-muted small">
+                    <span title="{{ entry.performed_at|date:'d M Y H:i:s' }}">
+                      <i class="far fa-clock me-1"></i>{{ entry.performed_at|naturaltime }}
+                    </span>
+                  </div>
+                </div>
+
+                {# Performed by #}
+                <div class="mb-1">
+                  <small class="text-muted">
+                    <i class="fas fa-user me-1"></i>
+                    {% if entry.performed_by %}
+                      {{ entry.performed_by.name|default:entry.performed_by.email }}
+                    {% else %}
+                      <em>{% translate "System (auto)" %}</em>
+                    {% endif %}
+                  </small>
+                </div>
+
+                {# Match type transition (if changed) #}
+                {% if entry.previous_match_type and entry.previous_match_type != entry.new_match_type %}
+                  <div class="mb-1">
+                    <small class="text-muted">
+                      <i class="fas fa-tag me-1"></i>
+                      {% translate "Match Type" %}: {{ entry.previous_match_type }} → {{ entry.new_match_type }}
+                    </small>
+                  </div>
+                {% endif %}
+
+                {# Confidence transition (if changed) #}
+                {% if entry.previous_confidence != None and entry.new_confidence != None and entry.previous_confidence != entry.new_confidence %}
+                  <div class="mb-1">
+                    <small class="text-muted">
+                      <i class="fas fa-percent me-1"></i>
+                      {% translate "Confidence" %}: {{ entry.previous_confidence }}% → {{ entry.new_confidence }}%
+                    </small>
+                  </div>
+                {% endif %}
+
+                {# Details / Reason #}
+                {% if entry.details %}
+                  <div class="mt-2">
+                    {% if entry.details.reason %}
+                      <div class="small">
+                        <i class="fas fa-comment me-1 text-muted"></i>
+                        <strong>{% translate "Reason" %}:</strong> {{ entry.details.reason }}
+                      </div>
+                    {% elif entry.details.auto_logged %}
+                      <div class="small text-muted">
+                        <i class="fas fa-robot me-1"></i>{% translate "Auto-logged by system" %}
+                      </div>
+                    {% elif entry.details.created %}
+                      <div class="small text-muted">
+                        <i class="fas fa-plus-circle me-1"></i>{% translate "Link created" %}
+                      </div>
+                    {% elif entry.details.confidence_delta %}
+                      <div class="small text-muted">
+                        <i class="fas fa-chart-line me-1"></i>{% translate "Confidence score changed" %}
+                      </div>
+                    {% else %}
+                      {# Show full snapshot as collapsible #}
+                      <div>
+                        <span class="snapshot-toggle" onclick="var el=this.nextElementSibling;el.style.display=el.style.display==='none'?'block':'none';this.querySelector('i').classList.toggle('fa-chevron-down');this.querySelector('i').classList.toggle('fa-chevron-right');">
+                          <i class="fas fa-chevron-right me-1"></i>{% translate "View Snapshot" %}
+                        </span>
+                        <div class="snapshot-content" style="display: none;">
+                          {{ entry.details|pprint }}
+                        </div>
+                      </div>
+                    {% endif %}
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="p-4 text-center text-muted">
+          <i class="fas fa-info-circle fa-2x mb-2"></i>
+          <p>{% translate "No history records found for this link." %}</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}

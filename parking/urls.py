@@ -17,6 +17,7 @@ from parking.views import parking_rotation_cycle_generate_view
 from parking.views import parking_rotation_cycle_list_view
 from parking.views import parking_rotation_policy_create_view
 from parking.views import parking_rotation_policy_list_view
+from parking.views import parking_slot_bulk_create_view
 from parking.views import parking_slot_create_view
 from parking.views import parking_slot_list_view
 from parking.views import parking_vehicle_limit_create_view
@@ -54,6 +55,7 @@ urlpatterns = [
     ),
     path("slots/", view=parking_slot_list_view, name="slot-list"),
     path("slots/add/", view=parking_slot_create_view, name="slot-add"),
+    path("slots/bulk-add/", view=parking_slot_bulk_create_view, name="slot-bulk-add"),
     path("vehicles/", view=vehicle_list_view, name="vehicle-list"),
     path(
         "vehicles/<int:pk>/create-sold-permit/",

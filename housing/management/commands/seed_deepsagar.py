@@ -1,7 +1,10 @@
+from datetime import date
 from datetime import timedelta
 from decimal import Decimal
+import hashlib
 
 from django.contrib.auth import get_user_model
+from django.core.files.base import ContentFile
 from django.core.management.base import BaseCommand
 from django.core.management.base import CommandError
 from django.db.models import Q
@@ -26,7 +29,14 @@ from notifications.models import ReminderLog
 from notifications.services import schedule_payment_reminders
 from receipts.models import PaymentReceipt
 from receipts.services import post_receipt_for_bill
+from accounting.models import Voucher
+from reconciliation.models import BankStatementImport
+from reconciliation.models import BankTransaction
+from reconciliation.services.matcher import MatchingEngine
+from reconciliation.services.normalizer import NormalizerService
 from societies.models import Society
+from accounting.services.gst_vouchers import AccountCodes
+from accounting.services.gst_vouchers import create_vendor_payment
 
 FINANCIAL_YEAR_START_MONTH = 4
 DEFAULT_OWNER_COUNT = 100
@@ -89,15 +99,13 @@ class Command(BaseCommand):
         ensure_standard_categories(society)
         create_default_accounts_for_society(society)
 
-        # Accounts are now created by create_default_accounts_for_society()
-        # Look up accounts by code using the standard tree
-        from accounting.services.gst_vouchers import AccountCodes
-        from accounting.models import Account
-        
         receivable = Account.objects.get(society=society, code=AccountCodes.MAINTENANCE_DUE)
         main_bank = Account.objects.get(society=society, code=AccountCodes.BANK_MAINTENANCE)
         maintenance_income = Account.objects.get(society=society, code=AccountCodes.MAINTENANCE_CHARGES)
-        sinking_income = Account.objects.get(society=society, code=AccountCodes.OTHER_INCOME)
+        sinking_income = (
+            Account.objects.filter(society=society, code="3.4.1").first()
+            or Account.objects.get(society=society, name="Other Income")
+        )
 
         fy = self._ensure_open_financial_year(society=society, today=today)
         period = self._ensure_open_period(
@@ -190,6 +198,12 @@ class Command(BaseCommand):
                 mode=receipt_mode,
             )
 
+        reconciliation_demo = self._ensure_reconciliation_demo(
+            society=society,
+            bank_account=main_bank,
+            today=today,
+        )
+
         late_fees_updated = apply_late_fees(society=society, as_of_date=today)
         reminders_scheduled = schedule_payment_reminders(
             society=society,
@@ -242,6 +256,8 @@ class Command(BaseCommand):
                     f"New bills generated now: {generated_bills_count}",
                     f"Total bills: {bills_total}",
                     f"New sample receipts created now: {receipts_created}",
+                    f"Reconciliation demo rows created now: {reconciliation_demo['transactions_created']}",
+                    f"Reconciliation demo suggestions created now: {reconciliation_demo['suggestions_created']}",
                     f"Late fees updated now: {late_fees_updated}",
                     f"Reminders scheduled now: {reminders_scheduled}",
                     f"Total receipts: {total_receipts_count}",
@@ -851,3 +867,231 @@ class Command(BaseCommand):
             )
             created += 1
         return created
+
+    def _ensure_reconciliation_demo(self, *, society, bank_account, today):
+        demo_file_name = "deepsagar_reconciliation_demo.csv"
+        demo_marker = "DEEP-DEMO"
+
+        if BankStatementImport.objects.filter(
+            society=society,
+            file_name=demo_file_name,
+        ).exists():
+            self.stdout.write("Reconciliation demo statement already exists; skipping.")
+            return {"transactions_created": 0, "suggestions_created": 0}
+
+        bills = [
+            bill
+            for bill in Bill.objects.filter(society=society)
+            .select_related("member", "unit")
+            .order_by("bill_date", "id")
+            if bill.outstanding_amount > 0
+        ][:2]
+        if len(bills) < 2:
+            self.stdout.write("Not enough open bills for reconciliation demo; skipping.")
+            return {"transactions_created": 0, "suggestions_created": 0}
+
+        demo_user = self._get_or_create_user(
+            email="deepsagar.reconciliation@example.com",
+            full_name="Deepsagar Reconciliation Demo",
+        )
+
+        receipt_1_ref = f"{demo_marker}-REC-001"
+        receipt_2_ref = f"{demo_marker}-REC-002"
+        payment_ref = f"{demo_marker}-PAY-001"
+
+        receipt_1 = self._get_or_create_demo_receipt(
+            society=society,
+            bill=bills[0],
+            amount=min(bills[0].outstanding_amount, Decimal("7500.00")),
+            receipt_date=min(today, bills[0].bill_date + timedelta(days=5)),
+            bank_account=bank_account,
+            reference_number=receipt_1_ref,
+        )
+        receipt_2 = self._get_or_create_demo_receipt(
+            society=society,
+            bill=bills[1],
+            amount=min(bills[1].outstanding_amount, Decimal("6200.00")),
+            receipt_date=min(today, bills[1].bill_date + timedelta(days=7)),
+            bank_account=bank_account,
+            reference_number=receipt_2_ref,
+        )
+        payment_voucher = self._get_or_create_demo_vendor_payment(
+            society=society,
+            amount=Decimal("4200.00"),
+            voucher_date=max(today - timedelta(days=2), date(2026, 1, 1)),
+            reference_number=payment_ref,
+            bank_account=bank_account,
+        )
+
+        demo_entries = [
+            {
+                "transaction_date": receipt_1.receipt_date,
+                "narration": receipt_1.voucher.narration,
+                "reference_no": receipt_1.reference_number,
+                "amount": receipt_1.amount,
+                "dr_cr": BankTransaction.DrCr.CREDIT,
+                "balance": Decimal("0.00"),
+            },
+            {
+                "transaction_date": receipt_2.receipt_date,
+                "narration": receipt_2.voucher.narration,
+                "reference_no": receipt_2.reference_number,
+                "amount": receipt_2.amount,
+                "dr_cr": BankTransaction.DrCr.CREDIT,
+                "balance": Decimal("0.00"),
+            },
+            {
+                "transaction_date": payment_voucher.voucher_date,
+                "narration": payment_voucher.narration,
+                "reference_no": payment_voucher.reference_number,
+                "amount": Decimal("4200.00"),
+                "dr_cr": BankTransaction.DrCr.DEBIT,
+                "balance": Decimal("0.00"),
+            },
+        ]
+
+        csv_lines = [
+            "Date,Narration,Ref No,Debit,Credit,Balance",
+        ]
+        running_balance = Decimal("250000.00")
+        bank_transactions = []
+        statement_hash_input = []
+        for index, entry in enumerate(demo_entries, start=1):
+            debit = entry["amount"] if entry["dr_cr"] == BankTransaction.DrCr.DEBIT else Decimal("0.00")
+            credit = entry["amount"] if entry["dr_cr"] == BankTransaction.DrCr.CREDIT else Decimal("0.00")
+            running_balance = running_balance - debit + credit
+            balance = running_balance.quantize(Decimal("0.01"))
+            entry["balance"] = balance
+            csv_lines.append(
+                ",".join(
+                    [
+                        entry["transaction_date"].isoformat(),
+                        entry["narration"].replace(",", " "),
+                        entry["reference_no"],
+                        f"{debit:.2f}" if debit else "",
+                        f"{credit:.2f}" if credit else "",
+                        f"{balance:.2f}",
+                    ],
+                )
+            )
+            statement_hash_input.append(
+                f"{entry['transaction_date']}|{entry['narration']}|{entry['reference_no']}|{debit}|{credit}|{balance}"
+            )
+
+        file_content = "\n".join(csv_lines) + "\n"
+        file_hash = hashlib.sha256("\n".join(statement_hash_input).encode("utf-8")).hexdigest()
+        statement_import = BankStatementImport.objects.create(
+            society=society,
+            bank_account=bank_account,
+            file_name=demo_file_name,
+            file_hash=file_hash,
+            raw_file=ContentFile(file_content.encode("utf-8"), name=demo_file_name),
+            uploaded_by=demo_user,
+            import_status=BankStatementImport.ImportStatus.COMPLETED,
+            source_type="DEMO_RECONCILIATION",
+            row_count=len(demo_entries),
+            statement_start_date=demo_entries[0]["transaction_date"],
+            statement_end_date=demo_entries[-1]["transaction_date"],
+        )
+
+        for index, entry in enumerate(demo_entries, start=1):
+            bank_transaction = BankTransaction.objects.create(
+                bank_statement_import=statement_import,
+                source_row_index=index,
+                transaction_date=entry["transaction_date"],
+                narration=entry["narration"],
+                reference_no=entry["reference_no"],
+                cheque_no="",
+                amount=entry["amount"],
+                dr_cr=entry["dr_cr"],
+                balance=entry["balance"],
+                raw_row_data={
+                    "Date": entry["transaction_date"].isoformat(),
+                    "Narration": entry["narration"],
+                    "Ref No": entry["reference_no"],
+                    "Debit": f"{entry['amount']:.2f}" if entry["dr_cr"] == BankTransaction.DrCr.DEBIT else "",
+                    "Credit": f"{entry['amount']:.2f}" if entry["dr_cr"] == BankTransaction.DrCr.CREDIT else "",
+                    "Balance": f"{entry['balance']:.2f}",
+                },
+                duplicate_hash=BankTransaction.compute_duplicate_hash(
+                    entry["transaction_date"],
+                    entry["amount"],
+                    entry["narration"],
+                    entry["reference_no"],
+                ),
+                is_duplicate=False,
+            )
+            NormalizerService(society).normalize_transaction(bank_transaction)
+            bank_transactions.append(bank_transaction)
+
+        results = MatchingEngine(society).run_matching(
+            bank_transactions=bank_transactions,
+            auto_confirm=False,
+            create_suggestions=True,
+        )
+
+        self.stdout.write(
+            f"Created demo statement import {statement_import.file_name} "
+            f"with {len(bank_transactions)} bank rows for reconciliation checking."
+        )
+        return {
+            "transactions_created": len(bank_transactions),
+            "suggestions_created": len(results.get("suggested", [])),
+        }
+
+    def _get_or_create_demo_receipt(
+        self,
+        *,
+        society,
+        bill,
+        amount,
+        receipt_date,
+        bank_account,
+        reference_number,
+    ):
+        existing = PaymentReceipt.objects.filter(
+            society=society,
+            reference_number=reference_number,
+        ).select_related("voucher").first()
+        if existing and existing.voucher_id:
+            return existing
+
+        return post_receipt_for_bill(
+            society=society,
+            member=bill.member,
+            bill=bill,
+            amount=amount,
+            receipt_date=receipt_date,
+            payment_mode="BANK_TRANSFER",
+            deposited_account=bank_account,
+            reference_number=reference_number,
+        )
+
+    def _get_or_create_demo_vendor_payment(
+        self,
+        *,
+        society,
+        amount,
+        voucher_date,
+        reference_number,
+        bank_account,
+    ):
+        existing = (
+            Voucher.objects.filter(
+                society=society,
+                reference_number=reference_number,
+            )
+            .order_by("-id")
+            .first()
+        )
+        if existing:
+            return existing
+
+        return create_vendor_payment(
+            society=society,
+            voucher_date=voucher_date,
+            amount=amount,
+            bank_account_code=bank_account.code,
+            payment_mode="BANK_TRANSFER",
+            reference_number=reference_number,
+        )

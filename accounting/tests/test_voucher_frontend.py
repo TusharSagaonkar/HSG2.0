@@ -8,6 +8,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from accounting.models import Account
+from accounting.models import AccountCategory
 from accounting.models import AccountingPeriod
 from accounting.models import FinancialYear
 from accounting.models import LedgerEntry
@@ -15,6 +16,8 @@ from accounting.models import Voucher
 from housing_accounting.selection import SESSION_SELECTED_FINANCIAL_YEAR_ID
 from housing_accounting.selection import SESSION_SELECTED_SOCIETY_ID
 from housing.models import Society
+from societies.models import Membership
+from societies.roles import ROLE_OWNER
 
 pytestmark = pytest.mark.django_db
 
@@ -55,6 +58,109 @@ def test_voucher_posting_menu_has_new_voucher_entry_get_action(client, user):
         in content
     )
     assert "New Voucher Entry" in content
+
+
+def test_voucher_posting_menu_shows_posted_vouchers(client, user):
+    society = Society.objects.create(name="Posting Posted Society")
+    other_society = Society.objects.create(name="Other Posting Posted Society")
+    Membership.objects.create(user=user, society=society, role=ROLE_OWNER)
+    client.force_login(user)
+    session = client.session
+    session[SESSION_SELECTED_SOCIETY_ID] = society.id
+    session.save()
+
+    draft_voucher = Voucher.objects.create(
+        society=society,
+        voucher_type="GENERAL",
+        voucher_date=timezone.localdate(),
+        narration="Visible draft voucher",
+    )
+    posted_voucher = Voucher.objects.create(
+        society=society,
+        voucher_type="GENERAL",
+        voucher_date=timezone.localdate(),
+        narration="Visible posted voucher",
+        voucher_number=1,
+    )
+    other_posted_voucher = Voucher.objects.create(
+        society=other_society,
+        voucher_type="GENERAL",
+        voucher_date=timezone.localdate(),
+        narration="Hidden posted voucher",
+        voucher_number=1,
+    )
+
+    asset_category, _ = AccountCategory.objects.get_or_create(
+        society=society,
+        name="Cash",
+        account_type=AccountCategory.AccountType.ASSET,
+    )
+    income_category, _ = AccountCategory.objects.get_or_create(
+        society=society,
+        name="Income",
+        account_type=AccountCategory.AccountType.INCOME,
+    )
+    cash = Account.objects.create(
+        society=society,
+        name="Posting Cash",
+        code="9.9.10",
+        category=asset_category,
+        account_type=Account.AccountType.ASSET,
+    )
+    income = Account.objects.create(
+        society=society,
+        name="Posting Income",
+        code="9.9.11",
+        category=income_category,
+        account_type=Account.AccountType.INCOME,
+    )
+    LedgerEntry.objects.create(voucher=draft_voucher, account=cash, debit=Decimal("500.00"))
+    LedgerEntry.objects.create(voucher=draft_voucher, account=income, credit=Decimal("500.00"))
+    LedgerEntry.objects.create(voucher=posted_voucher, account=cash, debit=Decimal("700.00"))
+    LedgerEntry.objects.create(voucher=posted_voucher, account=income, credit=Decimal("700.00"))
+    Voucher.objects.filter(pk=posted_voucher.pk).update(posted_at=timezone.now())
+    posted_voucher.refresh_from_db()
+
+    other_asset_category, _ = AccountCategory.objects.get_or_create(
+        society=other_society,
+        name="Cash",
+        account_type=AccountCategory.AccountType.ASSET,
+    )
+    other_income_category, _ = AccountCategory.objects.get_or_create(
+        society=other_society,
+        name="Income",
+        account_type=AccountCategory.AccountType.INCOME,
+    )
+    other_cash = Account.objects.create(
+        society=other_society,
+        name="Other Posting Cash",
+        code="9.9.10",
+        category=other_asset_category,
+        account_type=Account.AccountType.ASSET,
+    )
+    other_income = Account.objects.create(
+        society=other_society,
+        name="Other Posting Income",
+        code="9.9.11",
+        category=other_income_category,
+        account_type=Account.AccountType.INCOME,
+    )
+    LedgerEntry.objects.create(voucher=other_posted_voucher, account=other_cash, debit=Decimal("900.00"))
+    LedgerEntry.objects.create(voucher=other_posted_voucher, account=other_income, credit=Decimal("900.00"))
+    Voucher.objects.filter(pk=other_posted_voucher.pk).update(posted_at=timezone.now())
+    other_posted_voucher.refresh_from_db()
+
+    response = client.get(reverse("accounting:voucher-posting"))
+
+    assert response.status_code == HTTPStatus.OK
+    content = response.content.decode()
+    assert "Draft Vouchers" in content
+    assert "Posted Vouchers" in content
+    assert draft_voucher.display_number in content
+    assert posted_voucher.display_number in content
+    assert "700.00" in content
+    assert other_society.name not in content
+    assert "900.00" not in content
 
 
 def test_voucher_detail_requires_authentication(client):
@@ -199,6 +305,129 @@ def test_voucher_entry_blocks_single_line_draft_with_warning(client, user):
         society=society,
         narration="Single line draft",
     ).exists() is False
+
+
+def test_voucher_entry_displays_error_summary_for_invalid_rows(client, user):
+    society = Society.objects.create(name="Summary Error Society")
+    asset_category, _ = AccountCategory.objects.get_or_create(
+        society=society,
+        name="Cash",
+        account_type=AccountCategory.AccountType.ASSET,
+    )
+    income_category, _ = AccountCategory.objects.get_or_create(
+        society=society,
+        name="Income",
+        account_type=AccountCategory.AccountType.INCOME,
+    )
+    cash = Account.objects.create(
+        society=society,
+        name="Test Cash",
+        code="9.9.1",
+        category=asset_category,
+        account_type=Account.AccountType.ASSET,
+    )
+    income = Account.objects.create(
+        society=society,
+        name="Test Income",
+        code="9.9.2",
+        category=income_category,
+        account_type=Account.AccountType.INCOME,
+    )
+    client.force_login(user)
+
+    response = client.post(
+        reverse("accounting:voucher-entry"),
+        data={
+            "society": str(society.pk),
+            "voucher_type": "GENERAL",
+            "voucher_date": "2024-08-06",
+            "narration": "Summary validation",
+            "entries-TOTAL_FORMS": "2",
+            "entries-INITIAL_FORMS": "0",
+            "entries-MIN_NUM_FORMS": "0",
+            "entries-MAX_NUM_FORMS": "1000",
+            "entries-0-account": str(cash.pk),
+            "entries-0-unit": "",
+            "entries-0-debit": "1000.00",
+            "entries-0-credit": "",
+            "entries-1-account": str(income.pk),
+            "entries-1-unit": "",
+            "entries-1-debit": "",
+            "entries-1-credit": "900.00",
+        },
+    )
+
+    assert response.status_code == HTTPStatus.OK
+    content = response.content.decode()
+    assert "Voucher could not be saved" in content
+    assert "Ledger entries: Total debit and credit must be equal." in content
+    assert f'value="{cash.pk}"' in content
+    assert f'value="{income.pk}"' in content
+
+
+def test_voucher_entry_uses_selected_session_society_when_post_omits_disabled_field(client, user):
+    society = Society.objects.create(name="Anandsagar")
+    asset_category, _ = AccountCategory.objects.get_or_create(
+        society=society,
+        name="Cash",
+        account_type=AccountCategory.AccountType.ASSET,
+    )
+    income_category, _ = AccountCategory.objects.get_or_create(
+        society=society,
+        name="Income",
+        account_type=AccountCategory.AccountType.INCOME,
+    )
+    cash = Account.objects.create(
+        society=society,
+        name="Anandsagar Cash",
+        code="8.8.1",
+        category=asset_category,
+        account_type=Account.AccountType.ASSET,
+    )
+    income = Account.objects.create(
+        society=society,
+        name="Anandsagar Income",
+        code="8.8.2",
+        category=income_category,
+        account_type=Account.AccountType.INCOME,
+    )
+    Membership.objects.create(
+        user=user,
+        society=society,
+        role=Membership.Role.ACCOUNTANT,
+        is_active=True,
+    )
+    client.force_login(user)
+    session = client.session
+    session[SESSION_SELECTED_SOCIETY_ID] = society.id
+    session.save()
+
+    response = client.post(
+        reverse("accounting:voucher-entry"),
+        data={
+            "voucher_type": "GENERAL",
+            "voucher_date": "2024-08-06",
+            "narration": "Session selected society draft",
+            "entries-TOTAL_FORMS": "2",
+            "entries-INITIAL_FORMS": "0",
+            "entries-MIN_NUM_FORMS": "0",
+            "entries-MAX_NUM_FORMS": "1000",
+            "entries-0-account": str(cash.pk),
+            "entries-0-unit": "",
+            "entries-0-debit": "1000.00",
+            "entries-0-credit": "",
+            "entries-1-account": str(income.pk),
+            "entries-1-unit": "",
+            "entries-1-debit": "",
+            "entries-1-credit": "1000.00",
+        },
+    )
+
+    assert response.status_code == HTTPStatus.FOUND
+    assert response.url == reverse("accounting:voucher-posting")
+    voucher = Voucher.objects.get(narration="Session selected society draft")
+    assert voucher.society == society
+    assert LedgerEntry.objects.filter(voucher=voucher).count() == 2
 
 
 def test_voucher_entry_blocks_unbalanced_draft_with_warning(client, user):

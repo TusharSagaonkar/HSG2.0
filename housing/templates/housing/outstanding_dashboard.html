@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% load humanize %}
 
 {% block title %}
   {% translate "Member Outstanding" %} | Housing Accounting System
@@ -14,86 +15,131 @@
 {% endblock dashboard_subtitle %}
 
 {% block content %}
-  <div class="action-bar action-bar--responsive">
-    <a href="{% url 'housing:dashboard' %}" class="btn-action btn-action--secondary">
-      <i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}
-    </a>
-    <a href="{% url 'housing:receipt-post' %}" class="btn-action btn-action--primary">
-      <i class="fas fa-money-check-alt me-1"></i>{% translate "Post Receipt" %}
-    </a>
-    <form method="post" action="{% url 'housing:reminder-schedule' %}" class="d-inline">
-      {% csrf_token %}
-      <button type="submit" class="btn-action btn-action--outline-primary">
-        <i class="fas fa-calendar-plus me-1"></i>{% translate "Schedule Reminders" %}
-      </button>
-    </form>
+  <div class="action-bar action-bar--responsive mb-4">
+    <div class="action-bar__group">
+      <a href="{% url 'housing:dashboard' %}" class="btn-action btn-action--secondary">
+        <i class="fas fa-arrow-left me-1"></i>{% translate "Dashboard" %}
+      </a>
+    </div>
+    <div class="action-bar__group">
+      <a href="{% url 'housing:receipt-post' %}" class="btn-action btn-action--primary">
+        <i class="fas fa-money-check-alt me-1"></i>{% translate "Post Receipt" %}
+      </a>
+    </div>
+    <div class="action-bar__group">
+      <form method="post" action="{% url 'housing:reminder-schedule' %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn-action btn-action--outline-primary">
+          <i class="fas fa-calendar-plus me-1"></i>{% translate "Schedule Reminders" %}
+        </button>
+      </form>
+    </div>
+    <div class="action-bar__group action-bar__group--push">
+      <form method="get" class="d-flex gap-2 align-items-end">
+        <div>
+          <label for="id_as_of_date" class="form-label small text-muted mb-1">
+            {% translate "As Of Date" %}
+          </label>
+          <input
+            id="id_as_of_date"
+            name="as_of_date"
+            type="date"
+            class="form-control form-control-sm"
+            value="{{ as_of_date|date:'Y-m-d' }}"
+          >
+        </div>
+        <button type="submit" class="btn btn-sm btn-outline-primary">
+          <i class="fas fa-filter me-1"></i>{% translate "Apply" %}
+        </button>
+      </form>
+    </div>
   </div>
 
-  <form method="get" class="row g-2 align-items-end mb-3">
-    <div class="col-auto">
-      <label for="id_as_of_date" class="form-label">{% translate "As Of Date" %}</label>
-      <input id="id_as_of_date" name="as_of_date" type="date" class="form-control" value="{{ as_of_date|date:'Y-m-d' }}">
-    </div>
-    <div class="col-auto">
-      <button type="submit" class="btn-action btn-action--outline-primary">
-        <i class="fas fa-filter me-1"></i>{% translate "Apply" %}
-      </button>
-    </div>
-  </form>
-
   {% if outstanding %}
-    <div class="table-responsive-wrapper">
-      <table class="table-enhanced">
-        <thead>
-          <tr>
-            <th>{% translate "Member" %}</th>
-            <th>{% translate "Unit" %}</th>
-            <th class="text-end">{% translate "Current" %}</th>
-            <th class="text-end">{% translate "1-30" %}</th>
-            <th class="text-end">{% translate "31-60" %}</th>
-            <th class="text-end">{% translate "61-90" %}</th>
-            <th class="text-end">{% translate "90+" %}</th>
-            <th class="text-end">{% translate "Outstanding" %}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for row in outstanding.rows %}
-            <tr>
-              <td>
-                <a href="{% url 'members:member-detail' row.member.pk %}" class="text-decoration-none">
-                  {{ row.member.full_name }}
-                </a>
-              </td>
-              <td>{{ row.unit.identifier }}</td>
-              <td class="text-end">{{ row.current }}</td>
-              <td class="text-end">{{ row.bucket_1_30 }}</td>
-              <td class="text-end">{{ row.bucket_31_60 }}</td>
-              <td class="text-end">{{ row.bucket_61_90 }}</td>
-              <td class="text-end">{{ row.bucket_90_plus }}</td>
-              <td class="text-end fw-semibold">{{ row.total_outstanding }}</td>
-            </tr>
-          {% empty %}
-            <tr>
-              <td colspan="8" class="text-center text-muted py-4">
-                {% translate "No outstanding receivables." %}
-              </td>
-            </tr>
-          {% endfor %}
-        </tbody>
-        <tfoot>
-          <tr class="fw-semibold">
-            <td colspan="2">{% translate "Totals" %}</td>
-            <td class="text-end">{{ outstanding.totals.current }}</td>
-            <td class="text-end">{{ outstanding.totals.bucket_1_30 }}</td>
-            <td class="text-end">{{ outstanding.totals.bucket_31_60 }}</td>
-            <td class="text-end">{{ outstanding.totals.bucket_61_90 }}</td>
-            <td class="text-end">{{ outstanding.totals.bucket_90_plus }}</td>
-            <td class="text-end">{{ outstanding.totals.total_outstanding }}</td>
-          </tr>
-        </tfoot>
-      </table>
+    <div class="row g-3 mb-4">
+      <div class="col-12 col-sm-6 col-xl-3">
+        {% include "components/stat_card.html" with icon="fas fa-users" label=_("Members") value=outstanding.rows|length color="primary" %}
+      </div>
+      <div class="col-12 col-sm-6 col-xl-3">
+        {% include "components/stat_card.html" with icon="fas fa-wallet" label=_("Current") value=outstanding.totals.current|intcomma color="info" %}
+      </div>
+      <div class="col-12 col-sm-6 col-xl-3">
+        {% include "components/stat_card.html" with icon="fas fa-hourglass-start" label=_("Aged 1-30") value=outstanding.totals.bucket_1_30|intcomma color="warning" %}
+      </div>
+      <div class="col-12 col-sm-6 col-xl-3">
+        {% include "components/stat_card.html" with icon="fas fa-exclamation-triangle" label=_("Total Outstanding") value=outstanding.totals.total_outstanding|intcomma color="danger" %}
+      </div>
+    </div>
+
+    <div class="content-card">
+      <div class="content-card__header d-flex justify-content-between align-items-center">
+        <div>
+          <h3 class="content-card__title mb-0">{% translate "Outstanding Aging" %}</h3>
+          <div class="text-muted small">
+            {% translate "As of" %} {{ as_of_date|date:"d M Y" }}
+          </div>
+        </div>
+      </div>
+      <div class="content-card__body p-0">
+        {% if outstanding.rows %}
+          <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>{% translate "Member" %}</th>
+                  <th>{% translate "Unit" %}</th>
+                  <th class="text-end">{% translate "Current" %}</th>
+                  <th class="text-end">{% translate "1-30" %}</th>
+                  <th class="text-end">{% translate "31-60" %}</th>
+                  <th class="text-end">{% translate "61-90" %}</th>
+                  <th class="text-end">{% translate "90+" %}</th>
+                  <th class="text-end">{% translate "Outstanding" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in outstanding.rows %}
+                  <tr>
+                    <td>
+                      <a href="{% url 'members:member-detail' row.member.pk %}" class="text-decoration-none fw-medium">
+                        {{ row.member.full_name }}
+                      </a>
+                    </td>
+                    <td>
+                      <span class="badge bg-light text-dark border">{{ row.unit.identifier }}</span>
+                    </td>
+                    <td class="text-end">{{ row.current|intcomma }}</td>
+                    <td class="text-end">{{ row.bucket_1_30|intcomma }}</td>
+                    <td class="text-end">{{ row.bucket_31_60|intcomma }}</td>
+                    <td class="text-end">{{ row.bucket_61_90|intcomma }}</td>
+                    <td class="text-end">{{ row.bucket_90_plus|intcomma }}</td>
+                    <td class="text-end fw-semibold text-danger">{{ row.total_outstanding|intcomma }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+              <tfoot class="table-light">
+                <tr class="fw-semibold">
+                  <td colspan="2">{% translate "Totals" %}</td>
+                  <td class="text-end">{{ outstanding.totals.current|intcomma }}</td>
+                  <td class="text-end">{{ outstanding.totals.bucket_1_30|intcomma }}</td>
+                  <td class="text-end">{{ outstanding.totals.bucket_31_60|intcomma }}</td>
+                  <td class="text-end">{{ outstanding.totals.bucket_61_90|intcomma }}</td>
+                  <td class="text-end">{{ outstanding.totals.bucket_90_plus|intcomma }}</td>
+                  <td class="text-end text-danger">{{ outstanding.totals.total_outstanding|intcomma }}</td>
+                </tr>
+              </tfoot>
+            </table>
+          </div>
+        {% else %}
+          <div class="p-4 text-center text-muted">
+            {% translate "No outstanding receivables." %}
+          </div>
+        {% endif %}
+      </div>
     </div>
   {% else %}
-    <div class="alert alert-warning py-2">{% translate "Select a society to view outstanding balances." %}</div>
+    <div class="alert alert-warning">
+      <i class="fas fa-exclamation-triangle me-2"></i>
+      {% translate "Select a society to view outstanding balances." %}
+    </div>
   {% endif %}
 {% endblock content %}

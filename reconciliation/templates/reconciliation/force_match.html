@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% translate "Force Match" %} | {{ block.super }}{% endblock %}
+
+{% block dashboard_title %}{% translate "Force Match" %}{% endblock %}
+{% block dashboard_subtitle %}{% translate "Manually match a bank transaction to an accounting ledger entry." %}{% endblock %}
+
+{% block content %}
+  <div class="row justify-content-center">
+    <div class="col-lg-8">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0">
+          <h5 class="mb-0"><i class="fas fa-link me-2"></i>{% translate "Create Manual Match" %}</h5>
+        </div>
+        <div class="card-body">
+          {% if selected_bank_transaction %}
+            <div class="alert alert-primary d-flex justify-content-between align-items-start gap-3">
+              <div>
+                <div class="fw-semibold">{% translate "Selected bank transaction" %}</div>
+                <div class="small">
+                  {{ selected_bank_transaction.transaction_date|date:"d/m/Y" }} ·
+                  {{ selected_bank_transaction.get_dr_cr_display }} ·
+                  ₹ {{ selected_bank_transaction.amount|floatformat:2|intcomma }}
+                </div>
+                <div class="small text-muted">{{ selected_bank_transaction.narration|truncatechars:120 }}</div>
+              </div>
+              <button type="button" class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#force-match-modal">
+                <i class="fas fa-link me-1"></i>{% translate "Open Match Dialog" %}
+              </button>
+            </div>
+          {% else %}
+            <p class="text-muted mb-3">
+              {% translate "Choose the bank transaction and the ledger entry to force-match. This action is audit logged." %}
+            </p>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#force-match-modal">
+              <i class="fas fa-link me-1"></i>{% translate "Open Force Match Dialog" %}
+            </button>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block modal %}
+  <div class="modal fade" id="force-match-modal" tabindex="-1" aria-labelledby="force-match-modal-label" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header bg-light">
+          <div>
+            <h5 class="modal-title mb-1" id="force-match-modal-label">
+              <i class="fas fa-link me-2"></i>{% translate "Create Manual Match" %}
+            </h5>
+            <small class="text-muted">{% translate "Confirm the selected bank transaction and choose the matching ledger entry." %}</small>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% translate 'Close' %}"></button>
+        </div>
+        <form method="post" novalidate>
+          <div class="modal-body">
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}
+                  <p class="mb-0">{{ error }}</p>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            {% if selected_bank_transaction %}
+              <input type="hidden" name="bank_transaction" value="{{ selected_bank_transaction.id }}">
+              <div class="border rounded-3 p-3 mb-3 bg-light">
+                <div class="d-flex justify-content-between gap-3 flex-wrap">
+                  <div>
+                    <div class="small text-muted">{% translate "Bank Transaction" %}</div>
+                    <div class="fw-semibold">{{ selected_bank_transaction.transaction_date|date:"d/m/Y" }} · {{ selected_bank_transaction.reference_no|default:"No reference" }}</div>
+                  </div>
+                  <div class="text-end">
+                    <div class="small text-muted">{{ selected_bank_transaction.get_dr_cr_display }}</div>
+                    <div class="fw-bold">₹ {{ selected_bank_transaction.amount|floatformat:2|intcomma }}</div>
+                  </div>
+                </div>
+                <div class="mt-2 small">{{ selected_bank_transaction.narration }}</div>
+                {% if form.bank_transaction.errors %}
+                  <div class="invalid-feedback d-block">{{ form.bank_transaction.errors|join:", " }}</div>
+                {% endif %}
+              </div>
+            {% else %}
+              <div class="mb-3">
+                <label for="{{ form.bank_transaction.id_for_label }}" class="form-label">
+                  <i class="fas fa-university me-1"></i>{{ form.bank_transaction.label }}
+                </label>
+                {{ form.bank_transaction }}
+                {% if form.bank_transaction.errors %}
+                  <div class="invalid-feedback d-block">{{ form.bank_transaction.errors|join:", " }}</div>
+                {% endif %}
+                <div class="form-text">{% translate "Select the bank transaction to match." %}</div>
+              </div>
+            {% endif %}
+
+            <div class="mb-3">
+              <label for="{{ form.ledger_entry.id_for_label }}" class="form-label">
+                <i class="fas fa-book me-1"></i>{{ form.ledger_entry.label }}
+              </label>
+              {{ form.ledger_entry }}
+              {% if form.ledger_entry.errors %}
+                <div class="invalid-feedback d-block">{{ form.ledger_entry.errors|join:", " }}</div>
+              {% endif %}
+              <div class="form-text">{% translate "Select the ledger entry from a posted voucher with bank payment mode." %}</div>
+            </div>
+
+            <div class="mb-3">
+              <label for="{{ form.remarks.id_for_label }}" class="form-label">
+                <i class="fas fa-comment me-1"></i>{{ form.remarks.label }}
+              </label>
+              {{ form.remarks }}
+              {% if form.remarks.errors %}
+                <div class="invalid-feedback d-block">{{ form.remarks.errors|join:", " }}</div>
+              {% endif %}
+              <div class="form-text">{% translate "Provide a reason for this manual match for audit purposes." %}</div>
+            </div>
+
+            <div class="alert alert-info mb-0">
+              <i class="fas fa-info-circle me-2"></i>
+              <strong>{% translate "Note:" %}</strong>
+              {% translate "Force matching bypasses the automatic matching engine. Use this only when you are certain the bank transaction and ledger entry belong together." %}
+            </div>
+          </div>
+          <div class="modal-footer">
+            <a href="{% url 'reconciliation:workspace' %}" class="btn btn-outline-secondary">
+              {% translate "Cancel" %}
+            </a>
+            <button type="submit" class="btn btn-primary">
+              <i class="fas fa-link me-1"></i>{% translate "Create Match" %}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+{% endblock modal %}
+
+{% block javascript %}
+  {{ block.super }}
+  {% if open_force_match_modal %}
+    <script>
+      document.addEventListener('DOMContentLoaded', function () {
+        var modalEl = document.getElementById('force-match-modal');
+        if (modalEl && window.bootstrap) {
+          window.bootstrap.Modal.getOrCreateInstance(modalEl).show();
+        }
+      });
+    </script>
+  {% endif %}
+{% endblock javascript %}

@@ -1,0 +1,242 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% translate "Bank Reconciliation Dashboard" %} | {{ block.super }}{% endblock %}
+
+{% block dashboard_title %}{% translate "Bank Reconciliation" %}{% endblock %}
+{% block dashboard_subtitle %}{% translate "Reconcile bank statements with accounting entries." %}{% endblock %}
+
+{% block content %}
+  {% if no_society %}
+    <div class="alert alert-info border-0 shadow-sm d-flex align-items-start gap-3">
+      <i class="fas fa-info-circle fa-lg mt-1"></i>
+      <div>
+        <h5 class="alert-heading mb-1">{% translate "Select a society" %}</h5>
+        <p class="mb-0">{% translate "Please select a society from the scope selector to view reconciliation data." %}</p>
+      </div>
+    </div>
+  {% else %}
+    <section class="card border-0 shadow-sm mb-4 overflow-hidden">
+      <div class="card-body p-0">
+        <div class="row g-0 align-items-stretch">
+          <div class="col-lg-7">
+            <div class="p-4 p-xl-5 h-100" style="background: linear-gradient(135deg, #123b7a 0%, #177dff 55%, #46b3ff 100%); color: #fff;">
+              <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+                <span class="badge bg-white text-primary rounded-pill px-3 py-2">
+                  <i class="fas fa-shield-alt me-1"></i>{% translate "Bank Reconciliation" %}
+                </span>
+                <span class="badge bg-dark bg-opacity-25 text-white rounded-pill px-3 py-2">
+                  {% translate "Live dashboard" %}
+                </span>
+              </div>
+              <h2 class="fw-bold mb-2">{% translate "Reconciliation Control Center" %}</h2>
+              <p class="mb-4 opacity-75">
+                {% translate "Track imported bank transactions, confirmed links, pending suggestions, exceptions, and duplicate reviews in one place." %}
+              </p>
+              <div class="row g-3">
+                <div class="col-6 col-md-3">
+                  <div class="rounded-4 p-3 h-100" style="background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.22);">
+                    <div class="small text-white-50 text-uppercase fw-bold">{% translate "Transactions" %}</div>
+                    <div class="h3 fw-bold mb-0">{{ total_bank_txs|default:0|intcomma }}</div>
+                  </div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="rounded-4 p-3 h-100" style="background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.22);">
+                    <div class="small text-white-50 text-uppercase fw-bold">{% translate "Links" %}</div>
+                    <div class="h3 fw-bold mb-0">{{ total_links|default:0|intcomma }}</div>
+                  </div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="rounded-4 p-3 h-100" style="background: rgba(25,135,84,0.30); border: 1px solid rgba(255,255,255,0.22);">
+                    <div class="small text-white-50 text-uppercase fw-bold">{% translate "Matched" %}</div>
+                    <div class="h3 fw-bold mb-0">{{ matched_count|default:0|intcomma }}</div>
+                  </div>
+                </div>
+                <div class="col-6 col-md-3">
+                  <div class="rounded-4 p-3 h-100" style="background: rgba(255,193,7,0.28); border: 1px solid rgba(255,255,255,0.22);">
+                    <div class="small text-white-50 text-uppercase fw-bold">{% translate "Unmatched" %}</div>
+                    <div class="h3 fw-bold mb-0">{{ unmatched_bank|default:0|intcomma }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="col-lg-5">
+            <div class="p-4 p-xl-5 h-100 bg-white">
+              <div class="d-flex align-items-center justify-content-between mb-3">
+                <div>
+                  <div class="text-muted small text-uppercase fw-bold">{% translate "Action Required" %}</div>
+                  <h5 class="fw-bold mb-0">{% translate "Operational Queue" %}</h5>
+                </div>
+                <i class="fas fa-tasks fa-2x text-primary opacity-75"></i>
+              </div>
+              <div class="list-group list-group-flush">
+                <a href="{% url 'reconciliation:workspace' %}?status=SUGGESTED" class="list-group-item list-group-item-action px-0 d-flex justify-content-between align-items-center">
+                  <span><i class="fas fa-magic text-primary me-2"></i>{% translate "Suggested matches" %}</span>
+                  <span class="badge bg-primary rounded-pill">{{ suggested_count|default:0 }}</span>
+                </a>
+                <a href="{% url 'reconciliation:workspace' %}?status=PENDING" class="list-group-item list-group-item-action px-0 d-flex justify-content-between align-items-center">
+                  <span><i class="fas fa-clock text-secondary me-2"></i>{% translate "Pending review" %}</span>
+                  <span class="badge bg-secondary rounded-pill">{{ pending_count|default:0 }}</span>
+                </a>
+                <a href="{% url 'reconciliation:exceptions' %}" class="list-group-item list-group-item-action px-0 d-flex justify-content-between align-items-center">
+                  <span><i class="fas fa-exclamation-triangle text-danger me-2"></i>{% translate "Exceptions" %}</span>
+                  <span class="badge bg-danger rounded-pill">{{ exception_count|default:0 }}</span>
+                </a>
+                <a href="{% url 'reconciliation:report-duplicates' %}" class="list-group-item list-group-item-action px-0 d-flex justify-content-between align-items-center">
+                  <span><i class="fas fa-copy text-warning me-2"></i>{% translate "Duplicates" %}</span>
+                  <span class="badge bg-warning text-dark rounded-pill">{{ duplicate_count|default:0 }}</span>
+                </a>
+              </div>
+              <div class="alert alert-light border mt-4 mb-0 small">
+                <i class="fas fa-info-circle text-primary me-1"></i>
+                {% translate "Matched includes automatic, manual, and forced reconciliation links." %}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="row g-3 mb-4">
+      <div class="col-sm-6 col-xl-3">
+        <a href="{% url 'reconciliation:statement-import' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-reset">
+          <div class="card-body d-flex align-items-center gap-3">
+            <span class="rounded-circle bg-primary bg-opacity-10 text-primary d-inline-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+              <i class="fas fa-upload"></i>
+            </span>
+            <div>
+              <div class="fw-bold">{% translate "Import Statement" %}</div>
+              <div class="small text-muted">{% translate "Upload bank files" %}</div>
+            </div>
+          </div>
+        </a>
+      </div>
+      <div class="col-sm-6 col-xl-3">
+        <a href="{% url 'reconciliation:workspace' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-reset">
+          <div class="card-body d-flex align-items-center gap-3">
+            <span class="rounded-circle bg-success bg-opacity-10 text-success d-inline-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+              <i class="fas fa-balance-scale"></i>
+            </span>
+            <div>
+              <div class="fw-bold">{% translate "Run Matching" %}</div>
+              <div class="small text-muted">{% translate "Auto and manual review" %}</div>
+            </div>
+          </div>
+        </a>
+      </div>
+      <div class="col-sm-6 col-xl-3">
+        <a href="{% url 'reconciliation:manual-workspace' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-reset">
+          <div class="card-body d-flex align-items-center gap-3">
+            <span class="rounded-circle bg-info bg-opacity-10 text-info d-inline-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+              <i class="fas fa-keyboard"></i>
+            </span>
+            <div>
+              <div class="fw-bold">{% translate "Manual Reconciliation" %}</div>
+              <div class="small text-muted">{% translate "Enter and match rows" %}</div>
+            </div>
+          </div>
+        </a>
+      </div>
+      <div class="col-sm-6 col-xl-3">
+        <a href="{% url 'reconciliation:force-match' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-reset">
+          <div class="card-body d-flex align-items-center gap-3">
+            <span class="rounded-circle bg-warning bg-opacity-10 text-warning d-inline-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
+              <i class="fas fa-link"></i>
+            </span>
+            <div>
+              <div class="fw-bold">{% translate "Force Match" %}</div>
+              <div class="small text-muted">{% translate "Controlled override" %}</div>
+            </div>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <section class="row g-4">
+      <div class="col-xl-7">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-header bg-white border-0 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+              <h5 class="mb-1"><i class="fas fa-history text-primary me-2"></i>{% translate "Recent Imports" %}</h5>
+              <div class="small text-muted">{% translate "Latest statement uploads and processing status." %}</div>
+            </div>
+            <a href="{% url 'reconciliation:import-history' %}" class="btn btn-sm btn-outline-primary">{% translate "View all" %}</a>
+          </div>
+          <div class="card-body p-0">
+            {% if recent_imports %}
+              <div class="table-responsive border-0 shadow-none">
+                <table class="table table-hover align-middle mb-0">
+                  <thead class="table-light">
+                    <tr>
+                      <th>{% translate "Uploaded" %}</th>
+                      <th>{% translate "Status" %}</th>
+                      <th class="text-end">{% translate "Transactions" %}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {% for stmt in recent_imports %}
+                      <tr>
+                        <td>
+                          <a href="{% url 'reconciliation:statement-import-detail' stmt.pk %}" class="fw-semibold text-decoration-none">
+                            {{ stmt.uploaded_at|date:"d M Y H:i" }}
+                          </a>
+                        </td>
+                        <td>
+                          <span class="badge rounded-pill {% if stmt.import_status == 'COMPLETED' %}bg-success{% elif stmt.import_status == 'FAILED' %}bg-danger{% else %}bg-secondary{% endif %}">
+                            {{ stmt.get_import_status_display }}
+                          </span>
+                        </td>
+                        <td class="text-end fw-semibold">{{ stmt.transaction_count|default:0|intcomma }}</td>
+                      </tr>
+                    {% endfor %}
+                  </tbody>
+                </table>
+              </div>
+            {% else %}
+              <div class="p-5 text-muted text-center">
+                <i class="fas fa-file-import fa-2x mb-3 d-block text-muted opacity-50"></i>
+                {% translate "No statements imported yet." %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="col-xl-5">
+        <div class="card border-0 shadow-sm h-100">
+          <div class="card-header bg-white border-0 d-flex flex-wrap justify-content-between align-items-center gap-2">
+            <div>
+              <h5 class="mb-1"><i class="fas fa-list text-primary me-2"></i>{% translate "Recent Activity" %}</h5>
+              <div class="small text-muted">{% translate "Latest reconciliation audit events." %}</div>
+            </div>
+            <a href="{% url 'reconciliation:audit-log' %}" class="btn btn-sm btn-outline-secondary">{% translate "Audit log" %}</a>
+          </div>
+          <div class="card-body p-0">
+            {% if recent_activity %}
+              <div class="list-group list-group-flush">
+                {% for entry in recent_activity %}
+                  <div class="list-group-item px-4 py-3">
+                    <div class="d-flex justify-content-between align-items-start gap-3">
+                      <div class="min-w-0">
+                        <div class="fw-semibold text-truncate">{{ entry.get_action_display }}</div>
+                        <small class="text-muted">{{ entry.performed_at|timesince }} {% translate "ago" %}</small>
+                      </div>
+                      <span class="badge bg-light text-dark border rounded-pill">{{ entry.new_status }}</span>
+                    </div>
+                  </div>
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="p-5 text-muted text-center">
+                <i class="fas fa-stream fa-2x mb-3 d-block text-muted opacity-50"></i>
+                {% translate "No activity yet." %}
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </section>
+  {% endif %}
+{% endblock content %}

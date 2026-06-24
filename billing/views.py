@@ -6,6 +6,7 @@ from django.core.exceptions import ValidationError
 from django.db.models import DecimalField
 from django.db.models import ExpressionWrapper
 from django.db.models import F
+from django.db.models import Count
 from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
@@ -104,9 +105,11 @@ class ChargeTemplateDeactivateAndCreateView(LoginRequiredMixin, View):
 
         create_url = reverse("housing:charge-template-add")
         next_effective_from = (today + timedelta(days=1)).isoformat()
+        return_url = reverse("billing:charge-template-list")
         redirect_url = (
             f"{create_url}?society={template.society_id}"
             f"&clone_from={template.id}&effective_from={next_effective_from}"
+            f"&next={return_url}"
         )
         messages.success(
             request,
@@ -148,6 +151,17 @@ class BillListView(LoginRequiredMixin, ListView):
         if selected_society:
             queryset = queryset.filter(society=selected_society)
         return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        bills_qs = self.get_queryset()
+        context["paid_count"] = bills_qs.filter(status=Bill.BillStatus.PAID).count()
+        context["partial_count"] = bills_qs.filter(status=Bill.BillStatus.PARTIAL).count()
+        context["overdue_count"] = bills_qs.filter(status=Bill.BillStatus.OVERDUE).count()
+        context["total_outstanding"] = bills_qs.aggregate(
+            total=Coalesce(Sum("outstanding_amount_value"), Value(0), output_field=DecimalField(max_digits=12, decimal_places=2))
+        )["total"]
+        return context
 
 
 bill_list_view = BillListView.as_view()

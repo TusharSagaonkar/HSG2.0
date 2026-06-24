@@ -1,0 +1,4 @@
+Date,Narration,Ref No,Debit,Credit,Balance
+2026-05-10,Receipt for bill #5 - Swami,DEEP-DEMO-REC-001,,1650.00,251650.00
+2026-05-12,Receipt for bill #6 - Tushar,DEEP-DEMO-REC-002,,1650.00,253300.00
+2026-06-06,Vendor payment against payable,DEEP-DEMO-PAY-001,4200.00,,249100.00

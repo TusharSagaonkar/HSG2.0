@@ -1,0 +1,93 @@
+{% load i18n %}
+{% if bank_transaction %}
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-white border-0">
+      <h5 class="mb-0">{% translate "Match Suggestions" %}</h5>
+      <small class="text-muted d-block text-truncate">
+        {{ bank_transaction.transaction_date|date:"d/m/Y" }} - {{ bank_transaction.narration }}
+      </small>
+    </div>
+    <div class="card-body">
+      {% if suggested_links %}
+        <div class="list-group list-group-flush">
+          {% for link in suggested_links %}
+            <div class="list-group-item px-0">
+              <div class="d-flex justify-content-between align-items-start gap-2">
+                <div class="flex-grow-1">
+                  <div class="d-flex align-items-center gap-2 mb-1">
+                    <span class="badge bg-success">{{ link.confidence_score }}%</span>
+                    <strong>{{ link.voucher_entry.voucher.display_number|default:link.voucher_entry.voucher_id }}</strong>
+                  </div>
+                  <div class="small text-muted">
+                    {{ link.voucher_entry.voucher.voucher_date|date:"d/m/Y" }}
+                    {% if link.voucher_entry.unit %}
+                      | {{ link.voucher_entry.unit.unit_number|default:link.voucher_entry.unit }}
+                    {% else %}
+                      | {{ link.voucher_entry.account.name }}
+                    {% endif %}
+                  </div>
+                  <div class="small mt-1">
+                    ₹ {{ link.matched_amount }}
+                  </div>
+                </div>
+                <div class="btn-group btn-group-sm">
+                  <button
+                    type="button"
+                    class="btn btn-success"
+                    hx-post="{% url 'reconciliation:confirm-match' link.id %}"
+                    hx-target="#manual-workspace-suggestions"
+                    hx-swap="innerHTML"
+                    data-shortcut-action="match-selected"
+                  >
+                    {% translate "Match" %}
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-outline-secondary"
+                    hx-post="{% url 'reconciliation:unlink-match' link.id %}"
+                    hx-target="#manual-workspace-suggestions"
+                    hx-swap="innerHTML"
+                    data-shortcut-action="unmatch-selected"
+                  >
+                    {% translate "Unmatch" %}
+                  </button>
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-light border mb-0">
+          {% translate "No suggestions yet. Save a row to generate matches." %}
+        </div>
+        {% if bank_transaction %}
+          <div class="d-grid mt-3">
+            <button
+              type="button"
+              class="btn btn-outline-primary"
+              hx-post="{% url 'reconciliation:adjust-orphan' %}"
+              hx-vals='{"bank_tx_id":"{{ bank_transaction.id }}"}'
+              hx-target="#manual-workspace-suggestions"
+              hx-swap="innerHTML"
+              data-shortcut-action="adjust-orphan"
+              onclick="event.stopPropagation()"
+            >
+              {% translate "Create adjustment" %}
+            </button>
+          </div>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+{% else %}
+  <div class="card shadow-sm border-0">
+    <div class="card-header bg-white border-0">
+      <h5 class="mb-0">{% translate "Match Suggestions" %}</h5>
+    </div>
+    <div class="card-body">
+      <div class="alert alert-light border mb-0">
+        {% translate "Select a statement row to load suggestions." %}
+      </div>
+    </div>
+  </div>
+{% endif %}

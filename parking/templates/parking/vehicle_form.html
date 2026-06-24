@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+  {{ form_title }} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {{ form_title }}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {{ form_subtitle }}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <link rel="stylesheet" href="{% static 'parking/css/forms.css' %}">
+
+  <div class="parking-form-shell">
+    <div class="parking-form-hero">
+      <div>
+        <span class="parking-form-eyebrow">{% translate "Vehicle Registry" %}</span>
+        <h2>{% translate "Register a resident vehicle" %}</h2>
+        <p>
+          {% translate "Link the vehicle to the correct society, building, flat, and member so parking access, QR verification, and compliance checks stay accurate." %}
+        </p>
+      </div>
+      <div class="parking-form-hero__icon" aria-hidden="true">
+        <i class="fas fa-car-side"></i>
+      </div>
+    </div>
+
+    <div class="row g-4 align-items-start">
+      <div class="col-12 col-xl-8">
+        <form method="post"
+              novalidate
+              class="vehicle-form-card"
+              data-auto-reload-society="1"
+              data-auto-reload-unit="1"
+              data-member-lookup-url="{{ member_lookup_url }}">
+          {% csrf_token %}
+
+          {% if form.non_field_errors %}
+            <div class="alert alert-danger d-flex gap-2" role="alert">
+              <i class="fas fa-triangle-exclamation mt-1" aria-hidden="true"></i>
+              <div>
+                {% for error in form.non_field_errors %}
+                  <div>{{ error }}</div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
+
+          <section class="vehicle-form-section" aria-labelledby="vehicle-location-title">
+            <div class="vehicle-form-section__header">
+              <span class="vehicle-form-step">1</span>
+              <div>
+                <h3 id="vehicle-location-title">{% translate "Location & resident" %}</h3>
+                <p>{% translate "Select the society first, then narrow down by building and flat." %}</p>
+              </div>
+            </div>
+
+            <div class="row g-3">
+              {% for field in form %}
+                {% if field.name == "society" or field.name == "structure" or field.name == "unit" or field.name == "member" %}
+                  <div class="col-12 {% if field.name == 'society' or field.name == 'structure' %}col-md-6{% else %}col-lg-6{% endif %}">
+                    <div class="vehicle-field vehicle-field--{{ field.name }}{% if field.errors %} vehicle-field--invalid{% endif %}">
+                      <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                      {{ field }}
+                      {% if field.help_text %}
+                        <div class="form-text">{{ field.help_text }}</div>
+                      {% endif %}
+                      {% for error in field.errors %}
+                        <div class="form-error"><i class="fas fa-circle-exclamation me-1" aria-hidden="true"></i>{{ error }}</div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </section>
+
+          <section class="vehicle-form-section" aria-labelledby="vehicle-details-title">
+            <div class="vehicle-form-section__header">
+              <span class="vehicle-form-step">2</span>
+              <div>
+                <h3 id="vehicle-details-title">{% translate "Vehicle details" %}</h3>
+                <p>{% translate "Use the exact registration number printed on the number plate." %}</p>
+              </div>
+            </div>
+
+            <div class="row g-3">
+              {% for field in form %}
+                {% if field.name == "vehicle_number" or field.name == "vehicle_type" or field.name == "color" %}
+                  <div class="col-12 {% if field.name == 'vehicle_number' %}col-lg-5{% else %}col-lg-3{% endif %}">
+                    <div class="vehicle-field vehicle-field--{{ field.name }}{% if field.errors %} vehicle-field--invalid{% endif %}">
+                      <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                      {{ field }}
+                      {% if field.help_text %}
+                        <div class="form-text">{{ field.help_text }}</div>
+                      {% endif %}
+                      {% for error in field.errors %}
+                        <div class="form-error"><i class="fas fa-circle-exclamation me-1" aria-hidden="true"></i>{{ error }}</div>
+                      {% endfor %}
+                    </div>
+                  </div>
+                {% endif %}
+              {% endfor %}
+            </div>
+          </section>
+
+          <section class="vehicle-form-section vehicle-form-section--status" aria-labelledby="vehicle-status-title">
+            <div class="vehicle-form-section__header">
+              <span class="vehicle-form-step">3</span>
+              <div>
+                <h3 id="vehicle-status-title">{% translate "Access status" %}</h3>
+                <p>{% translate "Active vehicles become eligible for parking checks and QR sticker generation." %}</p>
+              </div>
+            </div>
+
+            {% with field=form.is_active %}
+              <div class="vehicle-status-toggle{% if field.errors %} vehicle-field--invalid{% endif %}">
+                <div class="form-check form-switch mb-0">
+                  {{ field }}
+                  <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                </div>
+                <span class="vehicle-status-toggle__hint">{% translate "Keep enabled for valid resident vehicles." %}</span>
+              </div>
+              {% for error in field.errors %}
+                <div class="form-error"><i class="fas fa-circle-exclamation me-1" aria-hidden="true"></i>{{ error }}</div>
+              {% endfor %}
+            {% endwith %}
+          </section>
+
+          <div class="vehicle-form-actions">
+            <a href="{{ cancel_url }}" class="btn-action btn-action--secondary">
+              <i class="fas fa-arrow-left me-1"></i>{{ cancel_label }}
+            </a>
+            <button type="submit" class="btn-action btn-action--primary">
+              <i class="fas fa-circle-check me-1"></i>{% translate "Register Vehicle" %}
+            </button>
+          </div>
+        </form>
+      </div>
+
+      <aside class="col-12 col-xl-4">
+        <div class="vehicle-help-card">
+          <div class="vehicle-help-card__icon"><i class="fas fa-shield-alt" aria-hidden="true"></i></div>
+          <h3>{% translate "Before saving" %}</h3>
+          <ul>
+            <li>{% translate "Confirm the flat and member belong to the selected society." %}</li>
+            <li>{% translate "Enter the registration number without extra spaces." %}</li>
+            <li>{% translate "Use Active only when the vehicle should pass verification." %}</li>
+          </ul>
+        </div>
+
+        <div class="vehicle-help-card vehicle-help-card--muted">
+          <h3>{% translate "What happens next?" %}</h3>
+          <p>{% translate "After saving, the system applies parking rules, resident checks, and makes the vehicle available for QR sticker verification." %}</p>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <script defer src="{% static 'parking/js/vehicle_form.js' %}"></script>
+{% endblock content %}

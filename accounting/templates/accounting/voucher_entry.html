@@ -39,6 +39,19 @@
     </div>
   {% endif %}
 
+  {% if voucher_error_summary %}
+    <div class="alert alert-danger" role="alert" aria-live="polite">
+      <div class="fw-semibold mb-1">
+        <i class="fas fa-exclamation-circle me-1"></i>{% translate "Voucher could not be saved" %}
+      </div>
+      <ul class="mb-0 ps-3">
+        {% for error in voucher_error_summary %}
+          <li>{{ error }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+  {% endif %}
+
   {# Main Voucher Entry Form #}
   <form method="post" novalidate data-loading-state>
     {% csrf_token %}
@@ -57,6 +70,9 @@
               <div class="form-group mb-1">
                 <label class="form-label small mb-1 fw-semibold" for="{{ field.id_for_label }}">{{ field.label }}</label>
                 {{ field }}
+                {% if field.field.disabled %}
+                  <input type="hidden" name="{{ field.html_name }}" value="{{ field.value|default_if_none:'' }}">
+                {% endif %}
                 {% for error in field.errors %}
                   <div class="form-error small mt-1">{{ error }}</div>
                 {% endfor %}

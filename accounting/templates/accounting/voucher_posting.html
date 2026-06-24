@@ -10,7 +10,7 @@
 {% endblock dashboard_title %}
 
 {% block dashboard_subtitle %}
-  {% translate "Review draft vouchers and post eligible ones." %}
+  {% translate "Review draft vouchers, post eligible ones, and confirm posted vouchers." %}
 {% endblock dashboard_subtitle %}
 
 {% block content %}
@@ -21,58 +21,110 @@
     <a href="{% url 'accounting:voucher-list' %}" class="btn btn-outline-secondary"><i class="fas fa-eye me-1"></i>{% translate "All Vouchers" %}</a>
   </div>
 
-  <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
-      <thead>
-        <tr>
-          <th>{% translate "Draft Number" %}</th>
-          <th>{% translate "Type" %}</th>
-          <th>{% translate "Date" %}</th>
-          <th>{% translate "Society" %}</th>
-          <th class="text-end">{% translate "Debit" %}</th>
-          <th class="text-end">{% translate "Credit" %}</th>
-          <th class="text-end">{% translate "Action" %}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for voucher in draft_vouchers %}
+  <section class="content-card mb-4">
+    <div class="content-card__header">
+      <h2 class="content-card__title mb-0">{% translate "Draft Vouchers" %}</h2>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
           <tr>
-            <td>
-              <a
-                href="{% url 'accounting:voucher-detail' voucher.pk %}"
-                class="text-decoration-none fw-semibold"
-                data-voucher-detail-url="{% url 'accounting:voucher-detail' voucher.pk %}"
-                data-voucher-label="{{ voucher.display_number }}"
-              >
-                {{ voucher.display_number }}
-              </a>
-            </td>
-            <td>{{ voucher.get_voucher_type_display }}</td>
-            <td>{{ voucher.voucher_date|date:"M d, Y" }}</td>
-            <td>{{ voucher.society.name }}</td>
-            <td class="text-end">{{ voucher.total_debit|default:0 }}</td>
-            <td class="text-end">{{ voucher.total_credit|default:0 }}</td>
-            <td class="text-end">
-              <div class="d-inline-flex gap-2">
-                <form method="post" action="{% url 'accounting:voucher-post' voucher.pk %}">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-success"><i class="fas fa-check me-1"></i>{% translate "Post" %}</button>
-                </form>
-                <form method="post" action="{% url 'accounting:voucher-delete-draft' voucher.pk %}">
-                  {% csrf_token %}
-                  <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash-alt me-1"></i>{% translate "Delete Draft" %}</button>
-                </form>
-              </div>
-            </td>
+            <th>{% translate "Draft Number" %}</th>
+            <th>{% translate "Type" %}</th>
+            <th>{% translate "Date" %}</th>
+            <th>{% translate "Society" %}</th>
+            <th class="text-end">{% translate "Debit" %}</th>
+            <th class="text-end">{% translate "Credit" %}</th>
+            <th class="text-end">{% translate "Action" %}</th>
           </tr>
-        {% empty %}
+        </thead>
+        <tbody>
+          {% for voucher in draft_vouchers %}
+            <tr>
+              <td>
+                <a
+                  href="{% url 'accounting:voucher-detail' voucher.pk %}"
+                  class="text-decoration-none fw-semibold"
+                  data-voucher-detail-url="{% url 'accounting:voucher-detail' voucher.pk %}"
+                  data-voucher-label="{{ voucher.display_number }}"
+                >
+                  {{ voucher.display_number }}
+                </a>
+              </td>
+              <td>{{ voucher.get_voucher_type_display }}</td>
+              <td>{{ voucher.voucher_date|date:"M d, Y" }}</td>
+              <td>{{ voucher.society.name }}</td>
+              <td class="text-end">{{ voucher.total_debit|default:0 }}</td>
+              <td class="text-end">{{ voucher.total_credit|default:0 }}</td>
+              <td class="text-end">
+                <div class="d-inline-flex gap-2">
+                  <form method="post" action="{% url 'accounting:voucher-post' voucher.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-success"><i class="fas fa-check me-1"></i>{% translate "Post" %}</button>
+                  </form>
+                  <form method="post" action="{% url 'accounting:voucher-delete-draft' voucher.pk %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger"><i class="fas fa-trash-alt me-1"></i>{% translate "Delete Draft" %}</button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="7" class="text-center text-muted py-4">{% translate "No draft vouchers to post." %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="content-card">
+    <div class="content-card__header">
+      <h2 class="content-card__title mb-0">{% translate "Posted Vouchers" %}</h2>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead>
           <tr>
-            <td colspan="7" class="text-center text-muted py-4">{% translate "No draft vouchers to post." %}</td>
+            <th>{% translate "Voucher Number" %}</th>
+            <th>{% translate "Type" %}</th>
+            <th>{% translate "Date" %}</th>
+            <th>{% translate "Society" %}</th>
+            <th class="text-end">{% translate "Debit" %}</th>
+            <th class="text-end">{% translate "Credit" %}</th>
+            <th>{% translate "Posted At" %}</th>
           </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  </div>
+        </thead>
+        <tbody>
+          {% for voucher in posted_vouchers %}
+            <tr>
+              <td>
+                <a
+                  href="{% url 'accounting:voucher-detail' voucher.pk %}"
+                  class="text-decoration-none fw-semibold"
+                  data-voucher-detail-url="{% url 'accounting:voucher-detail' voucher.pk %}"
+                  data-voucher-label="{{ voucher.display_number }}"
+                >
+                  {{ voucher.display_number }}
+                </a>
+              </td>
+              <td>{{ voucher.get_voucher_type_display }}</td>
+              <td>{{ voucher.voucher_date|date:"M d, Y" }}</td>
+              <td>{{ voucher.society.name }}</td>
+              <td class="text-end">{{ voucher.total_debit|default:0 }}</td>
+              <td class="text-end">{{ voucher.total_credit|default:0 }}</td>
+              <td>{{ voucher.posted_at|date:"M d, Y H:i" }}</td>
+            </tr>
+          {% empty %}
+            <tr>
+              <td colspan="7" class="text-center text-muted py-4">{% translate "No posted vouchers found." %}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
 {% endblock content %}
 
 {% block modal %}

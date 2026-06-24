@@ -2,10 +2,7 @@ import json
 from http import HTTPStatus
 
 import pytest
-from django.conf import settings
-from django.contrib.auth.models import AnonymousUser
 from django.contrib.auth import get_user_model
-from django.http import HttpResponseRedirect
 from django.urls import reverse
 
 from housing.models import Society
@@ -22,25 +19,13 @@ pytestmark = pytest.mark.django_db
 
 
 class TestHousingDashboardView:
-    def test_requires_authentication(self, rf, user):
-        request = rf.get("/housing/")
-        request.user = AnonymousUser()
-        from housing.views import housing_dashboard_view
-
-        response = housing_dashboard_view(request)
-        login_url = reverse(settings.LOGIN_URL)
-
-        assert isinstance(response, HttpResponseRedirect)
-        assert response.status_code == HTTPStatus.FOUND
-        assert response.url == f"{login_url}?next=/housing/"
-
-    def test_authenticated_user_can_open(self, client, user):
+    def test_housing_dashboard_redirects_to_home(self, client, user):
         client.force_login(user)
 
         response = client.get(reverse("housing:dashboard"))
 
-        assert response.status_code == HTTPStatus.OK
-        assert "housing/dashboard.html" in [t.name for t in response.templates]
+        assert response.status_code == HTTPStatus.FOUND
+        assert response.url == reverse("home")
 
     def test_structure_unit_dashboard_renders(self, client, user):
         client.force_login(user)

@@ -1,9 +1,9 @@
 from django.urls import path
+from django.views.generic import RedirectView
 
 from housing.views import billing_generate_view
 from housing.views import charge_template_create_view
 from housing.views import email_verification_view
-from housing.views import housing_dashboard_view
 from housing.views import member_create_view
 from housing.views import member_list_view
 from housing.views import member_update_view
@@ -32,7 +32,7 @@ from housing.views import society_voucher_templates_view
 app_name = "housing"
 
 urlpatterns = [
-    path("", view=housing_dashboard_view, name="dashboard"),
+    path("", view=RedirectView.as_view(pattern_name="home", permanent=False), name="dashboard"),
     path("societies/add/", view=society_create_view, name="society-add"),
     path("societies/", view=society_list_view, name="society-list"),
     path("societies/<int:pk>/", view=society_detail_view, name="society-detail"),

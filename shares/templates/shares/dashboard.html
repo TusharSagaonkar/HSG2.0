@@ -13,52 +13,105 @@
   {% translate "Track balances, certificates, and share transactions in one place." %}
 {% endblock dashboard_subtitle %}
 
+{% block bodyclass %}shares-dashboard{% endblock bodyclass %}
+
 {% block content %}
-  <div class="action-bar">
-    <a href="{% url 'shares:rules' %}" class="btn-action btn-action--secondary">
-      <i class="fas fa-cog me-1"></i>{% translate "Society Rules" %}
-    </a>
-    <a href="{% url 'shares:allotment' %}" class="btn-action btn-action--primary">
-      <i class="fas fa-plus-circle me-1"></i>{% translate "Allot Shares" %}
-    </a>
-    <a href="{% url 'shares:transfer' %}" class="btn-action btn-action--primary">
-      <i class="fas fa-exchange-alt me-1"></i>{% translate "Transfer Shares" %}
-    </a>
-    <a href="{% url 'shares:transmission' %}" class="btn-action btn-action--primary">
-      <i class="fas fa-share-alt me-1"></i>{% translate "Transmit Shares" %}
-    </a>
-    <a href="{% url 'shares:correction' %}" class="btn-action btn-action--warning">
-      <i class="fas fa-wrench me-1"></i>{% translate "Record Correction" %}
-    </a>
-    <a href="{% url 'shares:certificate-list' %}" class="btn-action btn-action--secondary">
-      <i class="fas fa-certificate me-1"></i>{% translate "Certificates" %}
-    </a>
+  <section class="shares-command-panel" aria-label="{% translate 'Share quick actions' %}">
+    <div class="shares-command-panel__intro">
+      <span class="shares-command-panel__eyebrow">{% translate "Share Desk" %}</span>
+      <h2>{% translate "Equity control center" %}</h2>
+      <p>{% translate "Issue, transfer, audit, and reconcile society share capital from one compact workspace." %}</p>
+    </div>
+    <div class="shares-command-grid">
+      <a href="{% url 'shares:allotment' %}" class="shares-command shares-command--primary">
+        <span class="shares-command__icon"><i class="fas fa-plus-circle"></i></span>
+        <span>
+          <strong>{% translate "Allot" %}</strong>
+          <small>{% translate "Issue new shares" %}</small>
+        </span>
+      </a>
+      <a href="{% url 'shares:transfer' %}" class="shares-command shares-command--primary">
+        <span class="shares-command__icon"><i class="fas fa-exchange-alt"></i></span>
+        <span>
+          <strong>{% translate "Transfer" %}</strong>
+          <small>{% translate "Move ownership" %}</small>
+        </span>
+      </a>
+      <a href="{% url 'shares:transmission' %}" class="shares-command">
+        <span class="shares-command__icon"><i class="fas fa-share-alt"></i></span>
+        <span>
+          <strong>{% translate "Transmit" %}</strong>
+          <small>{% translate "Legal succession" %}</small>
+        </span>
+      </a>
+      <a href="{% url 'shares:correction' %}" class="shares-command shares-command--warning">
+        <span class="shares-command__icon"><i class="fas fa-wrench"></i></span>
+        <span>
+          <strong>{% translate "Correct" %}</strong>
+          <small>{% translate "Audit-safe fix" %}</small>
+        </span>
+      </a>
+      <a href="{% url 'shares:certificate-list' %}" class="shares-command">
+        <span class="shares-command__icon"><i class="fas fa-certificate"></i></span>
+        <span>
+          <strong>{% translate "Certificates" %}</strong>
+          <small>{% translate "Issued documents" %}</small>
+        </span>
+      </a>
+      <a href="{% url 'shares:ledger-list' %}" class="shares-command">
+        <span class="shares-command__icon"><i class="fas fa-history"></i></span>
+        <span>
+          <strong>{% translate "Ledger" %}</strong>
+          <small>{% translate "Complete activity" %}</small>
+        </span>
+      </a>
+      <a href="{% url 'shares:event-log-list' %}" class="shares-command">
+        <span class="shares-command__icon"><i class="fas fa-clipboard-check"></i></span>
+        <span>
+          <strong>{% translate "Audit Logs" %}</strong>
+          <small>{% translate "Trace events" %}</small>
+        </span>
+      </a>
+      <a href="{% url 'shares:rules' %}" class="shares-command">
+        <span class="shares-command__icon"><i class="fas fa-cog"></i></span>
+        <span>
+          <strong>{% translate "Rules" %}</strong>
+          <small>{% translate "Society setup" %}</small>
+        </span>
+      </a>
+    </div>
+  </section>
+
+  <div class="row g-3 mb-4 shares-stat-grid">
+    <div class="col-12 col-md-3">
+      <a href="{% url 'housing:member-list' %}" class="shares-card-link" aria-label="{% translate 'Open members' %}">
+        {% include "components/stat_card.html" with icon="fas fa-users" label=_("Members") value=member_count color="primary" %}
+      </a>
+    </div>
+    <div class="col-12 col-md-3">
+      <a href="{% url 'shares:ledger-list' %}" class="shares-card-link" aria-label="{% translate 'Open share ledger' %}">
+        {% include "components/stat_card.html" with icon="fas fa-layer-group" label=_("Total Shares") value=total_shares color="success" %}
+      </a>
+    </div>
+    <div class="col-12 col-md-3">
+      <a href="{% url 'shares:certificate-list' %}" class="shares-card-link" aria-label="{% translate 'Open certificates' %}">
+        {% include "components/stat_card.html" with icon="fas fa-certificate" label=_("Certificates") value=certificate_count subtitle=_("Issued across the selected society") color="warning" %}
+      </a>
+    </div>
+    <div class="col-12 col-md-3">
+      <a href="{% url 'shares:ledger-list' %}" class="shares-card-link" aria-label="{% translate 'Open ledger entries' %}">
+        {% include "components/stat_card.html" with icon="fas fa-history" label=_("Ledger Entries") value=ledger_count color="info" %}
+      </a>
+    </div>
   </div>
 
-  <div class="row">
-    <div class="col-12 col-md-3 mb-4">
-      {% include "components/stat_card.html" with icon="fas fa-users" label=_("Members") value=member_count color="primary" %}
-    </div>
-    <div class="col-12 col-md-3 mb-4">
-      {% include "components/stat_card.html" with icon="fas fa-layer-group" label=_("Total Shares") value=total_shares color="success" %}
-    </div>
-    <div class="col-12 col-md-3 mb-4">
-      {% include "components/stat_card.html" with icon="fas fa-certificate" label=_("Certificates") value=certificate_count subtitle=_("Issued across the selected society") color="warning" %}
-    </div>
-    <div class="col-12 col-md-3 mb-4">
-      {% include "components/stat_card.html" with icon="fas fa-history" label=_("Ledger Entries") value=ledger_count color="info" %}
-    </div>
-  </div>
-
-  <div class="row">
-    <div class="col-12 col-lg-7 mb-4">
-      <div class="content-card">
-        <div class="content-card__header">
+  <div class="row g-3">
+    <div class="col-12 col-lg-7">
+      <div class="content-card shares-overview-card">
+        <a href="{% url 'shares:ledger-list' %}" class="content-card__header shares-card-header-link">
           <h3 class="content-card__title">{% translate "Recent Share Activity" %}</h3>
-          <a href="{% url 'shares:ledger-list' %}" class="btn-action btn-action--small">
-            {% translate "View all" %}
-          </a>
-        </div>
+          <span>{% translate "View all" %} <i class="fas fa-arrow-right ms-1"></i></span>
+        </a>
         <div class="content-card__body">
           {% if recent_ledger_entries %}
             <div class="table-responsive">
@@ -75,7 +128,7 @@
                 </thead>
                 <tbody>
                   {% for entry in recent_ledger_entries %}
-                    <tr>
+                    <tr class="shares-table-row">
                       <td>{{ entry.transaction_date|date:"d M Y" }}</td>
                       <td>
                         <a href="{% url 'shares:member-share-history' pk=entry.member.pk %}">
@@ -108,11 +161,12 @@
       </div>
     </div>
 
-    <div class="col-12 col-lg-5 mb-4">
-      <div class="content-card mb-4">
-        <div class="content-card__header">
+    <div class="col-12 col-lg-5">
+      <div class="content-card shares-overview-card mb-3">
+        <a href="{% url 'housing:member-list' %}" class="content-card__header shares-card-header-link">
           <h3 class="content-card__title">{% translate "Top Holdings" %}</h3>
-        </div>
+          <span>{% translate "Members" %} <i class="fas fa-arrow-right ms-1"></i></span>
+        </a>
         <div class="content-card__body">
           {% if recent_members %}
             <div class="list-group list-group-flush">
@@ -134,15 +188,16 @@
         </div>
       </div>
 
-      <div class="content-card">
-        <div class="content-card__header">
+      <div class="content-card shares-overview-card">
+        <a href="{% url 'shares:certificate-list' %}" class="content-card__header shares-card-header-link">
           <h3 class="content-card__title">{% translate "Recent Certificates" %}</h3>
-        </div>
+          <span>{% translate "View all" %} <i class="fas fa-arrow-right ms-1"></i></span>
+        </a>
         <div class="content-card__body">
           {% if recent_certificates %}
             <ul class="list-unstyled mb-0">
               {% for certificate in recent_certificates %}
-                <li class="d-flex justify-content-between align-items-start py-2 border-bottom">
+                <li class="d-flex justify-content-between align-items-start py-2 border-bottom shares-list-row">
                   <div>
                     <div class="fw-semibold">
                       <a href="{% url 'shares:certificate-detail' pk=certificate.pk %}" class="text-decoration-none">

@@ -1,0 +1,372 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% translate "Bank Reconciliation Statement" %} | {{ block.super }}{% endblock %}
+
+{% block dashboard_title %}{% translate "Bank Reconciliation Statement" %}{% endblock %}
+{% block dashboard_subtitle %}
+  {% if society_name %}
+    {{ society_name }} —
+    {% for acct in bank_accounts %}
+      {{ acct.name }}{% if not forloop.last %}, {% endif %}
+    {% endfor %}
+    {% if as_of_date %}
+      · {% translate "As of" %} {{ as_of_date|date:"d M Y" }}
+    {% endif %}
+  {% endif %}
+{% endblock %}
+
+{% block content %}
+  {# --- Actions --- #}
+  <div class="action-bar action-bar--responsive mb-3">
+    <div class="action-bar__group">
+      <a href="{% url 'reconciliation:dashboard' %}" class="btn-action btn-action--secondary">
+        <i class="fas fa-arrow-left me-1"></i>{% translate "Dashboard" %}
+      </a>
+    </div>
+    <div class="action-bar__group">
+      <a href="{% url 'reconciliation:exceptions' %}" class="btn-action btn-action--secondary">
+        <i class="fas fa-exclamation-triangle me-1"></i>{% translate "Exceptions" %}
+      </a>
+    </div>
+    <div class="action-bar__group action-bar__group--push">
+      <form method="get" class="d-flex gap-2">
+        <input type="date" name="as_of_date" value="{{ as_of_date_str }}" class="form-control form-control-sm" style="width: 160px;">
+        <button type="submit" class="btn btn-sm btn-outline-secondary">
+          <i class="fas fa-sync me-1"></i>{% translate "Refresh" %}
+        </button>
+      </form>
+    </div>
+    <div class="action-bar__group">
+      <button class="btn btn-sm btn-outline-secondary" onclick="window.print()">
+        <i class="fas fa-print me-1"></i>{% translate "Print" %}
+      </button>
+    </div>
+  </div>
+
+  {# --- Status Summary Cards --- #}
+  <div class="row g-3 mb-4">
+    <div class="col-md-3">
+      <div class="card border-success shadow-sm h-100">
+        <div class="card-body text-center">
+          <h6 class="text-success text-uppercase small">{% translate "Matched" %}</h6>
+          <div class="display-6 fw-bold text-success">{{ matched_count|default:0|intcomma }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-warning shadow-sm h-100">
+        <div class="card-body text-center">
+          <h6 class="text-warning text-uppercase small">{% translate "Unmatched" %}</h6>
+          <div class="display-6 fw-bold text-warning">{{ unmatched_count|default:0|intcomma }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card border-danger shadow-sm h-100">
+        <div class="card-body text-center">
+          <h6 class="text-danger text-uppercase small">{% translate "Exceptions" %}</h6>
+          <div class="display-6 fw-bold text-danger">{{ exception_count|default:0|intcomma }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-3">
+      <div class="card {% if is_balanced %}border-success{% else %}border-danger{% endif %} shadow-sm h-100">
+        <div class="card-body text-center">
+          <h6 class="{% if is_balanced %}text-success{% else %}text-danger{% endif %} text-uppercase small">{% translate "Status" %}</h6>
+          <div class="display-6 fw-bold {% if is_balanced %}text-success{% else %}text-danger{% endif %}">
+            {% if is_balanced %}
+              {% translate "Reconciled ✅" %}
+            {% else %}
+              {% translate "Difference" %} ₹ {{ difference|floatformat:2|intcomma }}
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# --- Two-Column BRS Layout --- #}
+  <div class="row g-4">
+    {# Left: Book Side #}
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-primary bg-opacity-10 border-0">
+          <h5 class="mb-0"><i class="fas fa-book me-2"></i>{% translate "Balance as per Books" %}</h5>
+        </div>
+        <div class="card-body text-center py-3">
+          <span class="fs-3 fw-bold">₹ {{ book_balance|floatformat:2|intcomma }}</span>
+        </div>
+      </div>
+
+      {% if book_balance_by_account %}
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 text-primary">
+              <i class="fas fa-university me-1"></i>{% translate "Book Balance by Account" %}
+            </h6>
+            <span class="badge bg-primary">{{ book_balance_by_account|length }}</span>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 30vh; overflow-y: auto;">
+              <table class="table table-sm table-hover mb-0 align-middle">
+                <thead class="table-light sticky-top">
+                  <tr>
+                    <th>{% translate "Account" %}</th>
+                    <th class="text-end">{% translate "Debit" %}</th>
+                    <th class="text-end">{% translate "Credit" %}</th>
+                    <th class="text-end">{% translate "Balance" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in book_balance_by_account %}
+                    <tr>
+                      <td>
+                        <div class="fw-semibold">{{ item.account_name }}</div>
+                        <small class="text-muted">{% if item.account_code %}{{ item.account_code }}{% else %}—{% endif %}</small>
+                      </td>
+                      <td class="text-end">₹ {{ item.debit_total|floatformat:2|intcomma }}</td>
+                      <td class="text-end">₹ {{ item.credit_total|floatformat:2|intcomma }}</td>
+                      <td class="text-end fw-bold {% if item.balance >= 0 %}text-success{% else %}text-danger{% endif %}">
+                        ₹ {{ item.balance|floatformat:2|intcomma }}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      {# Unpresented Credits (Add to book balance) #}
+      {% if unpresented_credits %}
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 text-success"><i class="fas fa-plus-circle me-1"></i>{% translate "Add: Unpresented Credits (Deposits in Transit)" %}</h6>
+            <span class="badge bg-success">₹ {{ unpresented_credits_total|floatformat:2|intcomma }}</span>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 30vh; overflow-y: auto;">
+              <table class="table table-sm table-hover mb-0">
+                <thead class="table-light sticky-top">
+                  <tr>
+                    <th>{% translate "Date" %}</th>
+                    <th>{% translate "Account" %}</th>
+                    <th>{% translate "Narration" %}</th>
+                    <th>{% translate "Voucher" %}</th>
+                    <th class="text-end">{% translate "Amount" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in unpresented_credits %}
+                    <tr>
+                      <td>{{ item.date|date:"d/m/Y" }}</td>
+                      <td>
+                        <div class="fw-semibold">{{ item.account_name }}</div>
+                        <small class="text-muted">{% if item.account_code %}{{ item.account_code }}{% else %}—{% endif %}</small>
+                      </td>
+                      <td>
+                        <div class="text-truncate" style="max-width: 200px;" title="{{ item.narration }}">
+                          {{ item.narration|truncatechars:50 }}
+                        </div>
+                      </td>
+                      <td><code>{{ item.voucher }}</code></td>
+                      <td class="text-end text-success fw-bold">₹ {{ item.amount|floatformat:2|intcomma }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      {# Unpresented Debits (Deduct from book balance) #}
+      {% if unpresented_debits %}
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 text-danger"><i class="fas fa-minus-circle me-1"></i>{% translate "Less: Unpresented Debits (Payments in Transit)" %}</h6>
+            <span class="badge bg-danger">₹ {{ unpresented_debits_total|floatformat:2|intcomma }}</span>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 30vh; overflow-y: auto;">
+              <table class="table table-sm table-hover mb-0">
+                <thead class="table-light sticky-top">
+                  <tr>
+                    <th>{% translate "Date" %}</th>
+                    <th>{% translate "Account" %}</th>
+                    <th>{% translate "Narration" %}</th>
+                    <th>{% translate "Voucher" %}</th>
+                    <th class="text-end">{% translate "Amount" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in unpresented_debits %}
+                    <tr>
+                      <td>{{ item.date|date:"d/m/Y" }}</td>
+                      <td>
+                        <div class="fw-semibold">{{ item.account_name }}</div>
+                        <small class="text-muted">{% if item.account_code %}{{ item.account_code }}{% else %}—{% endif %}</small>
+                      </td>
+                      <td>
+                        <div class="text-truncate" style="max-width: 200px;" title="{{ item.narration }}">
+                          {{ item.narration|truncatechars:50 }}
+                        </div>
+                      </td>
+                      <td><code>{{ item.voucher }}</code></td>
+                      <td class="text-end text-danger fw-bold">₹ {{ item.amount|floatformat:2|intcomma }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      {# Adjusted Book Balance #}
+      <div class="card border-success shadow-sm">
+        <div class="card-header bg-success bg-opacity-10 border-0">
+          <h5 class="mb-0"><i class="fas fa-check-circle me-2 text-success"></i>{% translate "Adjusted Book Balance" %}</h5>
+        </div>
+        <div class="card-body text-center py-3">
+          <span class="fs-3 fw-bold text-success">₹ {{ adjusted_book_balance|floatformat:2|intcomma }}</span>
+        </div>
+      </div>
+    </div>
+
+    {# Right: Bank Side #}
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm mb-3">
+        <div class="card-header bg-info bg-opacity-10 border-0">
+          <h5 class="mb-0"><i class="fas fa-university me-2"></i>{% translate "Balance as per Bank" %}</h5>
+        </div>
+        <div class="card-body text-center py-3">
+          <span class="fs-3 fw-bold">₹ {{ bank_balance|floatformat:2|intcomma }}</span>
+        </div>
+      </div>
+
+      {# Uncredited Items (Add to bank balance) #}
+      {% if uncredited_items %}
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 text-success"><i class="fas fa-plus-circle me-1"></i>{% translate "Add: Uncredited Items (Not in Books)" %}</h6>
+            <span class="badge bg-success">₹ {{ uncredited_total|floatformat:2|intcomma }}</span>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 30vh; overflow-y: auto;">
+              <table class="table table-sm table-hover mb-0">
+                <thead class="table-light sticky-top">
+                  <tr>
+                    <th>{% translate "Date" %}</th>
+                    <th>{% translate "Narration" %}</th>
+                    <th>{% translate "Reference" %}</th>
+                    <th class="text-end">{% translate "Amount" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in uncredited_items %}
+                    <tr>
+                      <td>{{ item.date|date:"d/m/Y" }}</td>
+                      <td>
+                        <div class="text-truncate" style="max-width: 200px;" title="{{ item.narration }}">
+                          {{ item.narration|truncatechars:50 }}
+                        </div>
+                      </td>
+                      <td>{{ item.reference|default:"—" }}</td>
+                      <td class="text-end text-success fw-bold">₹ {{ item.amount|floatformat:2|intcomma }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      {# Outstanding Cheques (Deduct from bank balance) #}
+      {% if outstanding_cheques %}
+        <div class="card border-0 shadow-sm mb-3">
+          <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+            <h6 class="mb-0 text-danger"><i class="fas fa-minus-circle me-1"></i>{% translate "Less: Outstanding Cheques / Payments" %}</h6>
+            <span class="badge bg-danger">₹ {{ outstanding_total|floatformat:2|intcomma }}</span>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 30vh; overflow-y: auto;">
+              <table class="table table-sm table-hover mb-0">
+                <thead class="table-light sticky-top">
+                  <tr>
+                    <th>{% translate "Date" %}</th>
+                    <th>{% translate "Narration" %}</th>
+                    <th>{% translate "Reference" %}</th>
+                    <th class="text-end">{% translate "Amount" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for item in outstanding_cheques %}
+                    <tr>
+                      <td>{{ item.date|date:"d/m/Y" }}</td>
+                      <td>
+                        <div class="text-truncate" style="max-width: 200px;" title="{{ item.narration }}">
+                          {{ item.narration|truncatechars:50 }}
+                        </div>
+                      </td>
+                      <td>{{ item.reference|default:"—" }}</td>
+                      <td class="text-end text-danger fw-bold">₹ {{ item.amount|floatformat:2|intcomma }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+
+      {# Adjusted Bank Balance #}
+      <div class="card border-success shadow-sm">
+        <div class="card-header bg-success bg-opacity-10 border-0">
+          <h5 class="mb-0"><i class="fas fa-check-circle me-2 text-success"></i>{% translate "Adjusted Bank Balance" %}</h5>
+        </div>
+        <div class="card-body text-center py-3">
+          <span class="fs-3 fw-bold text-success">₹ {{ adjusted_bank_balance|floatformat:2|intcomma }}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# --- Reconciliation Result Banner --- #}
+  <div class="row mt-4">
+    <div class="col-12">
+      {% if is_balanced %}
+        <div class="alert alert-success text-center py-4">
+          <i class="fas fa-check-circle fa-3x mb-2"></i>
+          <h4 class="alert-heading">{% translate "Reconciled ✅" %}</h4>
+          <p class="mb-0">{% translate "Adjusted book balance matches adjusted bank balance. No variance." %}</p>
+        </div>
+      {% else %}
+        <div class="alert alert-danger text-center py-4">
+          <i class="fas fa-times-circle fa-3x mb-2"></i>
+          <h4 class="alert-heading">{% translate "Not Reconciled" %}</h4>
+          <p class="mb-0">
+            {% blocktranslate with diff=difference|floatformat:2|intcomma %}
+              Difference of ₹ {{ diff }} between adjusted book and bank balances.
+            {% endblocktranslate %}
+          </p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# --- Print-only styles --- #}
+  <style>
+    @media print {
+      .action-bar, .btn, form, .navbar, .sidebar, footer {
+        display: none !important;
+      }
+      .card { border: 1px solid #dee2e6 !important; }
+      body { font-size: 12px; }
+    }
+  </style>
+{% endblock content %}

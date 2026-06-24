@@ -6,6 +6,7 @@ import pytest
 from django.urls import reverse
 
 from accounting.models import Account
+from accounting.models import AccountCategory
 from accounting.models import AccountingPeriod
 from accounting.models import FinancialYear
 from accounting.models import LedgerEntry
@@ -14,6 +15,13 @@ from housing.models import Society
 from members.models import Member
 from members.models import Structure
 from members.models import Unit
+from reconciliation.models import BankStatementImport
+from reconciliation.models import BankTransaction
+from reconciliation.models import ReconciliationLink
+from reconciliation.tests.factories import BankStatementImportFactory
+from societies.models import Membership
+from reconciliation.tests.factories import BankTransactionFactory
+from reconciliation.tests.factories import ReconciliationLinkFactory
 from housing_accounting.selection import SESSION_SELECTED_FINANCIAL_YEAR_ID
 from housing_accounting.selection import SESSION_SELECTED_SOCIETY_ID
 
@@ -21,7 +29,13 @@ from housing_accounting.selection import SESSION_SELECTED_SOCIETY_ID
 pytestmark = pytest.mark.django_db
 
 
-def _set_scope(client, society, financial_year):
+def _set_scope(client, society, financial_year, user=None):
+    if user is not None:
+        Membership.objects.get_or_create(
+            user=user,
+            society=society,
+            defaults={"role": Membership.Role.OWNER, "is_active": True},
+        )
     session = client.session
     session[SESSION_SELECTED_SOCIETY_ID] = society.id
     session[SESSION_SELECTED_FINANCIAL_YEAR_ID] = financial_year.id
@@ -36,8 +50,41 @@ def _seed_basic_posted_data(society, financial_year):
         end_date=date(2024, 4, 30),
     ).update(is_open=True)
 
-    cash = Account.objects.get(society=society, name="Cash in Hand")
-    income = Account.objects.get(society=society, name="Maintenance Charges")
+    def _ensure_account(*, code, name, account_type, sub_type, is_bank=False):
+        account = Account.objects.filter(society=society, code=code).first()
+        if account is None:
+            account = Account.objects.filter(society=society, name=name).first()
+        if account is not None:
+            return account
+
+        category = AccountCategory.objects.filter(
+            society=society,
+            account_type=account_type,
+        ).first()
+        return Account.objects.create(
+            society=society,
+            name=name,
+            code=code,
+            category=category,
+            account_type=account_type,
+            sub_type=sub_type,
+            is_active=True,
+            is_bank=is_bank,
+        )
+
+    cash = _ensure_account(
+        code="1.4.1",
+        name="Cash in Hand",
+        account_type=Account.AccountType.ASSET,
+        sub_type=Account.SubType.BANK,
+        is_bank=True,
+    )
+    income = _ensure_account(
+        code="3.1.1",
+        name="Maintenance Charges",
+        account_type=Account.AccountType.INCOME,
+        sub_type=Account.SubType.INCOME,
+    )
 
     voucher = Voucher.objects.create(
         society=society,
@@ -154,13 +201,61 @@ def test_bank_reconciliation_report_renders_summary(client, user):
     _seed_basic_posted_data(society, financial_year)
 
     client.force_login(user)
-    _set_scope(client, society, financial_year)
+    _set_scope(client, society, financial_year, user=user)
     response = client.get(reverse("reports:bank-reconciliation-statement"))
 
     assert response.status_code == HTTPStatus.OK
     content = response.content.decode()
     assert "Bank Reconciliation Statement" in content
-    assert "Adjusted Bank Balance" in content
+    assert "Bank Statement Entries" in content
+    assert "Bank Balance as per Statement" in content
+
+
+def test_bank_reconciliation_report_reflects_links(client, user):
+    society = Society.objects.create(name="BRS Link Society")
+    financial_year = FinancialYear.objects.create(
+        society=society,
+        name="FY 2024-25",
+        start_date=date(2024, 4, 1),
+        end_date=date(2025, 3, 31),
+        is_open=True,
+    )
+    _seed_basic_posted_data(society, financial_year)
+
+    imp = BankStatementImportFactory(society=society)
+    linked_bt = BankTransactionFactory(
+        bank_statement_import=imp,
+        transaction_date=date(2024, 4, 12),
+        amount=Decimal("500.00"),
+        dr_cr=BankTransaction.DrCr.CREDIT,
+        reference_no="LINKED-001",
+    )
+    unlinked_bt = BankTransactionFactory(
+        bank_statement_import=imp,
+        transaction_date=date(2024, 4, 13),
+        amount=Decimal("750.00"),
+        dr_cr=BankTransaction.DrCr.CREDIT,
+        reference_no="UNLINKED-001",
+        narration="Unlinked maintenance receipt",
+    )
+    ReconciliationLinkFactory(
+        society=society,
+        bank_transaction=linked_bt,
+        status=ReconciliationLink.Status.SUGGESTED,
+        match_type=ReconciliationLink.MatchType.PARTIAL,
+    )
+
+    client.force_login(user)
+    _set_scope(client, society, financial_year, user=user)
+    response = client.get(reverse("reports:bank-reconciliation-statement"))
+
+    assert response.status_code == HTTPStatus.OK
+    content = response.content.decode()
+    assert "Bank Statement Entries" in content
+    assert "LINKED-001" in content
+    assert "UNLINKED-001" in content
+    assert "Unlinked maintenance receipt" in content
+    assert "UNMATCHED" in content
 
 
 def test_fixed_assets_report_renders_register(client, user):

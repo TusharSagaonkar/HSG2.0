@@ -1,21 +1,19 @@
 /**
- * Parking App - Vehicle Form Styles
- * Optimizes the unit selection dropdown with structured optgroups
+ * Parking App - polished vehicle form styles and structured unit dropdowns.
  */
 
-/* Style for unit selection optgroups */
 select[id*="unit"] optgroup {
   background-color: #f8f9fa;
-  color: #333;
-  font-weight: 600;
+  color: #1f2937;
+  font-weight: 700;
   font-style: normal;
   padding-left: 10px;
   border-bottom: 1px solid #dee2e6;
 }
 
 select[id*="unit"] optgroup option {
-  background-color: white;
-  color: #333;
+  background-color: #fff;
+  color: #1f2937;
   font-weight: 400;
   padding-left: 20px;
   font-style: normal;
@@ -30,10 +28,573 @@ select[id*="unit"] optgroup option:checked {
   background-color: #0d6efd;
 }
 
-/* Improve readability with better spacing */
 .unit-field-help {
   display: block;
   margin-top: 0.5rem;
   font-size: 0.875rem;
   color: #6c757d;
+}
+
+.parking-form-shell {
+  max-width: 1180px;
+  margin: 0 auto;
+}
+
+.parking-form-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 1.5rem;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  padding: 1.5rem;
+  border: 1px solid rgba(13, 110, 253, 0.15);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at top right, rgba(13, 110, 253, 0.16), transparent 34%),
+    linear-gradient(135deg, #f8fbff 0%, #fff 58%, #f7f9fc 100%);
+  box-shadow: 0 20px 45px rgba(15, 23, 42, 0.08);
+}
+
+.parking-form-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  margin-bottom: 0.5rem;
+  color: #0d6efd;
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.parking-form-hero h2 {
+  margin: 0;
+  color: #111827;
+  font-size: clamp(1.45rem, 2vw, 2rem);
+  font-weight: 800;
+}
+
+.parking-form-hero p {
+  max-width: 720px;
+  margin: 0.65rem 0 0;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.parking-form-hero__icon {
+  display: grid;
+  flex: 0 0 76px;
+  width: 76px;
+  height: 76px;
+  place-items: center;
+  border-radius: 24px;
+  color: #fff;
+  font-size: 2rem;
+  background: linear-gradient(135deg, #0d6efd, #0a58ca);
+  box-shadow: 0 16px 35px rgba(13, 110, 253, 0.28);
+}
+
+.vehicle-form-card,
+.vehicle-help-card {
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 22px;
+  background: #fff;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.08);
+}
+
+.vehicle-form-card {
+  padding: 1.25rem;
+}
+
+.vehicle-form-section {
+  padding: 1.25rem;
+  border: 1px solid #e9eef5;
+  border-radius: 18px;
+  background: #fff;
+}
+
+.vehicle-form-section + .vehicle-form-section {
+  margin-top: 1rem;
+}
+
+.vehicle-form-section--status {
+  background: linear-gradient(135deg, #f8fafc 0%, #fff 100%);
+}
+
+.vehicle-form-section__header {
+  display: flex;
+  gap: 0.85rem;
+  align-items: flex-start;
+  margin-bottom: 1rem;
+}
+
+.vehicle-form-section__header h3 {
+  margin: 0;
+  color: #111827;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.vehicle-form-section__header p {
+  margin: 0.2rem 0 0;
+  color: #64748b;
+  font-size: 0.9rem;
+}
+
+.vehicle-form-step {
+  display: inline-grid;
+  flex: 0 0 34px;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 999px;
+  color: #0d6efd;
+  font-weight: 800;
+  background: #eaf2ff;
+}
+
+.vehicle-field .form-label {
+  color: #334155;
+  font-size: 0.86rem;
+  font-weight: 700;
+}
+
+.vehicle-field .form-control,
+.vehicle-field .form-select {
+  min-height: 44px;
+  border-color: #d9e2ef;
+  border-radius: 12px;
+  color: #111827;
+  box-shadow: none;
+  transition: border-color 0.18s ease, box-shadow 0.18s ease, transform 0.18s ease;
+}
+
+.vehicle-field .form-control:focus,
+.vehicle-field .form-select:focus {
+  border-color: #0d6efd;
+  box-shadow: 0 0 0 0.22rem rgba(13, 110, 253, 0.12);
+}
+
+.vehicle-field--vehicle_number .form-control {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.vehicle-field--invalid .form-control,
+.vehicle-field--invalid .form-select {
+  border-color: #dc3545;
+}
+
+.vehicle-field .form-text {
+  color: #7c8798;
+  font-size: 0.8rem;
+}
+
+.form-error {
+  margin-top: 0.35rem;
+  color: #b42318;
+  font-size: 0.83rem;
+  font-weight: 600;
+}
+
+.vehicle-unit-autocomplete {
+  position: relative;
+  margin-bottom: 0.5rem;
+}
+
+.vehicle-unit-autocomplete .form-control {
+  padding-left: 2.25rem;
+  border-radius: 12px;
+  background-color: #f8fafc;
+}
+
+.vehicle-unit-autocomplete::before {
+  position: absolute;
+  top: 22px;
+  left: 0.85rem;
+  z-index: 2;
+  color: #94a3b8;
+  font-family: "Font Awesome 5 Free";
+  font-weight: 900;
+  content: "\f002";
+  transform: translateY(-50%);
+}
+
+.vehicle-unit-results {
+  position: absolute;
+  z-index: 30;
+  top: calc(100% + 0.35rem);
+  right: 0;
+  left: 0;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid #d9e2ef;
+  border-radius: 14px;
+  background: #fff;
+  box-shadow: 0 18px 42px rgba(15, 23, 42, 0.14);
+}
+
+.vehicle-unit-result {
+  display: flex;
+  width: 100%;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.7rem 0.85rem;
+  border: 0;
+  border-bottom: 1px solid #eef2f7;
+  color: #111827;
+  text-align: left;
+  background: #fff;
+}
+
+.vehicle-unit-result:hover,
+.vehicle-unit-result.is-active {
+  background: #eef6ff;
+}
+
+.vehicle-unit-result__title {
+  font-weight: 800;
+}
+
+.vehicle-unit-result__meta {
+  flex: 0 0 auto;
+  color: #64748b;
+  font-size: 0.78rem;
+}
+
+.vehicle-unit-results__empty {
+  padding: 0.85rem;
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.vehicle-unit-select-fallback {
+  margin-top: 0.4rem;
+}
+
+.vehicle-status-toggle {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  align-items: center;
+  padding: 1rem;
+  border: 1px solid #dbeafe;
+  border-radius: 16px;
+  background: #f8fbff;
+}
+
+.vehicle-status-toggle .form-check-label {
+  color: #111827;
+  font-weight: 800;
+}
+
+.vehicle-status-toggle__hint {
+  color: #64748b;
+  font-size: 0.88rem;
+}
+
+.vehicle-form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding-top: 1.25rem;
+  border-top: 1px solid #edf2f7;
+}
+
+.vehicle-help-card {
+  padding: 1.25rem;
+}
+
+.vehicle-help-card + .vehicle-help-card {
+  margin-top: 1rem;
+}
+
+.vehicle-help-card__icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 0.9rem;
+  place-items: center;
+  border-radius: 14px;
+  color: #0d6efd;
+  background: #eaf2ff;
+}
+
+.vehicle-help-card h3 {
+  margin: 0 0 0.75rem;
+  color: #111827;
+  font-size: 1rem;
+  font-weight: 800;
+}
+
+.vehicle-help-card ul {
+  margin: 0;
+  padding-left: 1.1rem;
+  color: #475569;
+}
+
+.vehicle-help-card li + li {
+  margin-top: 0.55rem;
+}
+
+.vehicle-help-card p {
+  margin: 0;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.vehicle-help-card--muted {
+  background: #f8fafc;
+}
+
+.parking-dashboard .page-inner {
+  background:
+    radial-gradient(circle at top left, rgba(13, 110, 253, 0.08), transparent 30rem),
+    linear-gradient(180deg, #f7faff 0%, #ffffff 42%);
+}
+
+.parking-command-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.62fr) minmax(0, 1.38fr);
+  gap: 1rem;
+  align-items: stretch;
+  margin-bottom: 1.25rem;
+  padding: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  border-radius: 24px;
+  background:
+    radial-gradient(circle at 12% 20%, rgba(13, 110, 253, 0.13), transparent 22rem),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.96));
+  box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+}
+
+.parking-command-panel__intro {
+  display: flex;
+  min-height: 100%;
+  flex-direction: column;
+  justify-content: center;
+  padding: 1rem;
+  border-radius: 20px;
+  color: #fff;
+  background: linear-gradient(135deg, #102a56 0%, #0d6efd 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+.parking-command-panel__eyebrow {
+  margin-bottom: 0.45rem;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.parking-command-panel__intro h2 {
+  margin: 0;
+  font-size: clamp(1.35rem, 2vw, 1.85rem);
+  font-weight: 850;
+  letter-spacing: -0.03em;
+}
+
+.parking-command-panel__intro p {
+  margin: 0.45rem 0 0;
+  color: rgba(255, 255, 255, 0.78);
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.parking-command-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.65rem;
+}
+
+.parking-command {
+  display: flex;
+  min-height: 72px;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.72rem;
+  border: 1px solid #dce6f3;
+  border-radius: 18px;
+  color: #1f2937;
+  text-decoration: none;
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+}
+
+.parking-command:hover,
+.parking-command:focus-visible {
+  border-color: rgba(13, 110, 253, 0.36);
+  color: #0b3f8a;
+  text-decoration: none;
+  background: #fff;
+  box-shadow: 0 16px 32px rgba(13, 110, 253, 0.12);
+  transform: translateY(-2px);
+}
+
+.parking-command:focus-visible,
+.parking-card-link:focus-visible,
+.parking-card-header-link:focus-visible {
+  outline: 3px solid rgba(13, 110, 253, 0.22);
+  outline-offset: 3px;
+}
+
+.parking-command--primary {
+  border-color: rgba(13, 110, 253, 0.28);
+  background: linear-gradient(180deg, #ffffff 0%, #f0f6ff 100%);
+}
+
+.parking-command__icon {
+  display: inline-grid;
+  flex: 0 0 38px;
+  width: 38px;
+  height: 38px;
+  place-items: center;
+  border-radius: 14px;
+  color: #0d6efd;
+  background: #eaf2ff;
+}
+
+.parking-command strong,
+.parking-command small {
+  display: block;
+}
+
+.parking-command strong {
+  font-size: 0.88rem;
+  font-weight: 850;
+  line-height: 1.15;
+}
+
+.parking-command small {
+  margin-top: 0.18rem;
+  color: #64748b;
+  font-size: 0.74rem;
+  font-weight: 650;
+}
+
+.parking-card-link {
+  display: block;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
+}
+
+.parking-card-link:hover,
+.parking-card-link:focus {
+  color: inherit;
+  text-decoration: none;
+}
+
+.parking-card-link .stat-card {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(148, 163, 184, 0.24);
+  border-radius: 20px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(248, 251, 255, 0.98)),
+    radial-gradient(circle at top right, rgba(13, 110, 253, 0.12), transparent 55%);
+}
+
+.parking-card-link .stat-card::after {
+  position: absolute;
+  top: 0.9rem;
+  right: 0.9rem;
+  color: #94a3b8;
+  font-family: "Font Awesome 5 Free";
+  font-size: 0.78rem;
+  font-weight: 900;
+  content: "\f061";
+  opacity: 0;
+  transform: translateX(-4px);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+}
+
+.parking-card-link:hover .stat-card::after,
+.parking-card-link:focus .stat-card::after {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+.parking-overview-card {
+  height: 100%;
+  border-color: rgba(148, 163, 184, 0.24);
+  border-radius: 22px;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.07);
+}
+
+.parking-card-header-link {
+  color: inherit;
+  text-decoration: none;
+  transition: color 0.18s ease, background 0.18s ease;
+}
+
+.parking-card-header-link span {
+  color: #0d6efd;
+  font-size: 0.8rem;
+  font-weight: 800;
+}
+
+.parking-card-header-link:hover,
+.parking-card-header-link:focus {
+  color: inherit;
+  text-decoration: none;
+  background: linear-gradient(180deg, #f3f8ff 0%, #fff 100%);
+}
+
+.parking-list-row {
+  align-items: center;
+  min-height: 52px;
+  border-color: #eef2f7;
+}
+
+@media (max-width: 1199.98px) {
+  .parking-command-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .parking-command-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 767.98px) {
+  .parking-command-panel {
+    padding: 0.75rem;
+    border-radius: 20px;
+  }
+
+  .parking-command-panel__intro {
+    padding: 0.9rem;
+  }
+
+  .parking-command-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .parking-command {
+    min-height: 64px;
+  }
+
+  .parking-form-hero,
+  .vehicle-status-toggle,
+  .vehicle-form-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .parking-form-hero__icon {
+    display: none;
+  }
+
+  .vehicle-form-card,
+  .vehicle-form-section,
+  .vehicle-help-card {
+    padding: 1rem;
+    border-radius: 18px;
+  }
 }

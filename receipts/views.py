@@ -1,5 +1,7 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import Http404
+from django.db.models import Count
+from django.db.models import Sum
 from django.views.generic import DetailView
 from django.views.generic import ListView
 
@@ -29,6 +31,18 @@ class ReceiptListView(LoginRequiredMixin, ListView):
         if selected_society:
             queryset = queryset.filter(society=selected_society)
         return queryset
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        receipts_qs = self.get_queryset()
+        context["total_amount"] = receipts_qs.aggregate(total=Sum("amount"))["total"] or 0
+        context["allocated_count"] = receipts_qs.annotate(
+            allocation_count=Count("allocations")
+        ).filter(allocation_count__gt=0).count()
+        context["unallocated_count"] = receipts_qs.annotate(
+            allocation_count=Count("allocations")
+        ).filter(allocation_count=0).count()
+        return context
 
 
 receipt_list_view = ReceiptListView.as_view()

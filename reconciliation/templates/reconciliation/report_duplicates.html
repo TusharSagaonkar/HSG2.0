@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}{% translate "Duplicate Report" %} | {{ block.super }}{% endblock %}
+
+{% block dashboard_title %}{% translate "Duplicate Transactions Report" %}{% endblock %}
+{% block dashboard_subtitle %}{% translate "Review duplicate reconciliation links, bank transactions, and suspected book duplicates." %}{% endblock %}
+
+{% block content %}
+  {# --- Actions --- #}
+  <div class="action-bar action-bar--responsive mb-3">
+    <div class="action-bar__group">
+      <a href="{% url 'reconciliation:dashboard' %}" class="btn-action btn-action--secondary">
+        <i class="fas fa-arrow-left me-1"></i>{% translate "Dashboard" %}
+      </a>
+    </div>
+    <div class="action-bar__group">
+      <a href="{% url 'reconciliation:workspace' %}" class="btn-action btn-action--primary">
+        <i class="fas fa-tasks me-1"></i>{% translate "Workspace" %}
+      </a>
+    </div>
+  </div>
+
+  {# --- Duplicate Reconciliation Links --- #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="fas fa-clone me-2 text-warning"></i>{% translate "Duplicate Reconciliation Links" %}</h5>
+      <span class="badge bg-warning text-dark">{{ duplicate_links|length }} {% translate "items" %}</span>
+    </div>
+    <div class="card-body p-0">
+      {% if duplicate_links %}
+        <div class="table-responsive" style="max-height: 50vh; overflow-y: auto;">
+          <table class="table table-hover mb-0">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>{% translate "Link ID" %}</th>
+                <th>{% translate "Bank Date" %}</th>
+                <th>{% translate "Narration" %}</th>
+                <th class="text-end">{% translate "Amount" %}</th>
+                <th>{% translate "Voucher" %}</th>
+                <th>{% translate "Exception Type" %}</th>
+                <th>{% translate "Actions" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for link in duplicate_links %}
+                <tr class="table-warning">
+                  <td><code>#{{ link.id }}</code></td>
+                  <td>{{ link.bank_transaction.transaction_date|date:"d/m/Y" }}</td>
+                  <td>
+                    <div class="text-truncate" style="max-width: 250px;" title="{{ link.bank_transaction.narration }}">
+                      {{ link.bank_transaction.narration|truncatechars:60 }}
+                    </div>
+                  </td>
+                  <td class="text-end fw-bold">₹ {{ link.bank_transaction.amount|floatformat:2|intcomma }}</td>
+                  <td>
+                    {% if link.voucher_entry %}
+                      {{ link.voucher_entry.voucher.display_number|default:"—" }}
+                    {% else %}
+                      —
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if link.exception_type %}
+                      <span class="badge bg-secondary">{{ link.get_exception_type_display }}</span>
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    <div class="btn-group btn-group-sm">
+                      <a href="{% url 'reconciliation:force-match' %}?bank_tx={{ link.bank_transaction_id }}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-link me-1"></i>{% translate "Rematch" %}
+                      </a>
+                      <form method="post" action="{% url 'reconciliation:unlink-match' link.id %}" class="d-inline unlink-form" data-confirm="{% translate 'Unlink this match? It will be marked as reversed.' %}">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-outline-danger btn-sm">
+                          <i class="fas fa-unlink me-1"></i>{% translate "Unlink" %}
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-4 text-center text-muted">
+          <i class="fas fa-check-circle fa-2x mb-2 text-success"></i>
+          <p>{% translate "No duplicate reconciliation links." %}</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# --- Duplicate Bank Transactions --- #}
+  <div class="card border-0 shadow-sm mb-4">
+    <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="fas fa-copy me-2 text-warning"></i>{% translate "Duplicate Bank Transactions" %}</h5>
+      <span class="badge bg-warning text-dark">{{ duplicate_bank_transactions|length }} {% translate "items" %}</span>
+    </div>
+    <div class="card-body p-0">
+      {% if duplicate_bank_transactions %}
+        <div class="table-responsive" style="max-height: 50vh; overflow-y: auto;">
+          <table class="table table-hover mb-0">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>{% translate "Date" %}</th>
+                <th>{% translate "Narration" %}</th>
+                <th>{% translate "Reference" %}</th>
+                <th>{% translate "DR/CR" %}</th>
+                <th class="text-end">{% translate "Amount" %}</th>
+                <th>{% translate "Import" %}</th>
+                <th>{% translate "Hash" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for tx in duplicate_bank_transactions %}
+                <tr class="table-warning">
+                  <td>{{ tx.date|date:"d/m/Y" }}</td>
+                  <td>
+                    <div class="text-truncate" style="max-width: 250px;" title="{{ tx.narration }}">
+                      {{ tx.narration|truncatechars:60 }}
+                    </div>
+                  </td>
+                  <td>{{ tx.reference|default:"—" }}</td>
+                  <td>
+                    <span class="badge {% if tx.dr_cr == 'CREDIT' %}bg-success{% else %}bg-danger{% endif %}">
+                      {{ tx.dr_cr }}
+                    </span>
+                  </td>
+                  <td class="text-end fw-bold">₹ {{ tx.amount|floatformat:2|intcomma }}</td>
+                  <td>
+                    {% if tx.import_id %}
+                      <a href="{% url 'reconciliation:statement-import-detail' tx.import_id %}" class="text-decoration-none">
+                        {{ tx.import_filename|truncatechars:25 }}
+                      </a>
+                    {% else %}
+                      —
+                    {% endif %}
+                  </td>
+                  <td><code class="small">{{ tx.hash|truncatechars:12 }}</code></td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-4 text-center text-muted">
+          <i class="fas fa-check-circle fa-2x mb-2 text-success"></i>
+          <p>{% translate "No duplicate bank transactions found." %}</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  {# --- Suspected Book Duplicates --- #}
+  <div class="card border-0 shadow-sm">
+    <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
+      <h5 class="mb-0"><i class="fas fa-exclamation-triangle me-2 text-warning"></i>{% translate "Suspected Book Duplicates" %}</h5>
+      <span class="text-muted small">{% translate "Same date & amount" %}</span>
+    </div>
+    <div class="card-body p-0">
+      {% if suspected_book_duplicates %}
+        <div class="table-responsive" style="max-height: 50vh; overflow-y: auto;">
+          <table class="table table-hover mb-0">
+            <thead class="table-light sticky-top">
+              <tr>
+                <th>{% translate "Date" %}</th>
+                <th>{% translate "Account" %}</th>
+                <th class="text-end">{% translate "Amount" %}</th>
+                <th class="text-end">{% translate "Count" %}</th>
+                <th>{% translate "Warning" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for dup in suspected_book_duplicates %}
+                <tr class="table-warning">
+                  <td>{{ dup.date|date:"d/m/Y" }}</td>
+                  <td>{{ dup.account }}</td>
+                  <td class="text-end fw-bold">₹ {{ dup.amount|floatformat:2|intcomma }}</td>
+                  <td class="text-end">
+                    <span class="badge bg-danger">{{ dup.count }}</span>
+                  </td>
+                  <td>
+                    <small class="text-muted">{% translate "Multiple entries with same date and amount." %}</small>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-4 text-center text-muted">
+          <i class="fas fa-check-circle fa-2x mb-2 text-success"></i>
+          <p>{% translate "No suspected book duplicates found." %}</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}
+
+{% block extra_js %}
+  <script>
+    document.querySelectorAll('.unlink-form').forEach(function (form) {
+      form.addEventListener('submit', function (e) {
+        if (!confirm(this.dataset.confirm)) {
+          e.preventDefault();
+        }
+      });
+    });
+  </script>
+{% endblock extra_js %}

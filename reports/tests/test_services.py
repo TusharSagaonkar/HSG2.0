@@ -12,8 +12,16 @@ from members.models import Member
 from members.models import Structure
 from members.models import Nominee
 from members.models import Unit
+from reconciliation.models import BankStatementImport
+from reconciliation.models import BankTransaction
+from reconciliation.models import ReconciliationLink
+from reconciliation.tests.factories import BankAccountFactory
+from reconciliation.tests.factories import BankStatementImportFactory
+from reconciliation.tests.factories import BankTransactionFactory
+from reconciliation.tests.factories import ReconciliationLinkFactory
 from reports.services import build_active_member_list_report
 from reports.services import build_gst_reports
+from reports.services import build_bank_reconciliation_statement
 from reports.services import build_member_register_report
 from shares.models import ShareCertificate
 
@@ -277,3 +285,97 @@ def test_build_active_member_list_report_excludes_tenant_members():
 
     assert report["total_active_members"] == 1
     assert [row["member_name"] for row in report["rows"]] == ["Owner Member"]
+
+
+def test_build_bank_reconciliation_statement_reflects_live_links():
+    society = Society.objects.create(name="BRS Service Society")
+    BankAccountFactory(society=society, name="Bank Account", code="1.4.2.1")
+    imp = BankStatementImportFactory(society=society)
+    linked_bt = BankTransactionFactory(
+        bank_statement_import=imp,
+        amount=Decimal("500.00"),
+        dr_cr=BankTransaction.DrCr.CREDIT,
+        reference_no="LINKED-001",
+    )
+    BankTransactionFactory(
+        bank_statement_import=imp,
+        amount=Decimal("750.00"),
+        dr_cr=BankTransaction.DrCr.CREDIT,
+        reference_no="UNLINKED-001",
+    )
+    ReconciliationLinkFactory(
+        society=society,
+        bank_transaction=linked_bt,
+        status=ReconciliationLink.Status.SUGGESTED,
+        match_type=ReconciliationLink.MatchType.PARTIAL,
+    )
+
+    report = build_bank_reconciliation_statement(society=society, to_date=date.today())
+
+    assert report["bank_account_name"]
+    assert report["reconciling_count"] == 1
+    assert [row["reference"] for row in report["reconciling_rows"]] == ["UNLINKED-001"]
+    assert report["add_total"] == Decimal("750.00")
+    assert report["bank_balance"] == Decimal("1250.00")
+    assert report["bank_statement_count"] == 2
+    assert {row["reference"] for row in report["bank_statement_rows"]} == {
+        "LINKED-001",
+        "UNLINKED-001",
+    }
+    unmatched_row = next(row for row in report["bank_statement_rows"] if row["reference"] == "UNLINKED-001")
+    assert unmatched_row["match_status"] == "UNMATCHED"
+    assert unmatched_row["credit"] == Decimal("750.00")
+
+
+def test_build_bank_reconciliation_statement_includes_all_bank_accounts():
+    society = Society.objects.create(name="BRS Multi Bank Society")
+    maintenance_bank = BankAccountFactory(
+        society=society,
+        name="Maintenance Bank",
+        code="1.4.2.1",
+    )
+    sinking_bank = BankAccountFactory(
+        society=society,
+        name="Sinking Fund Bank",
+        code="1.4.2.2",
+    )
+
+    BankTransactionFactory(
+        bank_statement_import=BankStatementImportFactory(
+            society=society,
+            bank_account=maintenance_bank,
+        ),
+        amount=Decimal("750.00"),
+        dr_cr=BankTransaction.DrCr.CREDIT,
+        reference_no="MAINT-UNLINKED",
+    )
+    BankTransactionFactory(
+        bank_statement_import=BankStatementImportFactory(
+            society=society,
+            bank_account=sinking_bank,
+        ),
+        amount=Decimal("1250.00"),
+        dr_cr=BankTransaction.DrCr.CREDIT,
+        reference_no="SINK-UNLINKED",
+    )
+
+    report = build_bank_reconciliation_statement(society=society, to_date=date.today())
+
+    reported_account_names = {row["account_name"] for row in report["bank_account_rows"]}
+
+    assert report["bank_account_count"] == len(report["bank_account_rows"])
+    assert {maintenance_bank.name, sinking_bank.name}.issubset(reported_account_names)
+    assert "Bank & Cash" not in reported_account_names
+    assert "Bank Accounts" not in reported_account_names
+    assert "Cash-in-Hand" not in reported_account_names
+    assert "Fund Transfer Account" not in reported_account_names
+    assert report["reconciling_count"] == 2
+    assert {row["reference"] for row in report["reconciling_rows"]} == {
+        "MAINT-UNLINKED",
+        "SINK-UNLINKED",
+    }
+    assert {row["account_name"] for row in report["reconciling_rows"]} == {
+        maintenance_bank.name,
+        sinking_bank.name,
+    }
+    assert report["add_total"] == Decimal("2000.00")

@@ -3,6 +3,7 @@ from decimal import Decimal
 from http import HTTPStatus
 
 import pytest
+from django.db.models import Q
 from django.urls import reverse
 from django.utils import timezone
 
@@ -34,11 +35,15 @@ def _build_domain_data():
         unit_type=Unit.UnitType.FLAT,
         identifier="101",
     )
-    receivable = Account.objects.get(society=society, name="Maintenance Receivable")
-    income = Account.objects.get(society=society, name="Maintenance Charges")
+    receivable = Account.objects.filter(
+        society=society,
+        code__in=["1.5.1.1", "1.5.1"],
+    ).order_by("code").first()
+    income = Account.objects.get(society=society, code="3.1.1")
     bank = (
-        Account.objects.filter(society=society, name__icontains="bank account")
-        .order_by("id")
+        Account.objects.filter(society=society, code__startswith="1.4")
+        .filter(Q(name__icontains="bank") | Q(name__icontains="cash"))
+        .order_by("code")
         .first()
     )
     assert bank is not None
@@ -129,6 +134,18 @@ def test_billing_pages_render(client, user):
     assert "billing/bill_detail.html" in [t.name for t in response.templates]
 
 
+def test_bill_list_exposes_charge_template_actions(client, user):
+    client.force_login(user)
+
+    response = client.get(reverse("billing:bill-list"))
+
+    assert response.status_code == HTTPStatus.OK
+    content = response.content.decode()
+    assert reverse("billing:charge-template-list") in content
+    assert reverse("housing:charge-template-add") in content
+    assert "Add Charge Template" in content
+
+
 def test_receipt_pages_render(client, user):
     data = _build_domain_data()
     client.force_login(user)
@@ -166,6 +183,15 @@ def test_structure_unit_dashboard_page_renders(client, user):
     response = client.get(reverse("housing:structure-unit-dashboard"))
     assert response.status_code == HTTPStatus.OK
     assert "housing/structure_unit_dashboard.html" in [t.name for t in response.templates]
+
+
+def test_outstanding_dashboard_page_renders(client, user):
+    _build_domain_data()
+    client.force_login(user)
+
+    response = client.get(reverse("housing:outstanding-dashboard"))
+    assert response.status_code == HTTPStatus.OK
+    assert "housing/outstanding_dashboard.html" in [t.name for t in response.templates]
 
 
 def test_charge_template_status_change_sets_effective_to_date(client, user):
@@ -223,6 +249,65 @@ def test_charge_template_inactive_and_new_redirects_to_prefilled_create(client, 
     assert template.effective_to == timezone.localdate()
 
 
+def test_charge_template_create_redirects_to_safe_next_url(client, user):
+    data = _build_domain_data()
+    client.force_login(user)
+    template = data["template"]
+    next_url = reverse("billing:bill-list")
+
+    response = client.post(
+        f"{reverse('housing:charge-template-add')}?next={next_url}",
+        data={
+            "society": template.society_id,
+            "name": "Parking Charge",
+            "description": "",
+            "charge_type": ChargeTemplate.ChargeType.FIXED,
+            "rate": Decimal("250.00"),
+            "frequency": template.frequency,
+            "due_days": template.due_days,
+            "late_fee_percent": template.late_fee_percent,
+            "effective_from": timezone.localdate(),
+            "effective_to": "",
+            "income_account": template.income_account_id,
+            "receivable_account": template.receivable_account_id,
+            "is_active": "on",
+            "next": next_url,
+        },
+    )
+
+    assert response.status_code == HTTPStatus.FOUND
+    assert response.url == next_url
+
+
+def test_charge_template_create_rejects_external_next_url(client, user):
+    data = _build_domain_data()
+    client.force_login(user)
+    template = data["template"]
+
+    response = client.post(
+        f"{reverse('housing:charge-template-add')}?next=https://evil.example/phish",
+        data={
+            "society": template.society_id,
+            "name": "Water Charge",
+            "description": "",
+            "charge_type": ChargeTemplate.ChargeType.FIXED,
+            "rate": Decimal("150.00"),
+            "frequency": template.frequency,
+            "due_days": template.due_days,
+            "late_fee_percent": template.late_fee_percent,
+            "effective_from": timezone.localdate(),
+            "effective_to": "",
+            "income_account": template.income_account_id,
+            "receivable_account": template.receivable_account_id,
+            "is_active": "on",
+            "next": "https://evil.example/phish",
+        },
+    )
+
+    assert response.status_code == HTTPStatus.FOUND
+    assert response.url == reverse("billing:charge-template-list")
+
+
 def test_charge_template_create_from_clone_sets_previous_version(client, user):
     data = _build_domain_data()
     client.force_login(user)
@@ -257,6 +342,7 @@ def test_charge_template_create_from_clone_sets_previous_version(client, user):
     )
 
     assert response.status_code == HTTPStatus.FOUND
+    assert response.url == reverse("billing:charge-template-list")
     new_template = (
         ChargeTemplate.objects.filter(society=template.society, name=template.name)
         .exclude(pk=template.pk)

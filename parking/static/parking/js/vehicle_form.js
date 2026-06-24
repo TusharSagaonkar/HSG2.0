@@ -1,35 +1,37 @@
 /**
- * Vehicle Form - Structure & Unit Selection Enhancement
- * Provides hierarchical structure selection with dynamic unit loading and search/filter capability
+ * Vehicle Form - Structure, unit autocomplete, and registration input enhancements.
  */
 
 (function() {
   'use strict';
 
-  // Initialize interactions on page load
   document.addEventListener('DOMContentLoaded', function() {
     const societySelect = document.getElementById('id_society');
     const structureSelect = document.getElementById('id_structure');
     const unitSelect = document.getElementById('id_unit');
-    
-    if (!structureSelect || !unitSelect) return;
+    const vehicleNumberInput = document.getElementById('id_vehicle_number');
 
-    // Setup structure change listener to load units
-    if (structureSelect) {
-      structureSelect.addEventListener('change', function() {
-        const societyId = societySelect.value || '';
-        const structureId = this.value || '';
-        
-        if (societyId && structureId) {
-          loadUnitsByStructure(societyId, structureId, unitSelect);
-        } else {
-          // Reset unit select
-          resetUnitSelect(unitSelect);
-        }
+    if (vehicleNumberInput) {
+      vehicleNumberInput.addEventListener('input', function() {
+        this.value = this.value.toUpperCase();
       });
     }
-    
-    // Setup society change to load structures
+
+    if (!structureSelect || !unitSelect) return;
+
+    const autocomplete = enhanceUnitSelection(unitSelect);
+
+    structureSelect.addEventListener('change', function() {
+      const societyId = societySelect ? societySelect.value || '' : '';
+      const structureId = this.value || '';
+
+      if (societyId && structureId) {
+        loadUnitsByStructure(societyId, structureId, unitSelect);
+      } else {
+        resetUnitSelect(unitSelect);
+      }
+    });
+
     if (societySelect) {
       societySelect.addEventListener('change', function() {
         resetStructureSelect(structureSelect);
@@ -37,20 +39,22 @@
       });
     }
 
-    // Add search enhancement to unit select
-    enhanceUnitSelection(unitSelect);
+    unitSelect.addEventListener('change', function() {
+      syncAutocompleteFromSelect(unitSelect, autocomplete.input);
+    });
   });
 
   function loadUnitsByStructure(societyId, structureId, unitSelect) {
-    /**
-     * Load units for selected structure via AJAX
-     */
-    const url = `/parking/vehicles/units/?society=${societyId}&structure=${structureId}`;
-    
-    fetch(url)
-      .then(response => response.json())
+    const params = new URLSearchParams({ society: societyId, structure: structureId });
+    const url = `/parking/vehicles/units/?${params.toString()}`;
+
+    fetch(url, { headers: { Accept: 'application/json' } })
+      .then(response => {
+        if (!response.ok) throw new Error(`Unable to load flats (${response.status})`);
+        return response.json();
+      })
       .then(data => {
-        populateUnitSelect(data.units, unitSelect);
+        populateUnitSelect(data.units || [], unitSelect);
       })
       .catch(error => {
         console.error('Error loading units:', error);
@@ -58,164 +62,233 @@
   }
 
   function populateUnitSelect(units, selectElement) {
-    /**
-     * Populate unit select with options from server
-     */
-    // Clear existing options except the empty one
-    const options = selectElement.querySelectorAll('option');
-    options.forEach((option, index) => {
-      if (index > 0) option.remove();
-    });
-    
-    // Add new options
+    const emptyOption = selectElement.querySelector('option[value=""]');
+    selectElement.innerHTML = '';
+    if (emptyOption) {
+      selectElement.appendChild(emptyOption);
+    }
+
     units.forEach(unit => {
       const option = document.createElement('option');
       option.value = unit.id;
       option.textContent = `${unit.identifier} (${unit.unit_type})`;
+      option.dataset.structureName = unit.structure__name || '';
       selectElement.appendChild(option);
     });
-    
-    // Trigger enhancement for new options
-    const searchInput = selectElement.parentElement.querySelector('[data-unit-search]');
-    if (searchInput) {
-      searchInput.value = '';
-      const optionsData = parseOptionsData(selectElement);
-      filterUnits(selectElement, optionsData, '');
-    }
+
+    resetAutocomplete(selectElement);
   }
 
   function resetStructureSelect(selectElement) {
-    /**
-     * Reset structure select to empty state
-     */
     selectElement.value = '';
   }
 
   function resetUnitSelect(selectElement) {
-    /**
-     * Reset unit select to empty state
-     */
-    // Keep only the empty option
     const options = selectElement.querySelectorAll('option:not(:first-child)');
     options.forEach(option => option.remove());
     selectElement.value = '';
+    resetAutocomplete(selectElement);
   }
 
   function enhanceUnitSelection(selectElement) {
-    // Create a search input above the select
     const container = selectElement.parentElement;
-    const searchWrapper = document.createElement('div');
-    searchWrapper.className = 'mb-2';
-    
-    const searchInput = document.createElement('input');
-    searchInput.type = 'text';
-    searchInput.className = 'form-control form-control-sm';
-    searchInput.placeholder = 'Search units (e.g., "101", "Flat")';
-    searchInput.setAttribute('data-unit-search', '');
-    searchInput.setAttribute('aria-label', 'Search units');
-    
-    const label = document.createElement('label');
-    label.className = 'form-label small text-muted mb-2';
-    label.setAttribute('for', 'unit-search-input');
-    label.textContent = 'Quick search:';
-    
-    searchInput.id = 'unit-search-input';
-    searchWrapper.appendChild(label);
-    searchWrapper.appendChild(searchInput);
-    
-    // Insert search before the select
-    container.insertBefore(searchWrapper, selectElement);
-    
-    // Store original options structure
-    const optionsData = parseOptionsData(selectElement);
-    
-    // Add event listener for search
-    searchInput.addEventListener('input', function() {
-      filterUnits(selectElement, optionsData, this.value);
-    });
-    
-    // Highlight matching text
-    selectElement.addEventListener('focus', function() {
-      searchInput.focus();
-      searchInput.select();
-    });
-  }
+    const existingInput = container.querySelector('[data-unit-search]');
+    if (existingInput) {
+      return {
+        input: existingInput,
+        list: container.querySelector('[data-unit-results]'),
+      };
+    }
 
-  function parseOptionsData(selectElement) {
-    /**
-     * Parse optgroups and options into a data structure for quick filtering.
-     * Structure: [
-     *   { group: "Structure Name", options: [{ value, label }, ...] },
-     *   ...
-     * ]
-     */
-    const data = [];
-    const optgroups = selectElement.querySelectorAll('optgroup');
-    
-    optgroups.forEach(group => {
-      const groupName = group.getAttribute('label');
-      const options = [];
-      
-      group.querySelectorAll('option').forEach(option => {
-        options.push({
-          value: option.value,
-          label: option.textContent,
-          element: option,
-        });
-      });
-      
-      data.push({
-        group: groupName,
-        options: options,
-      });
-    });
-    
-    return data;
-  }
+    const wrapper = document.createElement('div');
+    wrapper.className = 'vehicle-unit-autocomplete';
 
-  function filterUnits(selectElement, optionsData, searchTerm) {
-    /**
-     * Filter optgroups and options based on search term.
-     * Hides non-matching groups and options.
-     */
-    const term = searchTerm.toLowerCase().trim();
-    const optgroups = selectElement.querySelectorAll('optgroup');
-    
-    optgroups.forEach((group, index) => {
-      const groupData = optionsData[index];
-      const matchingOptions = [];
-      
-      group.querySelectorAll('option').forEach(option => {
-        const matches = 
-          groupData.group.toLowerCase().includes(term) ||
-          option.textContent.toLowerCase().includes(term);
-        
-        // For optgroup, we can't directly hide, but we can disable non-matching
-        if (!matches && term) {
-          option.disabled = true;
-          option.style.display = 'none';
-        } else {
-          option.disabled = false;
-          option.style.display = '';
-          if (term && matches) {
-            matchingOptions.push(option);
-          }
-        }
-      });
-      
-      // Hide optgroup if no matching options
-      if (term && matchingOptions.length === 0) {
-        group.style.display = 'none';
-      } else {
-        group.style.display = '';
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.className = 'form-control form-control-sm';
+    input.placeholder = 'Start typing flat number or building';
+    input.setAttribute('data-unit-search', '');
+    input.setAttribute('aria-label', 'Search and select flat');
+    input.setAttribute('autocomplete', 'off');
+    input.setAttribute('role', 'combobox');
+    input.setAttribute('aria-expanded', 'false');
+    input.id = 'unit-search-input';
+
+    const results = document.createElement('div');
+    results.className = 'vehicle-unit-results d-none';
+    results.setAttribute('data-unit-results', '');
+    results.setAttribute('role', 'listbox');
+
+    wrapper.appendChild(input);
+    wrapper.appendChild(results);
+    container.insertBefore(wrapper, selectElement);
+    selectElement.classList.add('vehicle-unit-select-fallback');
+
+    input.addEventListener('input', function() {
+      selectElement.value = '';
+      renderAutocompleteResults(selectElement, input, results, this.value);
+    });
+
+    input.addEventListener('focus', function() {
+      renderAutocompleteResults(selectElement, input, results, this.value);
+    });
+
+    input.addEventListener('keydown', function(event) {
+      handleAutocompleteKeys(event, input, results);
+    });
+
+    document.addEventListener('click', function(event) {
+      if (!wrapper.contains(event.target)) {
+        hideResults(input, results);
       }
     });
+
+    syncAutocompleteFromSelect(selectElement, input);
+    return { input: input, list: results };
   }
 
-  // Export functions for testing
+  function getUnitOptions(selectElement) {
+    const rows = [];
+    const optgroups = selectElement.querySelectorAll('optgroup');
+
+    if (optgroups.length) {
+      optgroups.forEach(group => {
+        const groupName = group.getAttribute('label') || '';
+        group.querySelectorAll('option').forEach(option => {
+          if (!option.value) return;
+          rows.push({ option: option, structure: groupName, label: option.textContent.trim() });
+        });
+      });
+      return rows;
+    }
+
+    selectElement.querySelectorAll('option').forEach(option => {
+      if (!option.value) return;
+      rows.push({
+        option: option,
+        structure: option.dataset.structureName || '',
+        label: option.textContent.trim(),
+      });
+    });
+    return rows;
+  }
+
+  function renderAutocompleteResults(selectElement, input, results, searchTerm) {
+    const term = searchTerm.toLowerCase().trim();
+    const matches = getUnitOptions(selectElement)
+      .filter(row => {
+        if (!term) return true;
+        return row.label.toLowerCase().includes(term) || row.structure.toLowerCase().includes(term);
+      })
+      .slice(0, 12);
+
+    results.innerHTML = '';
+
+    if (!matches.length) {
+      const empty = document.createElement('div');
+      empty.className = 'vehicle-unit-results__empty';
+      empty.textContent = term ? 'No matching flats found' : 'Select society and building to load flats';
+      results.appendChild(empty);
+      showResults(input, results);
+      return;
+    }
+
+    matches.forEach((row, index) => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'vehicle-unit-result';
+      button.setAttribute('role', 'option');
+      button.setAttribute('data-unit-result', '');
+      button.setAttribute('data-index', String(index));
+      button.innerHTML = `
+        <span class="vehicle-unit-result__title">${escapeHtml(row.label)}</span>
+        ${row.structure ? `<span class="vehicle-unit-result__meta">${escapeHtml(row.structure)}</span>` : ''}
+      `;
+      button.addEventListener('click', function() {
+        selectUnitOption(selectElement, input, results, row.option);
+      });
+      results.appendChild(button);
+    });
+
+    showResults(input, results);
+  }
+
+  function handleAutocompleteKeys(event, input, results) {
+    const items = Array.from(results.querySelectorAll('[data-unit-result]'));
+    if (!items.length || results.classList.contains('d-none')) return;
+
+    const active = results.querySelector('.is-active');
+    let index = active ? Number(active.dataset.index) : -1;
+
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      index = Math.min(index + 1, items.length - 1);
+      setActiveResult(items, index);
+    } else if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      index = Math.max(index - 1, 0);
+      setActiveResult(items, index);
+    } else if (event.key === 'Enter' && active) {
+      event.preventDefault();
+      active.click();
+    } else if (event.key === 'Escape') {
+      hideResults(input, results);
+    }
+  }
+
+  function setActiveResult(items, index) {
+    items.forEach(item => item.classList.remove('is-active'));
+    if (items[index]) {
+      items[index].classList.add('is-active');
+      items[index].scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  function selectUnitOption(selectElement, input, results, option) {
+    selectElement.value = option.value;
+    input.value = buildAutocompleteLabel(option);
+    hideResults(input, results);
+    selectElement.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+
+  function syncAutocompleteFromSelect(selectElement, input) {
+    const selected = selectElement.options[selectElement.selectedIndex];
+    input.value = selected && selected.value ? buildAutocompleteLabel(selected) : '';
+  }
+
+  function resetAutocomplete(selectElement) {
+    const input = selectElement.parentElement.querySelector('[data-unit-search]');
+    const results = selectElement.parentElement.querySelector('[data-unit-results]');
+    if (input) input.value = '';
+    if (results) hideResults(input, results);
+  }
+
+  function buildAutocompleteLabel(option) {
+    const structure = option.closest('optgroup')?.getAttribute('label') || option.dataset.structureName || '';
+    const label = option.textContent.trim();
+    return structure ? `${label} - ${structure}` : label;
+  }
+
+  function showResults(input, results) {
+    results.classList.remove('d-none');
+    input.setAttribute('aria-expanded', 'true');
+  }
+
+  function hideResults(input, results) {
+    if (!results) return;
+    results.classList.add('d-none');
+    if (input) input.setAttribute('aria-expanded', 'false');
+  }
+
+  function escapeHtml(value) {
+    const element = document.createElement('div');
+    element.textContent = value;
+    return element.innerHTML;
+  }
+
   window.vehicleFormEnhancements = {
     enhanceUnitSelection: enhanceUnitSelection,
-    parseOptionsData: parseOptionsData,
-    filterUnits: filterUnits,
+    renderAutocompleteResults: renderAutocompleteResults,
+    getUnitOptions: getUnitOptions,
   };
 })();

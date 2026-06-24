@@ -725,12 +725,151 @@ const initStructureHierarchyFilters = () => {
   applyFilters();
 };
 
-window.addEventListener("DOMContentLoaded", () => {
-  initLayoutToggles();
-  initVoucherDetailModal();
+const initWorkspaceContent = () => {
   initAutoReloadSocietyForms();
   initAutoReloadUnitForms();
   initUnitSearchForms();
   initStructureHierarchyFilters();
+};
+
+const initPersistentWorkspace = () => {
+  const workspace = document.getElementById("workspace");
+  const dashboardHeading = document.querySelector(".dashboard-heading h3");
+  const dashboardSubtitle = document.querySelector(".page-inner > .d-flex h6");
+
+  if (!workspace) {
+    return;
+  }
+
+  const normalizePath = (href) => {
+    try {
+      const url = new URL(href, window.location.origin);
+      return url.pathname.replace(/\/+$/, "") || "/";
+    } catch (error) {
+      return href.replace(/\/+$/, "") || "/";
+    }
+  };
+
+  const isWorkspaceEligibleLink = (link) => {
+    const rawHref = link.getAttribute("href") || "";
+    if (!rawHref || rawHref.startsWith("#")) {
+      return false;
+    }
+    if (link.hasAttribute("download") || link.getAttribute("target") && link.getAttribute("target") !== "_self") {
+      return false;
+    }
+    if (link.hasAttribute("data-bs-toggle") || link.closest("[data-no-workspace]")) {
+      return false;
+    }
+    if (link.hasAttribute("hx-post") || link.hasAttribute("hx-delete") || link.hasAttribute("hx-put") || link.hasAttribute("hx-patch")) {
+      return false;
+    }
+
+    try {
+      const url = new URL(rawHref, window.location.origin);
+      return url.origin === window.location.origin && ["http:", "https:"].includes(url.protocol);
+    } catch (error) {
+      return false;
+    }
+  };
+
+  const activateCurrentLink = () => {
+    const currentPath = normalizePath(window.location.href);
+    document.querySelectorAll(".sidebar a[href]").forEach((link) => {
+      const isActive = normalizePath(link.href) === currentPath;
+      link.classList.toggle("active", isActive);
+      link.setAttribute("aria-current", isActive ? "page" : "false");
+
+      const navItem = link.closest(".nav-item");
+      if (navItem) {
+        navItem.classList.toggle("active", isActive);
+      }
+    });
+  };
+
+  const loadPageAssets = (parsedDocument) => {
+    parsedDocument.querySelectorAll('link[rel="stylesheet"][href]').forEach((asset) => {
+      if (!document.querySelector(`link[rel="stylesheet"][href="${asset.href}"]`)) {
+        document.head.appendChild(asset.cloneNode(true));
+      }
+    });
+
+    parsedDocument.querySelectorAll("script[src]").forEach((asset) => {
+      if (document.querySelector(`script[src="${asset.src}"]`)) {
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = asset.src;
+      script.defer = true;
+      document.body.appendChild(script);
+    });
+  };
+
+  const syncPersistentChrome = (responseText) => {
+    if (!responseText) {
+      return;
+    }
+
+    const parsedDocument = new DOMParser().parseFromString(responseText, "text/html");
+    const nextTitle = parsedDocument.querySelector("title");
+    const nextHeading = parsedDocument.querySelector(".dashboard-heading h3");
+    const nextSubtitle = parsedDocument.querySelector(".page-inner > .d-flex h6");
+
+    if (nextTitle) {
+      document.title = nextTitle.textContent.trim();
+    }
+    if (dashboardHeading && nextHeading) {
+      dashboardHeading.textContent = nextHeading.textContent.trim();
+    }
+    if (dashboardSubtitle && nextSubtitle) {
+      dashboardSubtitle.textContent = nextSubtitle.textContent.trim();
+    }
+    loadPageAssets(parsedDocument);
+  };
+
+  const enhanceWorkspaceLinks = (root = document) => {
+    root.querySelectorAll("a[href]").forEach((link) => {
+      if (!isWorkspaceEligibleLink(link)) {
+        return;
+      }
+      link.setAttribute("hx-get", link.getAttribute("href"));
+      link.setAttribute("hx-target", "#workspace");
+      link.setAttribute("hx-select", "#workspace");
+      link.setAttribute("hx-swap", "innerHTML");
+      link.setAttribute("hx-push-url", "true");
+      link.setAttribute("hx-indicator", "#workspace-loading");
+      if (window.htmx) {
+        window.htmx.process(link);
+      }
+    });
+  };
+
+  enhanceWorkspaceLinks();
+  activateCurrentLink();
+
+  document.body.addEventListener("htmx:afterSwap", (event) => {
+    if (event.detail && event.detail.target === workspace) {
+      syncPersistentChrome(event.detail.xhr?.responseText || "");
+      activateCurrentLink();
+      initWorkspaceContent();
+      enhanceWorkspaceLinks(workspace);
+      workspace.focus({ preventScroll: true });
+      window.scrollTo({ top: 0, behavior: "auto" });
+    }
+  });
+
+  document.body.addEventListener("htmx:historyRestore", () => {
+    activateCurrentLink();
+    initWorkspaceContent();
+    enhanceWorkspaceLinks(workspace);
+  });
+  window.addEventListener("popstate", activateCurrentLink);
+};
+
+window.addEventListener("DOMContentLoaded", () => {
+  initLayoutToggles();
+  initVoucherDetailModal();
+  initWorkspaceContent();
   initShortcutHelpTrigger();
+  initPersistentWorkspace();
 });

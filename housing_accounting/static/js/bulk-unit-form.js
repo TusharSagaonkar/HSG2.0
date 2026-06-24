@@ -34,6 +34,15 @@ const initBulkUnitForm = () => {
 
   const getCellKey = (cell) => `${cell.floor}:${cell.column}`;
 
+  const removeCell = (targetCell) => {
+    const targetKey = getCellKey(targetCell);
+    gridState = gridState
+      .map((row) => row.filter((cell) => getCellKey(cell) !== targetKey))
+      .filter((row) => row.length > 0);
+    selectedKeys.delete(targetKey);
+    renderGrid();
+  };
+
   const formatNumberInput = (value) => {
     if (value === null || value === undefined || value === "") {
       return "";
@@ -252,10 +261,27 @@ const initBulkUnitForm = () => {
         title.textContent = `F${cell.floor} • #${cell.column}`;
         head.appendChild(title);
 
+        const headActions = document.createElement("div");
+        headActions.className = "d-flex align-items-center gap-2";
+
         const badge = document.createElement("span");
         badge.className = `badge ${cell.is_active ? "bg-success-subtle text-success" : "bg-secondary-subtle text-secondary"}`;
         badge.textContent = cell.is_active ? "Active" : "Inactive";
-        head.appendChild(badge);
+        headActions.appendChild(badge);
+
+        const deleteButton = document.createElement("button");
+        deleteButton.type = "button";
+        deleteButton.className = "btn btn-outline-danger btn-sm py-0 px-2";
+        deleteButton.textContent = "Delete";
+        deleteButton.title = "Remove this unit";
+        deleteButton.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          removeCell(cell);
+        });
+        headActions.appendChild(deleteButton);
+
+        head.appendChild(headActions);
         card.appendChild(head);
 
         const fields = document.createElement("div");

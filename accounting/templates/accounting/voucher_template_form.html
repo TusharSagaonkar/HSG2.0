@@ -148,6 +148,9 @@
                       <tbody>
                         {% for row_form in formset %}
                           <tr>
+                            {% for hidden_field in row_form.hidden_fields %}
+                              {{ hidden_field }}
+                            {% endfor %}
                             <td>
                               {{ row_form.account }}
                               {% for error in row_form.account.errors %}<div class="form-error small mt-1">{{ error }}</div>{% endfor %}
@@ -174,10 +177,15 @@
                               </div>
                             </td>
                           </tr>
-                          {% if row_form.non_field_errors %}
+                          {% if row_form.non_field_errors or row_form.hidden_fields.0.errors %}
                             <tr>
                               <td colspan="6" class="pt-0">
                                 <div class="alert alert-danger py-1 small mb-2">
+                                  {% for hidden_field in row_form.hidden_fields %}
+                                    {% for error in hidden_field.errors %}
+                                      <div>{{ hidden_field.label }}: {{ error }}</div>
+                                    {% endfor %}
+                                  {% endfor %}
                                   {% for error in row_form.non_field_errors %}
                                     <div>{{ error }}</div>
                                   {% endfor %}

@@ -303,13 +303,50 @@
           <section class="statement-panel">
             <div class="statement-panel-header">
               <span>{% translate "BRS Summary" %}</span>
-              <span>{% if brs.bank_account_name %}{{ brs.bank_account_name }}{% else %}{% translate "Bank Account" %}{% endif %}</span>
+              <span>
+                {% if brs.bank_account_count > 1 %}
+                  {% translate "All Bank Accounts" %} ({{ brs.bank_account_count }})
+                {% elif brs.bank_account_name %}
+                  {{ brs.bank_account_name }}
+                {% else %}
+                  {% translate "Bank Account" %}
+                {% endif %}
+              </span>
             </div>
+            {% if brs.bank_account_rows %}
+              <table class="statement-table mb-3">
+                <thead class="statement-table-head">
+                  <tr>
+                    <th>{% translate "Bank Account" %}</th>
+                    <th class="text-end">{% translate "Debit" %}</th>
+                    <th class="text-end">{% translate "Credit" %}</th>
+                    <th class="text-end">{% translate "Book Balance" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for account in brs.bank_account_rows %}
+                    <tr>
+                      <td>
+                        {{ account.account_name }}
+                        {% if account.account_code %}<span class="text-muted">({{ account.account_code }})</span>{% endif %}
+                      </td>
+                      <td class="text-end">{{ account.debit_total }}</td>
+                      <td class="text-end">{{ account.credit_total }}</td>
+                      <td class="text-end">{{ account.balance }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            {% endif %}
             <table class="statement-table">
               <tbody>
                 <tr>
                   <td>{% translate "Book Balance as per Ledger" %}</td>
                   <td class="text-end">{{ brs.book_balance }}</td>
+                </tr>
+                <tr>
+                  <td>{% translate "Bank Balance as per Statement" %}</td>
+                  <td class="text-end">{{ brs.bank_balance }}</td>
                 </tr>
                 <tr>
                   <td>{% translate "Add: Reconciling Items" %}</td>
@@ -329,6 +366,7 @@
             </table>
             <div class="small text-muted mt-2">
               {% translate "Reconciling Items Count" %}: {{ brs.reconciling_count }}
+              • {% translate "Bank Entries" %}: {{ brs.bank_statement_count }}
               {% if brs.is_fully_reconciled %}
                 • {% translate "Fully Reconciled" %}
               {% endif %}
@@ -346,6 +384,7 @@
                   <th>{% translate "Voucher" %}</th>
                   <th>{% translate "Reference" %}</th>
                   <th>{% translate "Narration" %}</th>
+                  <th>{% translate "Bank Account" %}</th>
                   <th>{% translate "Type" %}</th>
                   <th class="text-end">{% translate "Amount" %}</th>
                 </tr>
@@ -355,6 +394,66 @@
                   <tr>
                     <td>{{ row.voucher_date }}</td>
                     <td>
+                      {% if row.voucher_id %}
+                        <a
+                          href="#"
+                          class="text-decoration-none fw-semibold"
+                          data-voucher-detail-url="{% url 'accounting:voucher-detail' row.voucher_id %}"
+                          data-voucher-label="{{ row.voucher_number }}"
+                        >
+                          {{ row.voucher_number }}
+                        </a>
+                      {% else %}
+                        <span class="text-muted">{{ row.voucher_number }}</span>
+                      {% endif %}
+                    </td>
+                    <td>{{ row.reference|default:"-" }}</td>
+                    <td>{{ row.narration }}</td>
+                    <td>{% if row.account_name %}{{ row.account_name }}{% else %}-{% endif %}</td>
+                    <td>{{ row.direction }}</td>
+                    <td class="text-end">{{ row.amount }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="7" class="text-muted">{% translate "No reconciling items." %}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </section>
+        </div>
+        <section class="statement-panel mt-3">
+          <div class="statement-panel-header">
+            <span>{% translate "Bank Statement Entries" %}</span>
+            <span>{% translate "For comparison with book entries" %}</span>
+          </div>
+          <table class="statement-table">
+            <thead class="statement-table-head">
+              <tr>
+                <th>{% translate "Date" %}</th>
+                <th>{% translate "Bank Account" %}</th>
+                <th>{% translate "Reference" %}</th>
+                <th>{% translate "Narration" %}</th>
+                <th>{% translate "Matched Voucher" %}</th>
+                <th>{% translate "Status" %}</th>
+                <th class="text-end">{% translate "Debit" %}</th>
+                <th class="text-end">{% translate "Credit" %}</th>
+                <th class="text-end">{% translate "Balance" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in brs.bank_statement_rows %}
+                <tr>
+                  <td>{{ row.date }}</td>
+                  <td>
+                    {{ row.account_name }}
+                    {% if row.account_code %}<span class="text-muted">({{ row.account_code }})</span>{% endif %}
+                  </td>
+                  <td>
+                    {{ row.reference|default:"-" }}
+                    {% if row.cheque_no %}<div class="small text-muted">{% translate "Cheque" %}: {{ row.cheque_no }}</div>{% endif %}
+                  </td>
+                  <td>{{ row.narration }}</td>
+                  <td>
+                    {% if row.voucher_id %}
                       <a
                         href="#"
                         class="text-decoration-none fw-semibold"
@@ -363,19 +462,29 @@
                       >
                         {{ row.voucher_number }}
                       </a>
-                    </td>
-                    <td>{{ row.reference|default:"-" }}</td>
-                    <td>{{ row.narration }}</td>
-                    <td>{{ row.direction }}</td>
-                    <td class="text-end">{{ row.amount }}</td>
-                  </tr>
-                {% empty %}
-                  <tr><td colspan="6" class="text-muted">{% translate "No reconciling items." %}</td></tr>
-                {% endfor %}
-              </tbody>
-            </table>
-          </section>
-        </div>
+                    {% else %}
+                      <span class="text-muted">-</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {{ row.match_status }}
+                    {% if row.match_type %}<div class="small text-muted">{{ row.match_type }}: {{ row.matched_amount }}</div>{% endif %}
+                  </td>
+                  <td class="text-end">{{ row.debit }}</td>
+                  <td class="text-end">{{ row.credit }}</td>
+                  <td class="text-end">{% if row.balance is not None %}{{ row.balance }}{% else %}-{% endif %}</td>
+                </tr>
+              {% empty %}
+                <tr><td colspan="9" class="text-muted">{% translate "No bank statement entries found for the selected period." %}</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+          {% if brs.bank_statement_count > brs.bank_statement_rows|length %}
+            <div class="small text-muted mt-2">
+              {% translate "Showing latest 500 bank entries out of" %} {{ brs.bank_statement_count }}.
+            </div>
+          {% endif %}
+        </section>
       {% endwith %}
     {% elif report_data.mode == "fixed_assets" %}
       {% with fixed_assets=report_data.fixed_assets %}

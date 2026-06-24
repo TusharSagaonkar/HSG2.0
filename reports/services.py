@@ -10,6 +10,7 @@ from accounting.models import Account
 from accounting.models import LedgerEntry
 from accounting.models import Voucher
 from accounting.services.reporting import build_trial_balance
+from reconciliation.services.reports import ReportService as ReconciliationReportService
 from members.models import Member
 from shares.models import ShareCertificate
 from shares.models import ShareLedger
@@ -363,26 +364,6 @@ def build_cash_flow_statement(*, society, financial_year=None, to_date=None):
     }
 
 
-def _select_primary_bank_account(*, society):
-    exact = Account.objects.filter(
-        society=society,
-        is_active=True,
-        category__account_type="ASSET",
-        name__in=["Bank Account", "Bank"],
-    ).order_by("name", "id").first()
-    if exact:
-        return exact
-
-    return Account.objects.filter(
-        society=society,
-        is_active=True,
-        category__account_type="ASSET",
-        name__icontains="bank",
-    ).exclude(
-        name__icontains="suspense",
-    ).order_by("name", "id").first()
-
-
 def build_bank_reconciliation_statement(*, society, financial_year=None, to_date=None):
     cutoff = _to_date_or_year_end(financial_year, to_date)
     if cutoff is None:
@@ -397,10 +378,20 @@ def build_bank_reconciliation_statement(*, society, financial_year=None, to_date
             "status_note": "Reporting date is required.",
         }
 
-    bank_account = _select_primary_bank_account(society=society)
-    if bank_account is None:
+    brs_data = ReconciliationReportService.get_brs_data(
+        society,
+        as_of_date=cutoff,
+    )
+    bank_accounts = brs_data["bank_accounts"]
+    bank_account_rows = brs_data.get("book_balance_by_account", [])
+    bank_account_names = [account["account_name"] for account in bank_account_rows]
+    if not bank_accounts:
         return {
             "bank_account_name": None,
+            "bank_account_names": [],
+            "bank_accounts": [],
+            "bank_account_rows": [],
+            "bank_account_count": 0,
             "book_balance": ZERO,
             "add_total": ZERO,
             "less_total": ZERO,
@@ -410,76 +401,96 @@ def build_bank_reconciliation_statement(*, society, financial_year=None, to_date
             "status_note": "No active bank account found for this society.",
         }
 
-    bank_entries = LedgerEntry.objects.select_related("voucher").filter(
-        account=bank_account,
-        voucher__posted_at__isnull=False,
-        voucher__society=society,
-        voucher__voucher_date__lte=cutoff,
-    ).order_by("voucher__voucher_date", "voucher_id", "id")
-    if financial_year is not None:
-        bank_entries = bank_entries.filter(
-            voucher__voucher_date__gte=financial_year.start_date,
-            voucher__voucher_date__lte=financial_year.end_date,
-        )
-
-    book_balance = sum((entry.debit - entry.credit for entry in bank_entries), ZERO)
-
-    suspense_account = Account.objects.filter(
-        society=society,
-        is_active=True,
-        name__icontains="bank suspense",
-    ).order_by("id").first()
+    book_balance = brs_data["book_balance"]
+    bank_balance = brs_data["bank_balance"]
 
     reconciling_rows = []
     add_total = ZERO
     less_total = ZERO
-    if suspense_account is not None:
-        suspense_entries = LedgerEntry.objects.select_related("voucher").filter(
-            account=suspense_account,
-            voucher__posted_at__isnull=False,
-            voucher__society=society,
-            voucher__voucher_date__lte=cutoff,
-        ).order_by("voucher__voucher_date", "voucher_id", "id")
-        if financial_year is not None:
-            suspense_entries = suspense_entries.filter(
-                voucher__voucher_date__gte=financial_year.start_date,
-                voucher__voucher_date__lte=financial_year.end_date,
-            )
 
-        for entry in suspense_entries:
-            impact = entry.debit - entry.credit
-            if impact == ZERO:
-                continue
-            if impact >= ZERO:
-                direction = "Add"
-                add_total += impact
-            else:
-                direction = "Less"
-                less_total += abs(impact)
-            reconciling_rows.append(
-                {
-                    "voucher_id": entry.voucher_id,
-                    "voucher_date": entry.voucher.voucher_date,
-                    "voucher_number": entry.voucher.display_number,
-                    "reference": entry.voucher.reference_number,
-                    "narration": entry.voucher.narration,
-                    "direction": direction,
-                    "amount": abs(impact),
-                }
-            )
+    for item in brs_data["uncredited_items"]:
+        reconciling_rows.append(
+            {
+                "voucher_id": None,
+                "voucher_date": item["date"],
+                "voucher_number": item["reference"] or "-",
+                "reference": item["reference"],
+                "narration": item["narration"],
+                "account_name": item.get("account_name", ""),
+                "account_code": item.get("account_code", ""),
+                "direction": "Add",
+                "amount": item["amount"],
+            }
+        )
+        add_total += item["amount"]
+
+    for item in brs_data["unpresented_credits"]:
+        reconciling_rows.append(
+            {
+                "voucher_id": None,
+                "voucher_date": item["date"],
+                "voucher_number": item["voucher"],
+                "reference": item["voucher"],
+                "narration": item["narration"],
+                "account_name": item.get("account_name", ""),
+                "account_code": item.get("account_code", ""),
+                "direction": "Add",
+                "amount": item["amount"],
+            }
+        )
+        add_total += item["amount"]
+
+    for item in brs_data["outstanding_cheques"]:
+        reconciling_rows.append(
+            {
+                "voucher_id": None,
+                "voucher_date": item["date"],
+                "voucher_number": item["reference"] or "-",
+                "reference": item["reference"],
+                "narration": item["narration"],
+                "account_name": item.get("account_name", ""),
+                "account_code": item.get("account_code", ""),
+                "direction": "Less",
+                "amount": item["amount"],
+            }
+        )
+        less_total += item["amount"]
+
+    for item in brs_data["unpresented_debits"]:
+        reconciling_rows.append(
+            {
+                "voucher_id": None,
+                "voucher_date": item["date"],
+                "voucher_number": item["voucher"],
+                "reference": item["voucher"],
+                "narration": item["narration"],
+                "account_name": item.get("account_name", ""),
+                "account_code": item.get("account_code", ""),
+                "direction": "Less",
+                "amount": item["amount"],
+            }
+        )
+        less_total += item["amount"]
 
     adjusted_bank_balance = book_balance + add_total - less_total
     return {
-        "bank_account_name": bank_account.name,
+        "bank_account_name": ", ".join(bank_account_names),
+        "bank_account_names": bank_account_names,
+        "bank_accounts": bank_accounts,
+        "bank_account_rows": bank_account_rows,
+        "bank_account_count": len(bank_account_rows),
         "book_balance": book_balance,
+        "bank_balance": bank_balance,
         "add_total": add_total,
         "less_total": less_total,
         "adjusted_bank_balance": adjusted_bank_balance,
         "reconciling_rows": reconciling_rows,
         "reconciling_count": len(reconciling_rows),
-        "is_fully_reconciled": len(reconciling_rows) == 0,
+        "bank_statement_rows": brs_data.get("bank_statement_rows", []),
+        "bank_statement_count": brs_data.get("bank_statement_count", 0),
+        "is_fully_reconciled": brs_data["is_balanced"],
         "as_of_date": cutoff,
-        "status_note": "",
+        "status_note": "" if brs_data["is_balanced"] else f"Difference: {brs_data['difference']}",
     }
 
 

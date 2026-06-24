@@ -15,6 +15,7 @@ from .main import parking_rotation_cycle_generate_view
 from .main import parking_rotation_cycle_list_view
 from .main import parking_rotation_policy_create_view
 from .main import parking_rotation_policy_list_view
+from .main import parking_slot_bulk_create_view
 from .main import parking_slot_create_view
 from .main import parking_slot_list_view
 from .main import parking_vehicle_limit_create_view
@@ -48,6 +49,7 @@ __all__ = [
     "parking_rotation_cycle_complete_view",
     "parking_vehicle_limit_create_view",
     "parking_vehicle_limit_list_view",
+    "parking_slot_bulk_create_view",
     "parking_slot_create_view",
     "parking_slot_list_view",
     "verify_parking_permit",

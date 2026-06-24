@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {{ form_title }} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {{ form_title }}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {{ form_subtitle }}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <form method="post" class="quick-card">
+    {% csrf_token %}
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger">
+        {{ form.non_field_errors }}
+      </div>
+    {% endif %}
+
+    <div class="row g-3">
+      <div class="col-12 col-lg-4">
+        <label class="form-label" for="{{ form.society.id_for_label }}">{{ form.society.label }}</label>
+        {{ form.society }}
+        {{ form.society.errors }}
+      </div>
+      <div class="col-12 col-lg-4">
+        <label class="form-label" for="{{ form.parking_model.id_for_label }}">{{ form.parking_model.label }}</label>
+        {{ form.parking_model }}
+        {{ form.parking_model.errors }}
+      </div>
+      <div class="col-12 col-lg-4">
+        <label class="form-label" for="{{ form.slot_type.id_for_label }}">{{ form.slot_type.label }}</label>
+        {{ form.slot_type }}
+        {{ form.slot_type.errors }}
+      </div>
+    </div>
+
+    <hr class="my-4" />
+
+    <div class="row g-3">
+      <div class="col-12 col-lg-3">
+        <label class="form-label" for="{{ form.count.id_for_label }}">{{ form.count.label }}</label>
+        {{ form.count }}
+        <div class="form-text">{{ form.count.help_text }}</div>
+        {{ form.count.errors }}
+      </div>
+      <div class="col-12 col-lg-3">
+        <label class="form-label" for="{{ form.prefix.id_for_label }}">{{ form.prefix.label }}</label>
+        {{ form.prefix }}
+        <div class="form-text">{{ form.prefix.help_text }}</div>
+        {{ form.prefix.errors }}
+      </div>
+      <div class="col-12 col-lg-3">
+        <label class="form-label" for="{{ form.starting_number.id_for_label }}">{{ form.starting_number.label }}</label>
+        {{ form.starting_number }}
+        {{ form.starting_number.errors }}
+      </div>
+      <div class="col-12 col-lg-3">
+        <label class="form-label" for="{{ form.padding.id_for_label }}">{{ form.padding.label }}</label>
+        {{ form.padding }}
+        <div class="form-text">{{ form.padding.help_text }}</div>
+        {{ form.padding.errors }}
+      </div>
+    </div>
+
+    <div class="mt-4">
+      <label class="form-label" for="{{ form.custom_slot_names.id_for_label }}">{{ form.custom_slot_names.label }}</label>
+      {{ form.custom_slot_names }}
+      <div class="form-text">{{ form.custom_slot_names.help_text }}</div>
+      {{ form.custom_slot_names.errors }}
+    </div>
+
+    <div class="row g-3 mt-2">
+      <div class="col-12 col-md-4">
+        <div class="form-check">
+          {{ form.is_active }}
+          <label class="form-check-label" for="{{ form.is_active.id_for_label }}">{{ form.is_active.label }}</label>
+        </div>
+        {{ form.is_active.errors }}
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="form-check">
+          {{ form.is_rotational }}
+          <label class="form-check-label" for="{{ form.is_rotational.id_for_label }}">{{ form.is_rotational.label }}</label>
+        </div>
+        {{ form.is_rotational.errors }}
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="form-check">
+          {{ form.is_transferable }}
+          <label class="form-check-label" for="{{ form.is_transferable.id_for_label }}">{{ form.is_transferable.label }}</label>
+        </div>
+        {{ form.is_transferable.errors }}
+      </div>
+    </div>
+
+    <div class="alert alert-info mt-4 mb-0">
+      {% translate "Custom names are useful for basement or visitor slots, for example B1-01, B1-02, VIS-01. If custom names are entered, the count and numbering fields are ignored." %}
+    </div>
+
+    <div class="d-flex justify-content-between gap-2 mt-4">
+      <a href="{{ cancel_url }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{{ cancel_label }}</a>
+      <button type="submit" class="btn btn-primary"><i class="fas fa-layer-group me-1"></i>{% translate "Create Slots" %}</button>
+    </div>
+  </form>
+{% endblock content %}

@@ -14,51 +14,93 @@
 {% endblock dashboard_subtitle %}
 
 {% block content %}
-  <div class="action-bar action-bar--responsive">
-    <a href="{% url 'housing:dashboard' %}" class="btn-action btn-action--secondary">
-      <i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}
-    </a>
+  <div class="action-bar action-bar--responsive mb-4">
+    <div class="action-bar__group">
+      <a href="{% url 'housing:dashboard' %}" class="btn-action btn-action--secondary">
+        <i class="fas fa-arrow-left me-1"></i>{% translate "Dashboard" %}
+      </a>
+    </div>
   </div>
 
-  <div class="table-responsive-wrapper">
-    <table class="table-enhanced">
-      <thead>
-        <tr>
-          <th>{% translate "Scheduled For" %}</th>
-          <th>{% translate "Member" %}</th>
-          <th>{% translate "Bill #" %}</th>
-          <th>{% translate "Channel" %}</th>
-          <th>{% translate "Status" %}</th>
-          <th>{% translate "Message" %}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for reminder in reminders %}
-          <tr>
-            <td>{{ reminder.scheduled_for|date:"M d, Y H:i" }}</td>
-            <td>
-              <a href="{% url 'members:member-detail' reminder.member_id %}" class="text-decoration-none">
-                {{ reminder.member.full_name }}
-              </a>
-            </td>
-            <td>
-              <a href="{% url 'billing:bill-detail' reminder.bill_id %}" class="text-decoration-none">
-                {{ reminder.bill.bill_number }}
-              </a>
-            </td>
-            <td>{{ reminder.get_channel_display }}</td>
-            <td>{{ reminder.get_status_display }}</td>
-            <td>{{ reminder.message }}</td>
-          </tr>
-        {% empty %}
-          <tr>
-            <td colspan="6" class="text-center text-muted py-4">
-              {% include "components/empty_state.html" with icon="fa-bell" title=_("No reminders found") message=_("Reminders will appear here once scheduled.") %}
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-bell" label=_("Scheduled") value=scheduled_count|default:0 color="primary" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-clock" label=_("Queued") value=queued_count|default:0 color="warning" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-paper-plane" label=_("Sent") value=sent_count|default:0 color="success" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-triangle-exclamation" label=_("Failed") value=failed_count|default:0 color="danger" %}
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="content-card__header d-flex justify-content-between align-items-center">
+      <div>
+        <h3 class="content-card__title mb-0">{% translate "Reminder Register" %}</h3>
+        <div class="text-muted small">{% translate "Scheduled payment reminders and their delivery outcome." %}</div>
+      </div>
+    </div>
+    <div class="content-card__body p-0">
+      {% if reminders %}
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>{% translate "Scheduled For" %}</th>
+                <th>{% translate "Member" %}</th>
+                <th>{% translate "Bill #" %}</th>
+                <th>{% translate "Channel" %}</th>
+                <th>{% translate "Status" %}</th>
+                <th>{% translate "Message" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for reminder in reminders %}
+                <tr>
+                  <td>{{ reminder.scheduled_for|date:"d M Y H:i" }}</td>
+                  <td>
+                    <a href="{% url 'members:member-detail' reminder.member_id %}" class="text-decoration-none">
+                      {{ reminder.member.full_name }}
+                    </a>
+                  </td>
+                  <td>
+                    <a href="{% url 'billing:bill-detail' reminder.bill_id %}" class="text-decoration-none">
+                      {{ reminder.bill.bill_number }}
+                    </a>
+                  </td>
+                  <td>
+                    <span class="badge bg-light text-dark border">{{ reminder.get_channel_display }}</span>
+                  </td>
+                  <td>
+                    <span class="badge
+                      {% if reminder.status == 'SENT' %}bg-success
+                      {% elif reminder.status == 'FAILED' %}bg-danger
+                      {% elif reminder.status == 'QUEUED' %}bg-warning text-dark
+                      {% else %}bg-secondary
+                      {% endif %}">
+                      {{ reminder.get_status_display }}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="text-truncate" style="max-width: 420px;" title="{{ reminder.message }}">
+                      {{ reminder.message }}
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-4 text-center text-muted">
+          {% include "components/empty_state.html" with icon="fa-bell" title=_("No reminders found") message=_("Reminders will appear here once scheduled.") %}
+        </div>
+      {% endif %}
+    </div>
   </div>
 
   {% include "components/pagination.html" with aria_label=_("Reminders pagination") %}

@@ -1,3 +1,5 @@
+import logging
+
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.core.exceptions import ValidationError
@@ -21,11 +23,13 @@ from decimal import Decimal
 from datetime import date
 import csv
 
+logger = logging.getLogger(__name__)
+
 from accounting.forms import LedgerEntryRowForm
 from accounting.forms import LedgerEntryRowBaseFormSet
 from accounting.forms import VoucherForm
 from accounting.forms import VoucherTemplateForm
-from accounting.forms import VoucherTemplateRowFormSet
+from accounting.forms import build_voucher_template_row_formset
 from accounting.models import Account
 from accounting.models import AccountingPeriod
 from accounting.models import LedgerEntry
@@ -524,13 +528,15 @@ class VoucherTemplateEditBaseView(VoucherTemplateScopeMixin, LoginRequiredMixin,
     def get_formset(self, *, instance=None, data=None):
         instance = self.get_object() if instance is None else instance
         data = self.request.POST if data is None and self.request.method == "POST" else data
+        extra = 0 if instance and instance.pk else 2
+        formset_class = build_voucher_template_row_formset(extra=extra)
         if data is not None:
-            return VoucherTemplateRowFormSet(
+            return formset_class(
                 data,
                 instance=instance,
                 form_kwargs={"society": self.selected_society},
             )
-        return VoucherTemplateRowFormSet(
+        return formset_class(
             instance=instance,
             form_kwargs={"society": self.selected_society},
         )
@@ -738,6 +744,33 @@ class VoucherEntryView(LoginRequiredMixin, TemplateView):
 
         return row_initial_data
 
+    def _collect_form_error_messages(self, voucher_form, entry_formset):
+        error_messages = []
+
+        if voucher_form and voucher_form.is_bound:
+            for field_name, errors in voucher_form.errors.items():
+                if field_name == "__all__":
+                    label = "Voucher details"
+                else:
+                    label = voucher_form.fields[field_name].label or field_name.replace("_", " ").title()
+                for error in errors:
+                    error_messages.append(f"{label}: {error}")
+
+        if entry_formset and entry_formset.is_bound:
+            for error in entry_formset.non_form_errors():
+                error_messages.append(f"Ledger entries: {error}")
+
+            for row_number, form in enumerate(entry_formset.forms, start=1):
+                for field_name, errors in form.errors.items():
+                    if field_name == "__all__":
+                        label = "Row"
+                    else:
+                        label = form.fields[field_name].label or field_name.replace("_", " ").title()
+                    for error in errors:
+                        error_messages.append(f"Ledger row {row_number} - {label}: {error}")
+
+        return error_messages
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         voucher_form = kwargs.get("voucher_form")
@@ -804,13 +837,23 @@ class VoucherEntryView(LoginRequiredMixin, TemplateView):
             context["voucher_templates"] = voucher_templates
             context["selected_template"] = None
 
+        context["selected_society"] = selected_society
         context["voucher_form"] = voucher_form
         context["entry_formset"] = entry_formset
+        context["voucher_error_summary"] = self._collect_form_error_messages(voucher_form, entry_formset)
         return context
 
     def post(self, request, *args, **kwargs):
-        voucher_form = VoucherForm(request.POST)
-        entry_formset = self._build_row_formset(request.POST)
+        selected_society = self._resolve_society(request.POST.get("society"))
+        if selected_society is None:
+            selected_society, _ = get_selected_scope(request)
+
+        post_data = request.POST.copy()
+        if selected_society and not post_data.get("society"):
+            post_data["society"] = str(selected_society.pk)
+
+        voucher_form = VoucherForm(post_data)
+        entry_formset = self._build_row_formset(post_data, society=selected_society)
 
         if not voucher_form.is_valid() or not entry_formset.is_valid():
             messages.warning(
@@ -869,11 +912,29 @@ class VoucherEntryView(LoginRequiredMixin, TemplateView):
                 )
             rows_to_create.append(entry)
 
-        with transaction.atomic():
-            voucher = voucher_form.save()
-            for entry in rows_to_create:
-                entry.voucher = voucher
-                entry.save()
+        try:
+            with transaction.atomic():
+                voucher = voucher_form.save()
+                for entry in rows_to_create:
+                    entry.voucher = voucher
+                    entry.save()
+        except ValidationError as exc:
+            logger.warning("Voucher draft validation failed during save", exc_info=True)
+            if hasattr(exc, "message_dict"):
+                for field, errors in exc.message_dict.items():
+                    target_field = field if field in voucher_form.fields else None
+                    for error in errors:
+                        voucher_form.add_error(target_field, error)
+            else:
+                for error in exc.messages:
+                    voucher_form.add_error(None, error)
+            messages.warning(
+                request,
+                "Voucher draft not saved. Please fix the detailed errors shown below.",
+            )
+            return self.render_to_response(
+                self.get_context_data(voucher_form=voucher_form, entry_formset=entry_formset)
+            )
 
         messages.success(request, "Voucher draft saved successfully.")
         return redirect("accounting:voucher-posting")
@@ -887,17 +948,8 @@ class VoucherPostingMenuView(LoginRequiredMixin, ListView):
     template_name = "accounting/voucher_posting.html"
     context_object_name = "draft_vouchers"
 
-    def get_queryset(self):
+    def _apply_selected_scope(self, queryset):
         selected_society, selected_financial_year = get_selected_scope(self.request)
-        queryset = (
-            Voucher.objects.filter(posted_at__isnull=True)
-            .select_related("society")
-            .annotate(
-                total_debit=Sum("entries__debit"),
-                total_credit=Sum("entries__credit"),
-            )
-            .order_by("-voucher_date", "-id")
-        )
         if selected_society:
             queryset = queryset.filter(society=selected_society)
         if selected_financial_year:
@@ -906,6 +958,26 @@ class VoucherPostingMenuView(LoginRequiredMixin, ListView):
                 voucher_date__lte=selected_financial_year.end_date,
             )
         return queryset
+
+    def _voucher_queryset(self):
+        return (
+            Voucher.objects.select_related("society")
+            .annotate(
+                total_debit=Sum("entries__debit"),
+                total_credit=Sum("entries__credit"),
+            )
+            .order_by("-voucher_date", "-id")
+        )
+
+    def get_queryset(self):
+        queryset = self._voucher_queryset().filter(posted_at__isnull=True)
+        return self._apply_selected_scope(queryset)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        posted_queryset = self._voucher_queryset().filter(posted_at__isnull=False)
+        context["posted_vouchers"] = self._apply_selected_scope(posted_queryset)
+        return context
 
 
 voucher_posting_menu_view = VoucherPostingMenuView.as_view()

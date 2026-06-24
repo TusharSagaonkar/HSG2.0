@@ -8,6 +8,7 @@ from django.db.models import Count
 from django.db.models import Prefetch
 from django.db.models import Q
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext_lazy as _
 from django.views.generic import CreateView
 from django.views.generic import DetailView
@@ -44,6 +45,7 @@ from members.models import Structure
 from members.models import Unit
 from members.models import UnitOccupancy
 from members.models import UnitOwnership
+from billing.models import Bill
 from billing.models import ChargeTemplate
 from billing.services import generate_bills_for_period
 from billing.reports import build_member_outstanding
@@ -59,52 +61,6 @@ from societies.permissions import has_role_or_above
 from societies.roles import ROLE_ADMIN
 from societies.utils import get_user_role
 
-
-class HousingDashboardView(LoginRequiredMixin, TemplateView):
-    template_name = "housing/dashboard.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        selected_society, _ = get_selected_scope(self.request)
-        societies_qs = Society.objects.all()
-        units_qs = Unit.objects.all()
-        occupancies_qs = UnitOccupancy.objects.all()
-        recent_societies_qs = Society.objects.order_by("-created_at")
-        recent_units_qs = Unit.objects.select_related(
-            "structure",
-            "structure__society",
-        ).order_by("-created_at")
-
-        if selected_society:
-            societies_qs = societies_qs.filter(pk=selected_society.pk)
-            units_qs = units_qs.filter(structure__society=selected_society)
-            occupancies_qs = occupancies_qs.filter(
-                unit__structure__society=selected_society
-            )
-            recent_societies_qs = recent_societies_qs.filter(pk=selected_society.pk)
-            recent_units_qs = recent_units_qs.filter(
-                structure__society=selected_society
-            )
-
-        context["total_societies"] = societies_qs.count()
-        context["total_units"] = units_qs.count()
-        context["active_units"] = units_qs.filter(is_active=True).count()
-        context["active_occupancies"] = occupancies_qs.filter(
-            end_date__isnull=True
-        ).count()
-        members_qs = Member.objects.all()
-        if selected_society:
-            members_qs = members_qs.filter(society=selected_society)
-        context["active_members"] = members_qs.filter(
-            status=Member.MemberStatus.ACTIVE
-        ).count()
-        context["recent_societies"] = recent_societies_qs[:5]
-        context["recent_units"] = recent_units_qs[:8]
-        context["all_units"] = recent_units_qs
-        return context
-
-
-housing_dashboard_view = HousingDashboardView.as_view()
 
 
 class StructureUnitDashboardView(LoginRequiredMixin, TemplateView):
@@ -1194,16 +1150,29 @@ class ChargeTemplateCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateVi
             form.instance.previous_version = clone_source
         return super().form_valid(form)
 
+    def _get_return_url(self):
+        next_url = self.request.POST.get("next") or self.request.GET.get("next")
+        if next_url and url_has_allowed_host_and_scheme(
+            next_url,
+            allowed_hosts={self.request.get_host()},
+            require_https=self.request.is_secure(),
+        ):
+            return next_url
+        return reverse("billing:charge-template-list")
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["form_title"] = _("Add Charge Template")
-        context["form_subtitle"] = _("Configure recurring maintenance or utility charges.")
-        context["cancel_url"] = reverse("billing:charge-template-list")
-        context["cancel_label"] = _("Back to Templates")
+        context["form_subtitle"] = _("Create a reusable billing charge with accounts, timing, and rates in one place.")
+        context["cancel_url"] = self._get_return_url()
+        context["cancel_label"] = _("Back")
+        context["compact_charge_template_form"] = True
+        context["return_url"] = self._get_return_url()
+        context["submit_label"] = _("Save Template")
         return context
 
     def get_success_url(self):
-        return reverse("housing:dashboard")
+        return self._get_return_url()
 
 
 charge_template_create_view = ChargeTemplateCreateView.as_view()
@@ -1267,14 +1236,32 @@ class ReceiptPostView(LoginRequiredMixin, FormView):
 
     def get_initial(self):
         initial = super().get_initial()
+        selected_society, _ = get_selected_scope(self.request)
         query_society_id = self.request.GET.get("society")
         if query_society_id:
             query_society = Society.objects.filter(pk=query_society_id).first()
-            if query_society:
+            if query_society and (
+                selected_society is None or query_society.pk == selected_society.pk
+            ):
                 initial["society"] = query_society
-        selected_society, _ = get_selected_scope(self.request)
         if selected_society and "society" not in initial:
             initial["society"] = selected_society
+
+        query_bill_id = self.request.GET.get("bill")
+        if query_bill_id:
+            bill = (
+                Bill.objects.select_related("society", "member", "unit")
+                .filter(pk=query_bill_id)
+                .first()
+            )
+            if bill and (selected_society is None or bill.society_id == selected_society.pk):
+                outstanding_amount = bill.outstanding_amount
+                if outstanding_amount > 0:
+                    initial["society"] = bill.society
+                    initial["member"] = bill.member
+                    initial["bill"] = bill
+                    initial["amount"] = outstanding_amount
+
         initial.setdefault("receipt_date", timezone.localdate())
         return initial
 
@@ -1719,7 +1706,7 @@ update_membership_view = UpdateMembershipView.as_view()
 
 class ReminderScheduleView(LoginRequiredMixin, View):
     def post(self, request):
-        selected_society, _ = get_selected_scope(request)
+        selected_society = get_selected_scope(request)[0]
         if not selected_society:
             messages.error(request, _("Select a society before scheduling reminders."))
             return redirect("housing:dashboard")

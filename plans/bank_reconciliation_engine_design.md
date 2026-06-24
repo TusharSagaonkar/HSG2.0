@@ -1,598 +1,372 @@
-# Bank Reconciliation Engine — Enterprise Design Document
+# Manual Bank Reconciliation Workspace V1
 
-**For:** Housing Accounting / ERP / Cooperative Banking Systems  
-**Last Updated:** `2026-05-23`  
-**Status:** Design Phase — Implementation Pending  
-**App:** [`reconciliation/`](../reconciliation/)
+**Project:** Housing Accounting  
+**App:** [`reconciliation/`](../reconciliation/)  
+**Last Updated:** `2026-05-31`
 
----
+## Objective
 
-## 1. Objective
+Build a keyboard-first manual bank reconciliation workspace for housing societies.
 
-Build a future-proof, auditable, scalable bank reconciliation engine that supports:
+The primary use case is:
 
-- manual reconciliation
-- automated reconciliation
-- partial reconciliation
-- split transactions
-- duplicate detection
-- exception handling
+- A user has a printed bank statement, passbook, PDF printout, or handwritten statement.
+- The user enters bank statement rows manually or pastes them from Excel.
+- The system immediately searches accounting entries and suggests matches.
+- The user confirms reconciliation with minimal mouse movement.
+- Reconciliation should be significantly faster than traditional accounting software.
+
+This feature must work without requiring a bank statement import file.
+
+## Current Project Fit
+
+This repository already has the core reconciliation engine in place. The V1 workspace should reuse and extend the existing app instead of introducing a parallel system.
+
+Existing building blocks:
+
+- `reconciliation.models.BankStatementImport`
+- `reconciliation.models.BankTransaction`
+- `reconciliation.models.BankTransactionNormalized`
+- `reconciliation.models.ReconciliationLink`
+- `reconciliation.models.ReconciliationHistory`
+- `reconciliation.services.importer.StatementImportService`
+- `reconciliation.services.manual_entry.ManualStatementImportService`
+- `reconciliation.services.matcher.MatchingEngine`
+- `reconciliation.services.adjustments.AdjustmentService`
+- `reconciliation.views`
+- `reconciliation.templates.reconciliation.workspace`
+- `reconciliation.templates.reconciliation.manual_entry`
+
+## Core Principles
+
+1. Manual entry and imported statements must use the same `BankTransaction` model.
+2. Never modify vouchers or ledger entries.
+3. Reconciliation creates links only.
+4. Keyboard-first operation.
+5. Spreadsheet-style entry, not form-style entry.
+6. The system should handle hundreds of statement rows efficiently.
+7. Everything stays society-scoped.
+
+## What V1 Should Do
+
+V1 should focus on the fastest practical manual reconciliation flow for housing society operators:
+
+- enter statement rows manually
+- paste rows from Excel or WhatsApp-exported text
+- save rows without full page refresh
+- run matching immediately after save
+- show top candidate matches in a side panel
+- confirm or unmatch with keyboard shortcuts
+- create adjustment entries when there is no book match
+
+## What V1 Should Not Try To Do
+
+To keep the first version shippable, V1 should not add:
+
 - AI-assisted matching
-- multi-bank support
-- payment gateway reconciliation
-- UPI reconciliation
-- continuous reconciliation
-
-The system must support housing societies initially but should be architected such that the same engine can later support:
-
-- SME accounting
-- ERP systems
-- cooperative banks
-- NBFC reconciliation
-- payment systems
-- fintech products
-
----
-
-## 2. Core Philosophy
-
-### 2.1 Reconciliation Is NOT Accounting
+- bank feed integrations
+- PDF parsing as a new import pipeline
+- mobile-first optimization
+- React/Vue frontend
+- a second transaction table for manual statements
 
-Accounting system and bank system are separate realities.
+## Existing Data Model
 
-Reconciliation is a **mapping layer** between them.
+### `BankStatementImport`
 
-DO NOT tightly couple reconciliation with accounting posting.
+Represents the parent record for a statement batch.
 
-### 2.2 Never Modify Original Accounting Entries
+Relevant fields in this project:
 
-Original vouchers and ledger entries must remain immutable.
+- `society`
+- `bank_account`
+- `file_name`
+- `file_hash`
+- `raw_file`
+- `uploaded_by`
+- `uploaded_at`
+- `statement_start_date`
+- `statement_end_date`
+- `import_status`
+- `source_type`
+- `error_log`
+- `row_count`
 
-Reconciliation should:
-- reference accounting entries
-- never rewrite them
-- never alter historical accounting data
+For manual entry, `source_type` should be `MANUAL` or `COPY_PASTE` as appropriate.
 
-### 2.3 Never Modify Imported Bank Data
+### `BankTransaction`
 
-Imported bank statements are raw financial evidence.
+Represents the raw bank row and must remain immutable after creation.
 
-- Store them permanently.
-- Never overwrite narration, amount, dates, or reference numbers.
-- Normalization should happen separately.
+Relevant fields:
 
-### 2.4 Everything Must Be Auditable
+- `bank_statement_import`
+- `source_row_index`
+- `transaction_date`
+- `value_date`
+- `narration`
+- `reference_no`
+- `cheque_no`
+- `amount`
+- `dr_cr`
+- `balance`
+- `raw_row_data`
+- `duplicate_hash`
+- `is_duplicate`
 
-Every action must have:
-
-| Audit Field | Description |
-|---|---|
-| `created_by` | Who initiated the action |
-| `modified_by` | Who last changed the record |
-| `created_at` / `modified_at` | Timestamps |
-| Reconciliation history | Full match/unmatch/override lineage |
+### `BankTransactionNormalized`
 
----
+Stores extracted text used for matching:
 
-## 3. Functional Requirements
-
-| Feature | Required |
-|---|---|
-| Manual reconciliation | YES |
-| Statement upload | YES |
-| CSV import | YES |
-| XLSX import | YES |
-| PDF import (future) | YES |
-| Auto matching | YES |
-| Partial matching | YES |
-| Split matching | YES |
-| Many-to-many matching | YES |
-| Duplicate detection | YES |
-| Exception management | YES |
-| Unmatch/re-match | YES |
-| Adjustment entries | YES |
-| Multi-bank support | YES |
-| Reconciliation reports | YES |
-| Audit trail | YES |
-| AI-assisted matching | FUTURE |
-| Realtime bank feeds | FUTURE |
-
----
+- `cleaned_narration`
+- `extracted_utr`
+- `extracted_flat_no`
+- `extracted_reference`
+- `extracted_amount_words`
 
-## 4. High-Level Architecture
-
-```
-Accounting System
-        +
-Bank Statement System
-        ↓
-Normalization Layer
-        ↓
-Matching Engine
-        ↓
-Review Workspace
-        ↓
-Reconciliation Layer
-        ↓
-Exception Management
-        ↓
-Reporting Engine
-```
-
----
+### `ReconciliationLink`
 
-## 5. Core Data Model
+Stores the reconciliation relationship between a bank transaction and a ledger entry.
 
-### 5.1 Voucher (Existing — Minimal Additions)
+Important fields:
 
-The existing [`Voucher`](../accounting/models/model_Voucher.py) model already provides:
+- `society`
+- `voucher_entry`
+- `bank_transaction`
+- `matched_amount`
+- `match_type`
+- `confidence_score`
+- `matched_by`
+- `matched_at`
+- `is_manual`
+- `remarks`
+- `status`
+- `exception_type`
 
-| Field | Purpose |
-|---|---|
-| `voucher_type` | RECEIPT, PAYMENT, GENERAL, etc. |
-| `voucher_date` | Transaction date |
-| `narration` | Description |
-| `payment_mode` | CASH, BANK_TRANSFER, CHEQUE, UPI, CARD, OTHER |
-| `reference_number` | UTR, cheque number, transaction reference |
+### `ReconciliationHistory`
 
-DO NOT redesign the entire voucher architecture. Only minimal additions required.
+Keeps audit history for match, unmatch, exception, and adjustment actions.
 
-### 5.2 LedgerEntry (Existing)
+## Workspace Layout
 
-Represents debit/credit ledger rows. Only bank-related entries participate in reconciliation.
+The workspace should be a single full-screen page with three panels:
 
-Existing model at [`accounting/models/model_LedgerEntry.py`](../accounting/models/model_LedgerEntry.py):
+### Left Panel: Filters And Progress
 
-| Field | Purpose |
-|---|---|
-| `voucher` | FK to Voucher |
-| `account` | FK to Account (cash/bank accounts) |
-| `debit` | Debit amount |
-| `credit` | Credit amount |
+Show:
 
-### 5.3 BankStatementImport
+- bank account
+- statement period
+- unmatched only toggle
+- reconciled toggle
+- voucher search
+- reconciliation progress
 
-Represents an uploaded statement file.
+Display:
 
-| Field | Type | Purpose |
-|---|---|---|
-| `bank_account` | FK → Account | Which bank account |
-| `file_name` | CharField | Original filename |
-| `file_hash` | CharField | SHA-256 for duplicate detection |
-| `uploaded_by` | FK → User | Who uploaded |
-| `uploaded_at` | DateTime | Upload timestamp |
-| `statement_start_date` | DateField | Statement period start |
-| `statement_end_date` | DateField | Statement period end |
-| `import_status` | CharField | PENDING / PROCESSING / COMPLETED / FAILED |
+- total statement entries
+- reconciled count
+- pending count
+- difference amount
 
-### 5.4 BankTransaction
+### Center Panel: Manual Entry Grid
 
-Represents raw bank statement rows. **This table is immutable.**
+Spreadsheet-like grid with columns:
 
-| Field | Type | Purpose |
-|---|---|---|
-| `bank_statement_import` | FK → BankStatementImport | Parent import |
-| `transaction_date` | DateField | Bank date |
-| `value_date` | DateField | Value date (if available) |
-| `narration` | TextField | Raw bank narration |
-| `reference_no` | CharField | Bank reference |
-| `cheque_no` | CharField | Cheque number |
-| `amount` | DecimalField | Transaction amount |
-| `dr_cr` | CharField | DEBIT or CREDIT |
-| `balance` | DecimalField | Running balance |
-| `raw_row_data` | JSONField | Complete original row |
+| Date | Narration | Ref No | Debit | Credit | Balance | Status |
+|---|---|---|---|---|---|---|
 
-### 5.5 BankTransactionNormalized
-
-Optional normalized version used for matching.
-
-| Field | Type | Purpose |
-|---|---|---|
-| `bank_transaction` | FK → BankTransaction | Source |
-| `cleaned_narration` | TextField | Normalized description |
-| `extracted_utr` | CharField | Parsed UTR |
-| `extracted_flat_no` | CharField | Parsed flat number |
-| `extracted_reference` | CharField | Extracted reference |
-
-### 5.6 ReconciliationLink
-
-**MOST IMPORTANT TABLE.** Creates the reconciliation mapping.
-
-| Field | Type | Purpose |
-|---|---|---|
-| `voucher_entry` | FK → LedgerEntry | Accounting side |
-| `bank_transaction` | FK → BankTransaction | Bank side |
-| `matched_amount` | DecimalField | How much matched |
-| `match_type` | CharField | EXACT / PARTIAL / SPLIT / FORCE |
-| `confidence_score` | IntegerField | 0–100 |
-| `matched_by` | FK → User | Who matched |
-| `matched_at` | DateTime | When matched |
-| `is_manual` | BooleanField | Manual vs auto |
-| `remarks` | TextField | Notes |
-
----
-
-## 6. Relationship Design
+Requirements:
 
-**Correct architecture:**
+- inline editing
+- add row with keyboard
+- paste multiple rows from Excel
+- arrow key navigation
+- Enter key moves to next cell
+- Tab navigation
+- bulk row entry support
 
-```
-LedgerEntry
-      ↕
-ReconciliationLink
-      ↕
-BankTransaction
-```
+Status values:
 
-DO NOT directly link voucher to bank transaction.
+- `Unmatched`
+- `Suggested`
+- `Matched`
+- `Partial`
+- `Exception`
 
-**Wrong approach:**
-```
-voucher.bank_transaction = bank_row
-```
+Color indicators are allowed but should not be required.
 
-This fails in:
-- split transactions
-- partial reconciliation
-- many-to-many mapping
-
----
+### Right Panel: Match Suggestions
 
-## 7. Reconciliation Status Design
+When the user selects a statement row, the app should automatically search possible voucher matches.
 
-DO NOT use `reconciled = yes/no`.
+Show the top 10 suggestions sorted by confidence descending.
 
-Use lifecycle states:
+Suggested columns:
 
-| Status | Meaning |
-|---|---|
-| `PENDING` | Not yet reviewed |
-| `SUGGESTED` | Auto-match candidate |
-| `MATCHED` | Confirmed match |
-| `PARTIAL` | Partial amount matched |
-| `DUPLICATE` | Flagged as duplicate |
-| `EXCEPTION` | Needs investigation |
-| `REVERSED` | Previously matched, now unmatched |
-| `FORCE_MATCHED` | Manual override match |
-| `IGNORED` | Deliberately excluded |
+| Score | Voucher Date | Voucher No | Member | Amount |
 
----
+Selecting a suggestion should not open a modal. Single-key confirmation is preferred.
 
-## 8. Reconciliation Lifecycle
+## Keyboard Shortcuts
 
-### Phase 1 — Voucher Creation
-Accounting voucher created.
+V1 should support:
 
-Example:
-```
-Receipt Voucher
-Date: 1 May
-Amount: ₹5,000
-Flat: A302
-Status: PENDING
-```
+- `M` = match selected suggestion
+- `U` = unmatch
+- `N` = new statement row
+- `S` = save current row
+- `F` = focus search
+- `A` = create adjustment entry
+- `D` = mark exception
+- arrow keys = grid navigation
+- `Enter` = next cell
+- `Ctrl+V` = paste Excel rows
+- `Esc` = close popup
+- `Space` = select current suggestion
 
-### Phase 2 — Bank Statement Import
-User uploads CSV, XLSX, or (future) PDF.
+## Manual Statement Entry Flow
 
-- Raw file stored permanently.
-- Hash generated to prevent duplicate imports.
+The user enters:
 
-### Phase 3 — Normalization
-System extracts:
-- UTR
-- cheque number
-- flat number
-- transaction reference
-- cleaned narration
+- date
+- narration
+- reference number
+- debit
+- credit
+- balance
 
-### Phase 4 — Matching Engine
-Matching rules execute (see §9).
+The system creates:
 
-### Phase 5 — Human Review
-User validates:
-- suggested matches
-- duplicates
-- exceptions
-- partial matches
+- `BankStatementImport`
+- `BankTransaction`
+- `BankTransactionNormalized` when needed for matching
 
-### Phase 6 — Reconciliation Link Creation
-System creates mapping records.
+There should be no separate manual transaction table.
 
-**Accounting entries remain unchanged.**
+## Realtime Matching
 
-### Phase 7 — Reconciliation Reporting
-System generates:
-- bank reconciliation statement
-- unmatched report
-- pending clearance report
-- duplicate report
+After the user leaves a row or saves it, the matching engine should run immediately.
 
----
+Matching order:
 
-## 9. Matching Engine Design
+1. exact reference match
+2. exact amount match
+3. amount + date match
+4. narration similarity
+5. flat number extraction
 
-### 9.1 Exact Match Rules (Highest Priority)
+The engine should return a confidence score and up to 10 suggestions.
 
-| Rule | Example |
-|---|---|
-| UTR match | `reference_number` == extracted UTR |
-| Cheque number match | `reference_number` == `cheque_no` |
-| Exact reference match | Full reference string equality |
+Implementation should use HTMX partial updates and avoid full page refreshes.
 
-### 9.2 Rule-Based Match
+## Reconciliation Workflow
 
-| Rule | Example |
-|---|---|
-| Amount + near date | Same amount within ±3 days |
-| Narration similarity | Fuzzy match on cleaned narration |
-| Flat number extraction | Extract unit identifier from narration |
-| Account mapping | Bank account → known cash/bank accounts |
+1. User enters a statement row.
+2. System saves the row.
+3. System generates suggestions.
+4. User presses `M` to confirm the selected match.
+5. System creates `ReconciliationLink`.
+6. Grid updates instantly.
+7. Next row becomes active automatically.
 
-### 9.3 AI-Assisted Matching (Future)
+Target workflow: reconcile an entire printed statement without touching the mouse.
 
-AI suggests probable matches for:
-- messy narration
-- OCR statements
-- typo handling
-- merged transactions
+## Bulk Paste Workflow
 
-AI must **NEVER** auto-confirm financial reconciliation without approval.
+This is a critical V1 feature.
 
----
+Users may paste rows copied from Excel into the first grid row.
 
-## 10. Matching Confidence System
+The system should:
 
-Each suggestion should have a confidence score:
+- create multiple rows
+- validate dates
+- validate amounts
+- detect debit and credit values
+- preserve pasted content as raw row data
+- save rows in one action when possible
 
-| Rule | Confidence |
-|---|---|
-| Exact UTR | 99 |
-| Exact Cheque | 98 |
-| Amount + Date | 85 |
-| Narration Similarity | 70 |
+This should also work for simple tabular text copied from email or WhatsApp exports.
 
----
+## Adjustment Workflow
 
-## 11. Duplicate Detection
+When no match exists, the user can press `A`.
 
-### 11.1 Statement Duplicate
-Same file uploaded twice. Use **file hash**.
+The side drawer should pre-fill:
 
-### 11.2 Bank Transaction Duplicate
-Duplicate transaction in imported statement. Use `date + amount + narration + reference` hashing strategy.
+- date
+- amount
+- narration
 
-### 11.3 Voucher Duplicate
-Duplicate accounting entries. System should flag suspicious duplicates.
+Allow creation of adjustments for:
 
----
-
-## 12. Partial Reconciliation
-
-Example:
-
-| Side | Amount |
-|---|---|
-| Book | ₹5,000 |
-| Bank | ₹4,998 |
-| Difference | ₹2 (gateway charge) |
-
-System should support:
-- partial matching
-- adjustment suggestions
-
----
-
-## 13. Split Transaction Support
-
-Example: One bank deposit of ₹15,000 represents:
-
-| Flat | Amount |
-|---|---|
-| A101 | ₹5,000 |
-| A102 | ₹5,000 |
-| A103 | ₹5,000 |
-
-System must support:
-- one bank entry → many vouchers
-- many vouchers → one bank entry
-
----
-
-## 14. Exception Management
-
-### Book Side Exceptions
-Present in accounting, absent in bank:
-- uncleared cheque
-- pending NEFT
-- accounting error
-
-### Bank Side Exceptions
-Present in bank, absent in books:
 - bank charges
 - interest credit
 - direct deposit
-- fraud/suspicious debit
+- misc adjustment
 
----
+After posting an adjustment, refresh suggestions automatically.
 
-## 15. Adjustment Entry Workflow
+## Performance Requirements
 
-System should support quick creation of:
-- bank charges
-- interest entries
-- rounding adjustments
+- No full page refreshes for normal matching actions.
+- Use HTMX partial updates.
+- Keep the interaction keyboard-first.
+- Support 1000+ statement rows.
+- Keep cursor movement minimal.
+- Mobile support is not required in V1.
 
-Example workflow:
-```
-Bank charge ₹17 detected.
-→ Create expense voucher?
-```
+## Technical Stack For This Project
 
----
+Backend:
 
-## 16. Reconciliation Reports
+- Django
+- PostgreSQL
 
-### 16.1 Bank Reconciliation Statement
+Frontend:
 
-| Description | Amount |
-|---|---|
-| Book Balance | 1,00,000 |
-| Add Pending Deposits | 5,000 |
-| Less Uncleared Cheques | 2,000 |
-| Less Bank Charges | 500 |
-| Final Bank Balance | 1,02,500 |
+- HTMX
+- Alpine.js
+- Bootstrap 5
 
-### 16.2 Unmatched Book Entries
-Entries pending in books.
+Rules:
 
-### 16.3 Unmatched Bank Entries
-Bank transactions missing in accounting.
+- no React
+- no Vue
+- keep it server-rendered
 
-### 16.4 Duplicate Report
-Possible duplicate transactions.
+## Project Files To Use Or Extend
 
-### 16.5 Exception Report
-Suspicious or failed reconciliation cases.
+The following files are the natural extension points for this feature:
 
----
+- [`reconciliation/views.py`](../reconciliation/views.py)
+- [`reconciliation/urls.py`](../reconciliation/urls.py)
+- [`reconciliation/forms.py`](../reconciliation/forms.py)
+- [`reconciliation/services/manual_entry.py`](../reconciliation/services/manual_entry.py)
+- [`reconciliation/services/matcher.py`](../reconciliation/services/matcher.py)
+- [`reconciliation/services/adjustments.py`](../reconciliation/services/adjustments.py)
+- [`reconciliation/templates/reconciliation/workspace.html`](../reconciliation/templates/reconciliation/workspace.html)
+- [`reconciliation/templates/reconciliation/manual_entry.html`](../reconciliation/templates/reconciliation/manual_entry.html)
 
-## 17. User Interface Design
+## Suggested Deliverables For This Repo
 
-DO NOT build traditional accounting-style reconciliation. Build an **operational workspace**.
+If we implement the full V1 workspace in this codebase, the concrete deliverables should be:
 
-### 17.1 Dashboard
-Show:
-- unmatched entries
-- suggested matches
-- duplicates
-- exceptions
-- reconciliation progress
+- `reconciliation/views.py` additions for workspace and HTMX actions
+- `reconciliation/templates/reconciliation/manual_workspace.html`
+- `reconciliation/templates/reconciliation/partials/`
+- `reconciliation/services/manual_entry.py` refinements for paste-based entry
+- `reconciliation/static/reconciliation/manual_workspace.js`
+- `reconciliation/forms/manual_statement_forms.py` or a refactor of the existing forms module
+- `reconciliation/urls.py` routes for workspace, save row, match, unmatch, and adjustments
 
-### 17.2 Reconciliation Workspace
+## Implementation Notes
 
-Keyboard-driven workflow preferred.
+- Keep reconciliation society-scoped using the project’s existing selected-scope pattern.
+- Reuse the existing matching engine rather than creating a separate matching algorithm.
+- Keep `BankTransaction` immutable after creation.
+- Use `ReconciliationHistory` for auditability.
+- Prefer partial renders over JSON where HTMX is already the transport.
+- Preserve the current accounting boundary: reconciliation links entries, it does not post ledger changes directly.
 
-| Shortcut | Action |
-|---|---|
-| `M` | Match |
-| `U` | Unmatch |
-| `D` | Duplicate |
-| `A` | Adjustment |
-| `S` | Split |
-
-### 17.3 Suggested Layout
-
-| Panel | Content |
-|---|---|
-| **Left** | Filters, Status, Date range |
-| **Center** | Transactions grid |
-| **Right** | Suggested matches, AI recommendations |
-
----
-
-## 18. Best Practices
-
-### DO
-- Store raw bank data permanently
-- Use append-only reconciliation history
-- Maintain audit logs
-- Separate accounting from reconciliation
-- Support manual override
-- Support re-match/unmatch
-- Keep reconciliation reversible
-- Use many-to-many mapping
-- Maintain immutable accounting entries
-
-### DO NOT
-- Modify original vouchers
-- Overwrite imported bank data
-- Use single yes/no reconciliation flag
-- Force one-to-one transaction matching
-- Auto-delete imported statements
-- Couple reconciliation tightly with ledger posting
-- Auto-confirm AI matches without review
-
----
-
-## 19. Future Enhancements
-
-| Enhancement | Description |
-|---|---|
-| **Realtime Bank API Integration** | Automatic statement fetching |
-| **AI Learning Engine** | Learns payer behavior, narration patterns, recurring payments |
-| **Continuous Reconciliation** | Realtime reconciliation instead of month-end process |
-| **Payment Gateway Reconciliation** | Razorpay, Paytm, PhonePe, UPI PSPs |
-| **Multi-Entity Reconciliation** | Multiple societies, multiple banks, multiple branches |
-
----
-
-## 20. Scalability Considerations
-
-System should support:
-- millions of transactions
-- async matching engine
-- batch processing
-- background reconciliation jobs
-
-**Recommended:**
-- Celery for async tasks
-- PostgreSQL for data integrity
-- Indexed reference fields
-- Partitioned bank transaction tables
-
----
-
-## 21. Security Considerations
-
-- Audit every reconciliation action
-- Prevent silent deletion
-- Role-based permissions
-- Maker-checker workflow for overrides
-- Encrypted bank file storage
-- Checksum validation
-
----
-
-## 22. Final Design Principle
-
-```
-Import Statement
-        ↓
-System Auto Matches 80–90%
-        ↓
-Operator Reviews Remaining Transactions
-        ↓
-Balances Reconcile
-        ↓
-Full Audit Trail Preserved
-```
-
-This is enterprise-grade reconciliation architecture.
-
----
-
-## 23. Integration with Existing Codebase
-
-### Current State
-The [`reconciliation/`](../reconciliation/) app is a placeholder with:
-- [`reconciliation/apps.py`](../reconciliation/apps.py) — AppConfig registered as `reconciliation`
-- [`reconciliation/models.py`](../reconciliation/models.py) — Empty, placeholder docstring
-
-### Key Integration Points
-
-| Existing Component | How Reconciliation Integrates |
-|---|---|
-| [`Voucher`](../accounting/models/model_Voucher.py) | References vouchers via `LedgerEntry`; no modification needed |
-| [`LedgerEntry`](../accounting/models/model_LedgerEntry.py) | `ReconciliationLink.voucher_entry` FK points here |
-| [`Account`](../accounting/models/model_Account.py) | `is_bank` flag identifies bank accounts eligible for reconciliation |
-| [`AccountingPeriod`](../accounting/models/model_AccountingPeriod.py) | Imported statements must fall within open periods |
-| [`Society`](../societies/models/__init__.py) | All reconciliation is society-scoped |
-
-### Migration Path
-1. Add reconciliation models to [`reconciliation/models.py`](../reconciliation/models.py)
-2. Create `reconciliation/migrations/` with initial schema
-3. Add `reconciliation/services/` for matching engine, normalization, importers
-4. Add `reconciliation/management/commands/` for reconciliation jobs
-5. Add `reconciliation/views.py` and templates for the review workspace
-6. Register in [`config/settings/base.py`](../config/settings/base.py) `INSTALLED_APPS` (already present)

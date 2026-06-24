@@ -1,0 +1,110 @@
+{% comment %}
+HTMX partial for a single row in the manual entry grid.
+
+Context variables:
+  - row_form: ManualEntryRowForm instance (may have errors)
+  - row_number: integer row index for display / data attributes
+{% endcomment %}
+<tr
+  id="manual-entry-row-{{ row_number }}"
+  class="manual-entry-grid-row"
+  data-row-index="{{ row_number }}"
+>
+  <td class="grid-cell grid-cell-date {% if row_form.date.errors %}has-error{% endif %}">
+    <input
+      type="text"
+      name="date"
+      class="form-control form-control-sm grid-cell-input {% if row_form.date.errors %}is-invalid{% endif %}"
+      placeholder="DD/MM/YYYY"
+      value="{{ row_form.date.value|default:'' }}"
+      data-grid-field="date"
+      data-grid-row="{{ row_number }}"
+      autocomplete="off"
+    />
+    {% if row_form.date.errors %}
+      <div class="invalid-feedback">{{ row_form.date.errors|join:", " }}</div>
+    {% endif %}
+  </td>
+  <td class="grid-cell grid-cell-narration {% if row_form.narration.errors %}has-error{% endif %}">
+    <input
+      type="text"
+      name="narration"
+      class="form-control form-control-sm grid-cell-input {% if row_form.narration.errors %}is-invalid{% endif %}"
+      value="{{ row_form.narration.value|default:'' }}"
+      data-grid-field="narration"
+      data-grid-row="{{ row_number }}"
+      autocomplete="off"
+      list="narration-suggestions-{{ row_number }}"
+    />
+    <datalist id="narration-suggestions-{{ row_number }}"></datalist>
+    {% if row_form.narration.errors %}
+      <div class="invalid-feedback">{{ row_form.narration.errors|join:", " }}</div>
+    {% endif %}
+  </td>
+  <td class="grid-cell grid-cell-reference {% if row_form.reference_no.errors %}has-error{% endif %}">
+    <input
+      type="text"
+      name="reference_no"
+      class="form-control form-control-sm grid-cell-input {% if row_form.reference_no.errors %}is-invalid{% endif %}"
+      value="{{ row_form.reference_no.value|default:'' }}"
+      data-grid-field="reference_no"
+      data-grid-row="{{ row_number }}"
+      autocomplete="off"
+    />
+    {% if row_form.reference_no.errors %}
+      <div class="invalid-feedback">{{ row_form.reference_no.errors|join:", " }}</div>
+    {% endif %}
+  </td>
+  <td class="grid-cell grid-cell-debit {% if row_form.debit.errors %}has-error{% endif %}">
+    <input
+      type="number"
+      name="debit"
+      class="form-control form-control-sm text-end grid-cell-input {% if row_form.debit.errors %}is-invalid{% endif %}"
+      value="{{ row_form.debit.value|default:'' }}"
+      step="0.01"
+      min="0"
+      data-grid-field="debit"
+      data-grid-row="{{ row_number }}"
+    />
+    {% if row_form.debit.errors %}
+      <div class="invalid-feedback">{{ row_form.debit.errors|join:", " }}</div>
+    {% endif %}
+  </td>
+  <td class="grid-cell grid-cell-credit {% if row_form.credit.errors %}has-error{% endif %}">
+    <input
+      type="number"
+      name="credit"
+      class="form-control form-control-sm text-end grid-cell-input {% if row_form.credit.errors %}is-invalid{% endif %}"
+      value="{{ row_form.credit.value|default:'' }}"
+      step="0.01"
+      min="0"
+      data-grid-field="credit"
+      data-grid-row="{{ row_number }}"
+    />
+    {% if row_form.credit.errors %}
+      <div class="invalid-feedback">{{ row_form.credit.errors|join:", " }}</div>
+    {% endif %}
+  </td>
+  <td class="grid-cell grid-cell-balance">
+    <input
+      type="number"
+      name="balance"
+      class="form-control form-control-sm text-end grid-cell-balance-input"
+      value="{{ row_form.balance.value|default:'' }}"
+      step="0.01"
+      readonly
+      tabindex="-1"
+      data-grid-field="balance"
+      data-grid-row="{{ row_number }}"
+    />
+  </td>
+</tr>
+{% if row_form.non_field_errors %}
+<tr id="manual-entry-row-{{ row_number }}-errors" class="manual-entry-row-errors">
+  <td colspan="6" class="text-danger small">
+    {% for error in row_form.non_field_errors %}
+      {{ error }}{% if not forloop.last %}; {% endif %}
+    {% endfor %}
+  </td>
+</tr>
+{% endif %}

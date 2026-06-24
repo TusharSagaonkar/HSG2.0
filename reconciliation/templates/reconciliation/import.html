@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{% translate "Import Bank Statement" %} | {{ block.super }}{% endblock %}
+
+{% block dashboard_title %}{% translate "Import Bank Statement" %}{% endblock %}
+{% block dashboard_subtitle %}{% translate "Upload a CSV or Excel bank statement for reconciliation." %}{% endblock %}
+
+{% block content %}
+  <div class="row">
+    <div class="col-lg-6">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0">
+          <h5 class="mb-0"><i class="fas fa-upload me-2"></i>{% translate "Upload Statement" %}</h5>
+        </div>
+        <div class="card-body">
+          <form method="post" enctype="multipart/form-data" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger">
+                {% for error in form.non_field_errors %}
+                  <p class="mb-0">{{ error }}</p>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            <div class="mb-3">
+              <label for="{{ form.file.id_for_label }}" class="form-label">
+                {{ form.file.label }}
+              </label>
+              {{ form.file }}
+              {% if form.file.help_text %}
+                <div class="form-text">{{ form.file.help_text }}</div>
+              {% endif %}
+              {% if form.file.errors %}
+                <div class="invalid-feedback d-block">{{ form.file.errors|join:", " }}</div>
+              {% endif %}
+            </div>
+
+            <div class="mb-3">
+              <label for="{{ form.bank.id_for_label }}" class="form-label">
+                {{ form.bank.label }}
+              </label>
+              {{ form.bank }}
+              {% if form.bank.help_text %}
+                <div class="form-text">{{ form.bank.help_text }}</div>
+              {% endif %}
+            </div>
+
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-primary">
+                <i class="fas fa-upload me-1"></i>{% translate "Import" %}
+              </button>
+              <a href="{% url 'reconciliation:dashboard' %}" class="btn btn-outline-secondary">
+                {% translate "Cancel" %}
+              </a>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div class="alert alert-info mt-3">
+        <i class="fas fa-info-circle me-2"></i>
+        {% translate "Supported formats: CSV, XLSX." %}
+        <br>
+        {% translate "Duplicate files (same content) are automatically detected and rejected." %}
+        <br>
+        <a href="{% url 'reconciliation:manual-statement-import' %}">{% translate "Enter hard-copy statement rows manually" %}</a>
+      </div>
+    </div>
+
+    {% if recent_imports %}
+      <div class="col-lg-6">
+        <div class="card border-0 shadow-sm">
+          <div class="card-header bg-white border-0">
+            <h5 class="mb-0"><i class="fas fa-history me-2"></i>{% translate "Recent Imports" %}</h5>
+          </div>
+          <div class="card-body p-0">
+            <div class="table-responsive">
+              <table class="table table-hover mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>{% translate "Date" %}</th>
+                    <th>{% translate "Status" %}</th>
+                    <th>{% translate "Count" %}</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for stmt in recent_imports %}
+                    <tr>
+                      <td>{{ stmt.uploaded_at|date:"d M Y H:i" }}</td>
+                      <td>
+                        <span class="badge {% if stmt.import_status == 'COMPLETED' %}bg-success{% elif stmt.import_status == 'FAILED' %}bg-danger{% else %}bg-secondary{% endif %}">
+                          {{ stmt.get_import_status_display }}
+                        </span>
+                      </td>
+                      <td>{{ stmt.transactions.count }}</td>
+                      <td>
+                        <a href="{% url 'reconciliation:statement-import-detail' stmt.pk %}" class="btn btn-sm btn-outline-primary">
+                          {% translate "View" %}
+                        </a>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+{% endblock content %}

@@ -1,13 +1,16 @@
 from django import forms
 from django.core.exceptions import ValidationError
 from django.db.models import Prefetch
+from django.utils.translation import gettext_lazy as _
 
+from housing.forms import BootstrapForm
 from housing.forms import BootstrapModelForm
 from members.models import Member
 from members.models import Structure
 from members.models import Unit
 from parking.models import ParkingSlot
 from parking.models import ParkingRotationPolicy
+from societies.models import Society
 from parking.models import ParkingVehicleLimit
 from parking.models import Vehicle
 
@@ -97,6 +100,133 @@ class StructuredUnitSelect(forms.Select):
         return optgroups
 
 
+class BulkParkingSlotCreateForm(BootstrapForm):
+    society = forms.ModelChoiceField(
+        queryset=Society.objects.none(),
+        label=_("Society"),
+    )
+    count = forms.IntegerField(
+        min_value=1,
+        max_value=1000,
+        initial=100,
+        label=_("Number of slots"),
+        help_text=_("Used when custom slot names are blank."),
+    )
+    prefix = forms.CharField(
+        required=False,
+        max_length=30,
+        initial="P-",
+        label=_("Prefix"),
+        help_text=_("Example: P-, B1-, VIS-."),
+    )
+    starting_number = forms.IntegerField(
+        min_value=0,
+        max_value=999999,
+        initial=1,
+        label=_("Starting number"),
+    )
+    padding = forms.IntegerField(
+        min_value=0,
+        max_value=10,
+        initial=3,
+        label=_("Number padding"),
+        help_text=_("3 creates P-001, P-002. Use 0 for no padding."),
+    )
+    custom_slot_names = forms.CharField(
+        required=False,
+        label=_("Custom slot names"),
+        widget=forms.Textarea(attrs={"rows": 8}),
+        help_text=_("Optional. Enter one slot name per line or comma-separated. These override generated names."),
+    )
+    parking_model = forms.ChoiceField(
+        choices=ParkingSlot.ParkingModel.choices,
+        initial=ParkingSlot.ParkingModel.COMMON,
+        label=_("Parking model"),
+    )
+    slot_type = forms.ChoiceField(
+        choices=ParkingSlot.SlotType.choices,
+        initial=ParkingSlot.SlotType.OPEN,
+        label=_("Slot type"),
+    )
+    is_active = forms.BooleanField(required=False, initial=True, label=_("Active"))
+    is_rotational = forms.BooleanField(required=False, initial=False, label=_("Rotational"))
+    is_transferable = forms.BooleanField(required=False, initial=True, label=_("Transferable"))
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["society"].queryset = Society.objects.order_by("name")
+
+    def clean_custom_slot_names(self):
+        value = self.cleaned_data.get("custom_slot_names") or ""
+        names = []
+        for raw_chunk in value.replace(",", "\n").splitlines():
+            name = raw_chunk.strip()
+            if name:
+                names.append(name)
+        return names
+
+    def clean(self):
+        cleaned = super().clean()
+        society = cleaned.get("society")
+        custom_names = cleaned.get("custom_slot_names") or []
+        count = cleaned.get("count") or 0
+        prefix = (cleaned.get("prefix") or "").strip()
+        starting_number = cleaned.get("starting_number")
+        padding = cleaned.get("padding") or 0
+        parking_model = cleaned.get("parking_model")
+
+        if parking_model == ParkingSlot.ParkingModel.SOLD:
+            self.add_error(
+                "parking_model",
+                _("Sold parking slots require owned unit mapping. Use single-slot creation for sold slots."),
+            )
+
+        if custom_names:
+            slot_numbers = custom_names
+        else:
+            if starting_number is None:
+                return cleaned
+            slot_numbers = [
+                f"{prefix}{str(starting_number + offset).zfill(padding)}"
+                for offset in range(count)
+            ]
+
+        normalized = []
+        seen = set()
+        for slot_number in slot_numbers:
+            if len(slot_number) > 50:
+                self.add_error(
+                    "custom_slot_names",
+                    _("Slot name '%(slot)s' exceeds 50 characters.") % {"slot": slot_number},
+                )
+                continue
+            if slot_number in seen:
+                self.add_error(
+                    "custom_slot_names",
+                    _("Duplicate slot name in request: %(slot)s") % {"slot": slot_number},
+                )
+                continue
+            normalized.append(slot_number)
+            seen.add(slot_number)
+
+        if society and seen:
+            existing = set(
+                ParkingSlot.objects.filter(
+                    society=society,
+                    slot_number__in=seen,
+                ).values_list("slot_number", flat=True)
+            )
+            if existing:
+                self.add_error(
+                    "custom_slot_names",
+                    _("These parking slots already exist: %(slots)s")
+                    % {"slots": ", ".join(sorted(existing))},
+                )
+
+        cleaned["slot_numbers"] = normalized
+        return cleaned
+
+
 class ParkingSlotForm(BootstrapModelForm):
     class Meta:
         model = ParkingSlot
@@ -133,15 +263,17 @@ class VehicleForm(BootstrapModelForm):
     structure = forms.ModelChoiceField(
         queryset=Structure.objects.none(),
         required=False,
-        empty_label="-- Select Structure --",
-        help_text="Optional: Select a structure to filter units"
+        empty_label=_("Select building / wing"),
+        label=_("Building / Wing"),
+        help_text=_("Filter flats by building for faster selection."),
     )
     
     # OPTIMIZATION: Use custom field that groups units by structure
     unit = StructuredUnitChoiceField(
         queryset=Unit.objects.none(),
         required=False,
-        help_text="Select a unit from the structure"
+        label=_("Flat / Unit"),
+        help_text=_("Choose the flat where this vehicle is registered."),
     )
     
     class Meta:
@@ -159,6 +291,16 @@ class VehicleForm(BootstrapModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields["member"].queryset = Member.objects.none()
+        self.fields["society"].empty_label = _("Select society")
+        self.fields["unit"].empty_label = _("Select flat / unit")
+        self.fields["member"].empty_label = _("Select member")
+        self.fields["vehicle_type"].empty_label = _("Select vehicle type")
+        self.fields["vehicle_number"].widget.attrs.update({
+            "placeholder": _("e.g. MH 01 AB 1234"),
+            "autocomplete": "off",
+            "inputmode": "text",
+        })
+        self.fields["color"].widget.attrs.update({"placeholder": _("e.g. White")})
         
         # Reorder fields: society -> structure -> unit -> member -> other fields
         field_order = ["society", "structure", "unit", "member", "vehicle_number", "vehicle_type", "color", "is_active"]
@@ -217,7 +359,7 @@ class VehicleForm(BootstrapModelForm):
                 ).only("id", "full_name", "society_id", "unit_id").order_by("full_name")
 
         self.fields["member"].required = False
-        self.fields["member"].help_text = "Optional: primary user of vehicle."
+        self.fields["member"].help_text = _("Primary resident using this vehicle. Optional if not assigned yet.")
 
     def clean(self):
         cleaned = super().clean()

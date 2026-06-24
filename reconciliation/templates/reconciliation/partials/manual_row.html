@@ -1,0 +1,93 @@
+{% load i18n %}
+{% load reconciliation_tags %}
+{% with link=transaction_link_map|get_item:transaction.id %}
+<tr
+  id="manual-row-{{ transaction.id }}"
+  class="{% if selected_transaction and selected_transaction.id == transaction.id %}table-active{% endif %} manual-grid-row"
+  tabindex="0"
+  data-tx-id="{{ transaction.id }}"
+  data-transaction-date="{{ transaction.transaction_date|date:'Y-m-d' }}"
+  data-narration="{{ transaction.narration|escape }}"
+  data-reference-no="{{ transaction.reference_no|default:''|escape }}"
+  data-dr-cr="{{ transaction.dr_cr }}"
+  data-amount="{{ transaction.amount }}"
+  data-balance="{{ transaction.balance|default:'' }}"
+  hx-get="{% url 'reconciliation:manual-workspace-suggestions' tx_id=transaction.id %}"
+  hx-target="#manual-workspace-suggestions"
+  hx-swap="innerHTML"
+  style="cursor: pointer;"
+>
+  <th scope="row" class="text-center manual-grid-number">
+    <button type="button" class="btn btn-outline-primary btn-sm px-2" data-open-manual-entry="true" onclick="event.stopPropagation(); window.manualWorkspaceOpenEntry(this)" title="{% translate 'Open in modal dialog' %}">
+      {{ forloop.counter }}
+    </button>
+  </th>
+  <td class="manual-grid-number">{{ transaction.transaction_date|date:"d/m/Y" }}</td>
+  <td class="manual-grid-narration" title="{{ transaction.narration }}">{{ transaction.narration }}</td>
+  <td class="manual-grid-number manual-grid-ref" title="{{ transaction.reference_no|default:'—' }}">{{ transaction.reference_no|default:"—" }}</td>
+  <td class="text-end manual-grid-number manual-grid-amount">{% if transaction.dr_cr == 'DEBIT' %}{{ transaction.amount }}{% else %}—{% endif %}</td>
+  <td class="text-end manual-grid-number manual-grid-amount">{% if transaction.dr_cr == 'CREDIT' %}{{ transaction.amount }}{% else %}—{% endif %}</td>
+  <td class="text-end manual-grid-number manual-grid-amount">{{ transaction.balance|default:"—" }}</td>
+  <td class="manual-grid-status">
+    {% if link %}
+      {% if link.status == 'MATCHED' or link.status == 'FORCE_MATCHED' %}
+        <span class="badge bg-success">{{ link.get_status_display }}</span>
+      {% elif link.status == 'SUGGESTED' %}
+        <span class="badge bg-info text-dark">{{ link.get_status_display }}</span>
+      {% elif link.status == 'EXCEPTION' %}
+        <span class="badge bg-danger">{{ link.get_status_display }}</span>
+      {% else %}
+        <span class="badge bg-secondary">{{ link.get_status_display }}</span>
+      {% endif %}
+    {% else %}
+      <span class="badge bg-warning text-dark">{% translate "Unmatched" %}</span>
+    {% endif %}
+  </td>
+  <td class="manual-grid-actions">
+    <div class="btn-group btn-group-sm flex-nowrap">
+      {% if link and link.status == 'SUGGESTED' %}
+        <button
+          type="button"
+          class="btn btn-success"
+          hx-post="{% url 'reconciliation:confirm-match' link.id %}"
+          hx-target="#manual-workspace-suggestions"
+          hx-swap="innerHTML"
+          data-shortcut-action="match-selected"
+          onclick="event.stopPropagation()"
+          title="{% translate 'Match' %}"
+        >
+          {% translate "M" %}
+        </button>
+      {% endif %}
+      {% if link and link.status == 'MATCHED' or link and link.status == 'FORCE_MATCHED' %}
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          hx-post="{% url 'reconciliation:unlink-match' link.id %}"
+          hx-target="#manual-workspace-suggestions"
+          hx-swap="innerHTML"
+          data-shortcut-action="unmatch-selected"
+          onclick="event.stopPropagation()"
+          title="{% translate 'Unmatch' %}"
+        >
+          {% translate "U" %}
+        </button>
+      {% endif %}
+      {% if not link or link.status != 'MATCHED' and link.status != 'FORCE_MATCHED' %}
+        <button
+          type="button"
+          class="btn btn-outline-danger"
+          hx-delete="{% url 'reconciliation:manual-workspace-delete-row' transaction.id %}"
+          hx-confirm="{% translate 'Delete this row?' %}"
+          hx-target="#manual-row-{{ transaction.id }}"
+          hx-swap="outerHTML"
+          onclick="event.stopPropagation()"
+          title="{% translate 'Delete row' %}"
+        >
+          {% translate "D" %}
+        </button>
+      {% endif %}
+    </div>
+  </td>
+</tr>
+{% endwith %}

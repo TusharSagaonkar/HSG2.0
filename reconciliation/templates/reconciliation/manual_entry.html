@@ -1,0 +1,698 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+
+{% block title %}{% translate "Manual Bank Statement Entry" %}{% endblock %}
+
+{% block css %}
+{{ block.super }}
+<style>
+  /* ================================================================
+     Excel-Style Grid Styling
+     ================================================================ */
+  :root {
+    --grid-border-color: #d4d4d4;
+    --grid-header-bg: #f0f0f0;
+    --grid-row-alt-bg: #fafafa;
+    --grid-cell-selected: #cce5ff;
+    --grid-cell-editing: #d4edda;
+    --grid-cell-error: #f8d7da;
+    --grid-cell-error-border: #dc3545;
+  }
+
+  .manual-entry-container {
+    max-width: 100%;
+    padding: 0.5rem;
+  }
+
+  .batch-header {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    padding: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  /* Grid wrapper with horizontal scroll */
+  .grid-wrapper {
+    overflow-x: auto;
+    border: 1px solid var(--grid-border-color);
+    border-radius: 0.25rem;
+    position: relative;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+
+  .grid-table {
+    border-collapse: collapse;
+    width: 100%;
+    min-width: 900px;
+    font-size: 0.85rem;
+    margin-bottom: 0;
+  }
+
+  .grid-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background: var(--grid-header-bg);
+    border: 1px solid var(--grid-border-color);
+    padding: 0.4rem 0.5rem;
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+    white-space: nowrap;
+    user-select: none;
+  }
+
+  .grid-table tbody td {
+    border: 1px solid var(--grid-border-color);
+    padding: 0;
+    vertical-align: middle;
+  }
+
+  .grid-table tbody tr:nth-child(even) td {
+    background: var(--grid-row-alt-bg);
+  }
+
+  .grid-table tbody tr:hover td {
+    background: #e8f0fe;
+  }
+
+  /* Cell states */
+  .grid-cell {
+    position: relative;
+  }
+
+  .grid-cell-input {
+    width: 100%;
+    border: 2px solid transparent !important;
+    border-radius: 0 !important;
+    background: transparent !important;
+    padding: 0.3rem 0.5rem !important;
+    font-size: 0.85rem !important;
+    height: 100%;
+    min-height: 32px;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  .grid-cell-input:focus {
+    box-shadow: none !important;
+  }
+
+  .grid-cell-balance-input {
+    width: 100%;
+    border: 2px solid transparent !important;
+    border-radius: 0 !important;
+    background: #f5f5f5 !important;
+    padding: 0.3rem 0.5rem !important;
+    font-size: 0.85rem !important;
+    height: 100%;
+    min-height: 32px;
+    cursor: default;
+    color: #666;
+    outline: none !important;
+    box-shadow: none !important;
+  }
+
+  /* Selection state (blue border) */
+  .grid-cell.selected .grid-cell-input {
+    border-color: #3399ff !important;
+    background: var(--grid-cell-selected) !important;
+  }
+
+  .grid-cell.selected .grid-cell-balance-input {
+    border-color: #3399ff !important;
+    background: #d9eaff !important;
+  }
+
+  /* Editing state (green border) */
+  .grid-cell.editing .grid-cell-input {
+    border-color: #28a745 !important;
+    background: var(--grid-cell-editing) !important;
+  }
+
+  /* Error state */
+  .grid-cell.has-error .grid-cell-input {
+    border-color: var(--grid-cell-error-border) !important;
+    background: var(--grid-cell-error) !important;
+  }
+
+  .grid-cell .invalid-feedback {
+    display: block;
+    font-size: 0.7rem;
+    position: absolute;
+    bottom: -18px;
+    left: 0;
+    white-space: nowrap;
+    z-index: 5;
+    background: #fff;
+    padding: 0 4px;
+    border: 1px solid var(--grid-cell-error-border);
+    border-radius: 2px;
+  }
+
+  /* Column widths */
+  .grid-cell-date { min-width: 110px; }
+  .grid-cell-narration { min-width: 250px; }
+  .grid-cell-reference { min-width: 140px; }
+  .grid-cell-debit { min-width: 120px; }
+  .grid-cell-credit { min-width: 120px; }
+  .grid-cell-balance { min-width: 130px; }
+
+  /* Statistics bar */
+  .stats-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+    padding: 0.75rem 1rem;
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 0.5rem;
+    margin-top: 1rem;
+    font-size: 0.9rem;
+  }
+
+  .stats-bar .stat-item {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  .stats-bar .stat-label {
+    font-weight: 600;
+    color: #666;
+  }
+
+  .stats-bar .stat-value {
+    font-weight: 700;
+    color: #333;
+  }
+
+  .stats-bar .stat-value.text-danger {
+    color: #dc3545 !important;
+  }
+
+  .stats-bar .stat-value.text-success {
+    color: #28a745 !important;
+  }
+
+  /* Keyboard shortcut hint */
+  .shortcut-hint {
+    display: inline-block;
+    background: #e9ecef;
+    border: 1px solid #ced4da;
+    border-radius: 3px;
+    padding: 0.1rem 0.4rem;
+    font-size: 0.75rem;
+    font-family: monospace;
+    color: #495057;
+  }
+
+  /* Paste overlay */
+  .paste-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.02);
+    z-index: 20;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed #3399ff;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+
+  .paste-overlay.active {
+    display: flex;
+  }
+
+  .paste-overlay-text {
+    background: #fff;
+    padding: 1rem 2rem;
+    border-radius: 8px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+    font-size: 0.9rem;
+    color: #666;
+    pointer-events: none;
+  }
+
+  .bank-account-empty-state {
+    border: 1px dashed #ffc107;
+    background: #fff8e1;
+    color: #664d03;
+    border-radius: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    margin-top: 0.5rem;
+    font-size: 0.8rem;
+  }
+
+  /* Import summary */
+  .import-summary {
+    display: none;
+    padding: 0.5rem 1rem;
+    background: #d4edda;
+    border: 1px solid #c3e6cb;
+    border-radius: 0.25rem;
+    margin-top: 0.5rem;
+    font-size: 0.85rem;
+  }
+
+  .import-summary.visible {
+    display: block;
+  }
+  .recon-reference-panel {
+    background: #fff;
+    border: 1px solid #e5e7eb;
+    border-radius: 0.75rem;
+    margin-top: 1rem;
+    overflow: hidden;
+  }
+
+  .recon-reference-header {
+    background: linear-gradient(135deg, #f8fbff 0%, #f6f7fb 100%);
+  }
+
+  .recon-filter-group {
+    background: #fff;
+    border: 1px solid #dbe3ef;
+    border-radius: 999px;
+    padding: 0.2rem;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  }
+
+  .recon-filter-group .btn {
+    border: 0;
+    border-radius: 999px !important;
+    padding: 0.25rem 0.75rem;
+  }
+
+  .recon-section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .recon-section-title h6 {
+    margin: 0;
+  }
+
+  .recon-reference-table {
+    min-width: 1180px;
+    font-size: 0.82rem;
+  }
+
+  .recon-reference-table th {
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    background: #f8f9fa;
+  }
+
+  .recon-reference-table td {
+    vertical-align: top;
+  }
+
+  .recon-voucher-table {
+    min-width: 980px;
+  }
+
+  .recon-voucher-table th,
+  .recon-voucher-table td {
+    padding: 0.45rem 0.55rem;
+  }
+
+  .recon-reference-narration {
+    min-width: 260px;
+    max-width: 360px;
+  }
+
+  .recon-voucher-narration {
+    min-width: 320px;
+    max-width: 460px;
+  }
+
+  .recon-reference-voucher {
+    min-width: 220px;
+  }
+
+  .recon-amount-stack {
+    min-width: 120px;
+    white-space: nowrap;
+  }
+
+  .recon-compact-match {
+    min-width: 330px;
+  }
+
+  .recon-compact-match .form-control-sm {
+    font-size: 0.78rem;
+    min-height: 30px;
+  }
+
+  .recon-reference-empty {
+    border: 1px dashed #ced4da;
+    border-radius: 0.375rem;
+    color: #6c757d;
+    padding: 1rem;
+    text-align: center;
+  }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="manual-entry-container"
+     x-data="manualEntryGrid()"
+     x-on:keydown.window="handleKeydown($event)"
+     x-on:paste.window="handlePaste($event)"
+     x-init="init()"
+     data-bank-account-count="{{ bank_accounts|length }}"
+     data-shortcodes-url="{{ shortcodes_url }}"
+     data-narrations-url="{{ narrations_url }}"
+     data-selected-bank-account="{% if selected_bank_account %}{{ selected_bank_account.id }}{% endif %}"
+     data-voucher-match-url="{% url 'reconciliation:manual-entry-voucher-match' %}"
+     data-save-url="{% url 'reconciliation:manual-entry-batch-save' %}">
+
+  <!-- Page Header -->
+  <div class="d-flex justify-content-between align-items-end gap-3 flex-wrap mb-3">
+    <h5 class="mb-0">
+      <i class="bi bi-journal-check me-2"></i>{% translate "Manual Voucher Reconciliation" %}
+    </h5>
+    <div class="manual-bank-selector">
+      <label class="form-label small fw-bold mb-1">{% translate "Bank Account" %}</label>
+      <select name="bank_account" class="form-select form-select-sm" required
+              x-ref="bankAccountSelect"
+              x-model="batchHeader.bank_account"
+              @change="onBankAccountChange($event)"
+              {% if not bank_accounts %}disabled{% endif %}>
+        {% if bank_accounts %}
+          <option value="">{% translate "-- Select Account --" %}</option>
+          {% for account in bank_accounts %}
+            <option value="{{ account.id }}" {% if selected_bank_account and account.id == selected_bank_account.id %}selected{% endif %}>{{ account.code|default:"" }}{% if account.code %} - {% endif %}{{ account.name }}</option>
+          {% endfor %}
+        {% else %}
+          <option value="">{% translate "No bank accounts found for selected society" %}</option>
+        {% endif %}
+      </select>
+    </div>
+  </div>
+
+  <!-- Voucher and bank-side reference data for the selected bank account -->
+  <div class="recon-reference-panel shadow-sm">
+    <div class="recon-reference-header d-flex justify-content-between align-items-start gap-3 flex-wrap p-3 border-bottom">
+      <div>
+        <h6 class="mb-1"><i class="bi bi-layout-three-columns me-2"></i>{% translate "Manual Reconciliation Reference" %}</h6>
+        <div class="text-muted small">
+          {% if selected_bank_account %}
+            {% blocktranslate with account=selected_bank_account.name %}Showing voucher entries and saved bank-side entries for {{ account }}. Use filters to focus on entries that need matching, all entries, matched entries, or manual matches.{% endblocktranslate %}
+          {% else %}
+            {% translate "Select a bank account to show voucher entries and saved bank-side entries." %}
+          {% endif %}
+        </div>
+      </div>
+      <div class="text-end">
+        <div class="mb-2">
+          <span class="badge bg-primary me-1">{{ voucher_entries|length }} {% translate "voucher" %}</span>
+          <span class="badge bg-secondary">{{ recent_bank_transactions|length }} {% translate "bank" %}</span>
+        </div>
+        <div class="recon-filter-group btn-group btn-group-sm" role="group" aria-label="{% translate 'Reconciliation filters' %}">
+          {% for filter_key, filter_label in recon_filter_choices %}
+            <a class="btn {% if recon_filter == filter_key %}btn-primary shadow-sm{% else %}btn-light text-primary{% endif %}"
+               href="?{% if filter_query_without_recon %}{{ filter_query_without_recon }}&{% endif %}recon_filter={{ filter_key }}">
+              {{ filter_label }}
+            </a>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+    <form method="get" class="p-3 border-bottom bg-light">
+      {% if selected_bank_account %}
+        <input type="hidden" name="bank_account" value="{{ selected_bank_account.id }}">
+      {% endif %}
+      <input type="hidden" name="recon_filter" value="{{ recon_filter }}">
+      <div class="row g-2 align-items-end">
+        <div class="col-12 col-lg-3">
+          <label class="form-label small fw-bold mb-1" for="manual-recon-search">{% translate "Search" %}</label>
+          <input id="manual-recon-search" type="search" name="search" class="form-control form-control-sm" value="{{ filter_values.search }}" placeholder="{% translate 'Narration, reference, UTR, voucher, unit' %}">
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+          <label class="form-label small fw-bold mb-1" for="manual-recon-date-from">{% translate "From Date" %}</label>
+          <input id="manual-recon-date-from" type="date" name="date_from" class="form-control form-control-sm" value="{{ filter_values.date_from }}">
+        </div>
+        <div class="col-6 col-md-3 col-lg-2">
+          <label class="form-label small fw-bold mb-1" for="manual-recon-date-to">{% translate "To Date" %}</label>
+          <input id="manual-recon-date-to" type="date" name="date_to" class="form-control form-control-sm" value="{{ filter_values.date_to }}">
+        </div>
+        <div class="col-6 col-md-3 col-lg-1">
+          <label class="form-label small fw-bold mb-1" for="manual-recon-amount-min">{% translate "Min" %}</label>
+          <input id="manual-recon-amount-min" type="number" min="0" step="0.01" name="amount_min" class="form-control form-control-sm text-end" value="{{ filter_values.amount_min }}" placeholder="0.00">
+        </div>
+        <div class="col-6 col-md-3 col-lg-1">
+          <label class="form-label small fw-bold mb-1" for="manual-recon-amount-max">{% translate "Max" %}</label>
+          <input id="manual-recon-amount-max" type="number" min="0" step="0.01" name="amount_max" class="form-control form-control-sm text-end" value="{{ filter_values.amount_max }}" placeholder="0.00">
+        </div>
+        <div class="col-6 col-md-3 col-lg-1">
+          <label class="form-label small fw-bold mb-1" for="manual-recon-dr-cr">{% translate "Type" %}</label>
+          <select id="manual-recon-dr-cr" name="dr_cr" class="form-select form-select-sm">
+            <option value="">{% translate "All" %}</option>
+            {% for value, label in dr_cr_choices %}
+              <option value="{{ value }}" {% if filter_values.dr_cr == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-3 col-lg-1">
+          <label class="form-label small fw-bold mb-1" for="manual-recon-payment-mode">{% translate "Mode" %}</label>
+          <select id="manual-recon-payment-mode" name="payment_mode" class="form-select form-select-sm">
+            <option value="">{% translate "All" %}</option>
+            {% for value, label in payment_mode_choices %}
+              <option value="{{ value }}" {% if filter_values.payment_mode == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-6 col-md-3 col-lg-1">
+          <label class="form-label small fw-bold mb-1" for="manual-recon-voucher-type">{% translate "Voucher" %}</label>
+          <select id="manual-recon-voucher-type" name="voucher_type" class="form-select form-select-sm">
+            <option value="">{% translate "All" %}</option>
+            {% for value, label in voucher_type_choices %}
+              <option value="{{ value }}" {% if filter_values.voucher_type == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-lg-auto d-flex gap-2">
+          <button type="submit" class="btn btn-primary btn-sm">{% translate "Apply" %}</button>
+          <a class="btn btn-outline-secondary btn-sm" href="?{% if selected_bank_account %}bank_account={{ selected_bank_account.id }}&{% endif %}recon_filter={{ recon_filter }}">{% translate "Clear" %}</a>
+        </div>
+      </div>
+    </form>
+    <div class="p-3 border-bottom">
+      <div class="recon-section-title">
+        <h6><i class="bi bi-receipt me-2"></i>{% translate "Voucher Entries" %}</h6>
+        <span class="badge rounded-pill bg-light text-dark border">{{ selected_recon_filter_label }}</span>
+      </div>
+      {% if voucher_entries %}
+        <div class="table-responsive" style="max-height: 44vh; overflow: auto;">
+          <table class="table table-sm table-hover align-middle mb-0 recon-reference-table recon-voucher-table">
+            <thead>
+              <tr>
+                <th>{% translate "Voucher Details" %}</th>
+                <th>{% translate "Narration / Reference" %}</th>
+                <th class="text-end">{% translate "Amount" %}</th>
+                <th>{% translate "Manual Bank Entry" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for entry in voucher_entries %}
+                <tr>
+                  <td class="recon-reference-voucher">
+                    <a href="{% url 'accounting:voucher-detail' entry.voucher_id %}"
+                       class="fw-semibold text-decoration-none"
+                       data-voucher-detail-url="{% url 'accounting:voucher-detail' entry.voucher_id %}"
+                       data-voucher-label="{{ entry.voucher.display_number|default:entry.voucher_id }}">
+                      {{ entry.voucher.display_number|default:entry.voucher_id }}
+                    </a>
+                    <div class="small text-muted">{{ entry.voucher.voucher_date|date:"d/m/Y" }} · {{ entry.voucher.get_voucher_type_display }}</div>
+                    <div class="small"><span class="badge bg-light text-dark border">{{ entry.voucher.get_payment_mode_display|default:"Mode —" }}</span></div>
+                    <div class="small text-muted mt-1">{% translate "Unit" %}: {{ entry.unit|default:"—" }}</div>
+                  </td>
+                  <td class="recon-voucher-narration" title="{{ entry.voucher.narration }}">
+                    <div>{{ entry.voucher.narration|truncatechars:130|default:"—" }}</div>
+                    <div class="small text-muted mt-1">{% translate "Ref" %}: {{ entry.voucher.reference_number|default:"—" }}</div>
+                  </td>
+                  <td class="text-end recon-amount-stack">
+                    {% if entry.debit %}
+                      <div class="fw-semibold text-danger">₹ {{ entry.debit|floatformat:2 }}</div>
+                      <div class="small text-muted">{% translate "Debit" %}</div>
+                    {% elif entry.credit %}
+                      <div class="fw-semibold text-success">₹ {{ entry.credit|floatformat:2 }}</div>
+                      <div class="small text-muted">{% translate "Credit" %}</div>
+                    {% else %}
+                      —
+                    {% endif %}
+                  </td>
+                  <td class="recon-compact-match">
+                    {% with existing_link=entry.reconciliation_links.all|first %}
+                      {% if existing_link %}
+                        <span class="badge bg-success">{{ existing_link.get_status_display }}</span>
+                        <div class="small text-muted">{% translate "Matched with bank entry" %} #{{ existing_link.bank_transaction_id }}</div>
+                        {% if existing_link.is_manual and existing_link.bank_transaction.bank_statement_import.source_type == "MANUAL_RECON" %}
+                          <form class="row g-1 align-items-center mt-2" action="{% url 'reconciliation:manual-entry-voucher-match-edit' existing_link.id %}" method="post" @submit.prevent="saveVoucherMatch($event)">
+                            {% csrf_token %}
+                            <div class="col-4">
+                              <input type="date" name="transaction_date" class="form-control form-control-sm" value="{{ existing_link.bank_transaction.transaction_date|date:'Y-m-d' }}" required>
+                            </div>
+                            <div class="col-4">
+                              <input type="text" name="reference_no" class="form-control form-control-sm" value="{{ existing_link.bank_transaction.reference_no }}" placeholder="{% translate 'Bank ref' %}">
+                            </div>
+                            <div class="col-4">
+                              <button type="submit" class="btn btn-outline-primary btn-sm w-100">
+                                {% translate "Update" %}
+                              </button>
+                            </div>
+                            <div class="col-12">
+                              <input type="text" name="narration" class="form-control form-control-sm" value="{{ existing_link.bank_transaction.narration }}" placeholder="{% translate 'Bank narration' %}" required>
+                            </div>
+                          </form>
+                        {% endif %}
+                      {% else %}
+                        <form class="row g-1 align-items-center" action="{% url 'reconciliation:manual-entry-voucher-match' %}" method="post" @submit.prevent="saveVoucherMatch($event)">
+                          {% csrf_token %}
+                          <input type="hidden" name="ledger_entry" value="{{ entry.id }}">
+                          <div class="col-4">
+                            <input type="date" name="transaction_date" class="form-control form-control-sm" value="{{ entry.voucher.voucher_date|date:'Y-m-d' }}" required>
+                          </div>
+                          <div class="col-4">
+                            <input type="text" name="reference_no" class="form-control form-control-sm" value="{{ entry.voucher.reference_number }}" placeholder="{% translate 'Bank ref' %}">
+                          </div>
+                          <div class="col-4">
+                            <button type="submit" class="btn btn-success btn-sm w-100">
+                              {% translate "Add + Match" %}
+                            </button>
+                          </div>
+                          <div class="col-12">
+                            <input type="text" name="narration" class="form-control form-control-sm" value="{{ entry.voucher.narration }}" placeholder="{% translate 'Bank narration' %}" required>
+                          </div>
+                        </form>
+                      {% endif %}
+                    {% endwith %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="recon-reference-empty">
+          {% translate "No posted voucher entry exists for this selected bank account yet." %}
+        </div>
+      {% endif %}
+    </div>
+    <div class="p-3">
+      <div class="recon-section-title">
+        <h6><i class="bi bi-bank me-2"></i>{% translate "Saved Bank-Side Entries" %}</h6>
+        <span class="text-muted small">{% translate "Status and linked voucher" %}</span>
+      </div>
+      {% if recent_bank_transactions %}
+        <div class="table-responsive" style="max-height: 38vh; overflow-y: auto;">
+          <table class="table table-sm table-hover align-middle mb-0 recon-reference-table">
+            <thead>
+              <tr>
+                <th>{% translate "Import" %}</th>
+                <th>{% translate "Bank Account" %}</th>
+                <th>{% translate "Date" %}</th>
+                <th>{% translate "Value Date" %}</th>
+                <th>{% translate "Narration" %}</th>
+                <th>{% translate "Reference" %}</th>
+                <th>{% translate "Cheque" %}</th>
+                <th>{% translate "DR/CR" %}</th>
+                <th class="text-end">{% translate "Amount" %}</th>
+                <th class="text-end">{% translate "Balance" %}</th>
+                <th>{% translate "Recon Status / Voucher" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for tx in recent_bank_transactions %}
+                <tr class="{% if tx.is_duplicate %}table-warning{% endif %}">
+                  <td>
+                    <a href="{% url 'reconciliation:statement-import-detail' tx.bank_statement_import_id %}" class="text-decoration-none">
+                      #{{ tx.bank_statement_import_id }}
+                    </a>
+                    <div class="text-muted small">{{ tx.bank_statement_import.source_type }}</div>
+                  </td>
+                  <td>{{ tx.bank_statement_import.bank_account.name|default:"—" }}</td>
+                  <td>{{ tx.transaction_date|date:"d/m/Y" }}</td>
+                  <td>{{ tx.value_date|date:"d/m/Y"|default:"—" }}</td>
+                  <td class="recon-reference-narration" title="{{ tx.narration }}">
+                    {{ tx.narration|truncatechars:90 }}
+                    {% if tx.normalized.extracted_utr %}
+                      <div class="text-muted small">UTR: {{ tx.normalized.extracted_utr }}</div>
+                    {% endif %}
+                  </td>
+                  <td>{{ tx.reference_no|default:"—" }}</td>
+                  <td>{{ tx.cheque_no|default:"—" }}</td>
+                  <td>
+                    <span class="badge {% if tx.dr_cr == 'CREDIT' %}bg-success{% else %}bg-danger{% endif %}">
+                      {{ tx.get_dr_cr_display }}
+                    </span>
+                  </td>
+                  <td class="text-end {% if tx.dr_cr == 'CREDIT' %}text-success{% else %}text-danger{% endif %}">₹ {{ tx.amount|floatformat:2 }}</td>
+                  <td class="text-end text-muted">{% if tx.balance is not None %}₹ {{ tx.balance|floatformat:2 }}{% else %}—{% endif %}</td>
+                  <td class="recon-reference-voucher">
+                    {% with link=tx.reconciliation_links.all|first %}
+                      {% if link %}
+                        <span class="badge {% if link.status == 'MATCHED' or link.status == 'FORCE_MATCHED' %}bg-success{% elif link.status == 'SUGGESTED' %}bg-info text-dark{% elif link.status == 'EXCEPTION' %}bg-danger{% else %}bg-secondary{% endif %}">{{ link.get_status_display }}</span>
+                        {% if link.voucher_entry %}
+                          <div class="small mt-1">
+                            <a href="{% url 'accounting:voucher-detail' link.voucher_entry.voucher_id %}"
+                               class="text-decoration-none"
+                               data-voucher-detail-url="{% url 'accounting:voucher-detail' link.voucher_entry.voucher_id %}"
+                               data-voucher-label="{{ link.voucher_entry.voucher.display_number|default:link.voucher_entry.voucher_id }}">
+                              {{ link.voucher_entry.voucher.display_number|default:link.voucher_entry.voucher_id }}
+                            </a>
+                            · {{ link.voucher_entry.account.name }}
+                            {% if link.voucher_entry.unit %}· {{ link.voucher_entry.unit }}{% endif %}
+                          </div>
+                        {% endif %}
+                      {% else %}
+                        <span class="badge bg-warning text-dark">{% translate "Unmatched" %}</span>
+                        <div class="small mt-1 text-muted">
+                          {% translate "Use voucher row Add + Match to reconcile inline." %}
+                        </div>
+                      {% endif %}
+                    {% endwith %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="recon-reference-empty">
+          {% translate "No saved bank-side entries exist for this selected bank account yet. Enter rows in the continuous grid above and save the batch." %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block modal %}
+  {% include "accounting/partials/voucher_detail_modal.html" %}
+{% endblock modal %}
+
+{% block javascript %}
+{{ block.super }}
+{# CSRF token for fetch API calls made from manual_entry.js #}
+<script>
+  window.manualEntryCsrfToken = '{{ csrf_token }}';
+</script>
+{# Define manualEntryGrid before Alpine initializes x-data bindings. #}
+<script defer src="{% static 'reconciliation/manual_entry.js' %}"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.14.8/dist/cdn.min.js"></script>
+{% endblock %}

@@ -13,76 +13,119 @@
   {% translate "Manage hierarchy, units, ownership, and occupancy from one place." %}
 {% endblock dashboard_subtitle %}
 
-{% block content %}
-  <div class="page-actions">
-    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Structure actions' %}">
-      <a href="{% url 'housing:structure-unit-dashboard' %}" class="btn btn-main"><i class="fas fa-sitemap me-1"></i>{% translate "Structures" %}</a>
-      <a href="{% url 'housing:structure-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Structure' %}">+</a>
-    </div>
-    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Unit actions' %}">
-      <a href="#unit-dashboard" class="btn btn-main"><i class="fas fa-door-open me-1"></i>{% translate "Units" %}</a>
-      <a href="{% url 'housing:unit-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Unit' %}">+</a>
-    </div>
-    <a href="{% url 'housing:unit-bulk-add' %}" class="btn btn-outline-primary"><i class="fas fa-th me-1"></i>{% translate "Bulk Add Units" %}</a>
-    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Ownership actions' %}">
-      <a href="{% url 'housing:structure-unit-dashboard' %}" class="btn btn-main"><i class="fas fa-user-tag me-1"></i>{% translate "Ownership" %}</a>
-      <a href="{% url 'housing:ownership-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Ownership' %}">+</a>
-    </div>
-    <div class="btn-group page-action-group" role="group" aria-label="{% translate 'Occupancy actions' %}">
-      <a href="{% url 'housing:structure-unit-dashboard' %}" class="btn btn-main"><i class="fas fa-home me-1"></i>{% translate "Occupancy" %}</a>
-      <a href="{% url 'housing:occupancy-add' %}" class="btn btn-plus" aria-label="{% translate 'Add Occupancy' %}">+</a>
-    </div>
-    <a href="{% url 'housing:society-list' %}" class="btn btn-outline-primary"><i class="fas fa-building me-1"></i>{% translate "Societies" %}</a>
-    <a href="{% url 'housing:member-list' %}" class="btn btn-outline-primary"><i class="fas fa-users me-1"></i>{% translate "Members" %}</a>
-  </div>
+{% block bodyclass %}structure-units-dashboard{% endblock bodyclass %}
 
-  <div class="row g-3 mb-4">
-    <div class="col-12 col-sm-6 col-xl-3">
-      <div class="quick-card">
-        <p class="small text-muted mb-1">{% translate "Total Structures" %}</p>
-        <h2 class="h3 mb-0">{{ total_structures }}</h2>
-      </div>
+{% block content %}
+  <section class="structure-command-panel" aria-label="{% translate 'Structure and unit quick actions' %}">
+    <div class="structure-command-panel__intro">
+      <span class="structure-command-panel__eyebrow">{% translate "Property Map" %}</span>
+      <h2>{% translate "Structure control center" %}</h2>
+      <p>{% translate "Manage buildings, flats, ownership, occupancy, and society navigation from one compact workspace." %}</p>
     </div>
-    <div class="col-12 col-sm-6 col-xl-3">
-      <div class="quick-card">
-        <p class="small text-muted mb-1">{% translate "Root Structures" %}</p>
-        <h2 class="h3 mb-0">{{ root_structures }}</h2>
-      </div>
+    <div class="structure-command-grid">
+      <a href="{% url 'housing:structure-add' %}" class="structure-command structure-command--primary">
+        <span class="structure-command__icon"><i class="fas fa-sitemap"></i></span>
+        <span>
+          <strong>{% translate "Add Structure" %}</strong>
+          <small>{% translate "Building, wing, or block" %}</small>
+        </span>
+      </a>
+      <a href="{% url 'housing:unit-add' %}" class="structure-command structure-command--primary">
+        <span class="structure-command__icon"><i class="fas fa-door-open"></i></span>
+        <span>
+          <strong>{% translate "Add Unit" %}</strong>
+          <small>{% translate "Flat, shop, or office" %}</small>
+        </span>
+      </a>
+      <a href="{% url 'housing:unit-bulk-add' %}" class="structure-command">
+        <span class="structure-command__icon"><i class="fas fa-th"></i></span>
+        <span>
+          <strong>{% translate "Bulk Units" %}</strong>
+          <small>{% translate "Create units faster" %}</small>
+        </span>
+      </a>
+      <a href="{% url 'housing:ownership-add' %}" class="structure-command">
+        <span class="structure-command__icon"><i class="fas fa-user-tag"></i></span>
+        <span>
+          <strong>{% translate "Ownership" %}</strong>
+          <small>{% translate "Assign owner" %}</small>
+        </span>
+      </a>
+      <a href="{% url 'housing:occupancy-add' %}" class="structure-command">
+        <span class="structure-command__icon"><i class="fas fa-home"></i></span>
+        <span>
+          <strong>{% translate "Occupancy" %}</strong>
+          <small>{% translate "Owner, tenant, vacant" %}</small>
+        </span>
+      </a>
+      <a href="#unit-dashboard" class="structure-command">
+        <span class="structure-command__icon"><i class="fas fa-search"></i></span>
+        <span>
+          <strong>{% translate "Find Units" %}</strong>
+          <small>{% translate "Search and filter" %}</small>
+        </span>
+      </a>
+      <a href="{% url 'housing:society-list' %}" class="structure-command">
+        <span class="structure-command__icon"><i class="fas fa-building"></i></span>
+        <span>
+          <strong>{% translate "Societies" %}</strong>
+          <small>{% translate "Switch context" %}</small>
+        </span>
+      </a>
+      <a href="{% url 'housing:member-list' %}" class="structure-command">
+        <span class="structure-command__icon"><i class="fas fa-users"></i></span>
+        <span>
+          <strong>{% translate "Members" %}</strong>
+          <small>{% translate "Resident records" %}</small>
+        </span>
+      </a>
     </div>
-    <div class="col-12 col-sm-6 col-xl-3">
-      <div class="quick-card">
-        <p class="small text-muted mb-1">{% translate "Total Units" %}</p>
-        <h2 class="h3 mb-0">{{ total_units }}</h2>
-      </div>
+  </section>
+
+  <div class="row g-3 mb-4 structure-stat-grid">
+    <div class="col-12 col-sm-6 col-xl-2">
+      <a href="{% url 'housing:structure-unit-dashboard' %}" class="structure-card-link" aria-label="{% translate 'Open structures summary' %}">
+        {% include "components/stat_card.html" with icon="fas fa-sitemap" label=_("Total Structures") value=total_structures color="primary" %}
+      </a>
     </div>
-    <div class="col-12 col-sm-6 col-xl-3">
-      <div class="quick-card">
-        <p class="small text-muted mb-1">{% translate "Active Units" %}</p>
-        <h2 class="h3 mb-0">{{ active_units }}</h2>
-      </div>
+    <div class="col-12 col-sm-6 col-xl-2">
+      <a href="{% url 'housing:structure-unit-dashboard' %}" class="structure-card-link" aria-label="{% translate 'Open root structures' %}">
+        {% include "components/stat_card.html" with icon="fas fa-project-diagram" label=_("Root Structures") value=root_structures color="info" %}
+      </a>
     </div>
-    <div class="col-12 col-sm-6 col-xl-3">
-      <div class="quick-card">
-        <p class="small text-muted mb-1">{% translate "Occupied Units" %}</p>
-        <h2 class="h3 mb-0">{{ occupied_units }}</h2>
-      </div>
+    <div class="col-12 col-sm-6 col-xl-2">
+      <a href="#unit-dashboard" class="structure-card-link" aria-label="{% translate 'Open units dashboard' %}">
+        {% include "components/stat_card.html" with icon="fas fa-door-open" label=_("Total Units") value=total_units color="success" %}
+      </a>
     </div>
-    <div class="col-12 col-sm-6 col-xl-3">
-      <div class="quick-card">
-        <p class="small text-muted mb-1">{% translate "Vacant Units" %}</p>
-        <h2 class="h3 mb-0">{{ vacant_units }}</h2>
-      </div>
+    <div class="col-12 col-sm-6 col-xl-2">
+      <a href="?status=active#unit-dashboard" class="structure-card-link" aria-label="{% translate 'Filter active units' %}">
+        {% include "components/stat_card.html" with icon="fas fa-check-circle" label=_("Active Units") value=active_units color="success" %}
+      </a>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-2">
+      <a href="?occupancy=occupied#unit-dashboard" class="structure-card-link" aria-label="{% translate 'Filter occupied units' %}">
+        {% include "components/stat_card.html" with icon="fas fa-house-user" label=_("Occupied Units") value=occupied_units color="warning" %}
+      </a>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-2">
+      <a href="?occupancy=vacant#unit-dashboard" class="structure-card-link" aria-label="{% translate 'Filter vacant units' %}">
+        {% include "components/stat_card.html" with icon="fas fa-key" label=_("Vacant Units") value=vacant_units color="secondary" %}
+      </a>
     </div>
   </div>
 
   <div class="row g-3">
     <div class="col-12 col-lg-6">
-      <div class="quick-card">
-        <h3 class="h6 mb-2">{% translate "Recent Structures" %}</h3>
+      <div class="quick-card structure-overview-card">
+        <a href="{% url 'housing:structure-unit-dashboard' %}" class="structure-card-header-link">
+          <h3 class="h6 mb-0">{% translate "Recent Structures" %}</h3>
+          <span>{% translate "Overview" %} <i class="fas fa-arrow-right ms-1"></i></span>
+        </a>
         {% if recent_structures %}
           <ul class="list-group list-group-flush">
             {% for structure in recent_structures %}
-              <li class="list-group-item px-0">
+              <li class="list-group-item px-0 structure-list-row">
                 <strong>{{ structure.name }}</strong>
                 <span class="text-muted">({{ structure.get_structure_type_display }})</span>
                 <div class="small text-muted">
@@ -99,7 +142,7 @@
       </div>
     </div>
     <div class="col-12" id="unit-dashboard">
-      <div class="quick-card">
+      <div class="quick-card structure-overview-card structure-unit-card">
         <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3 mb-3">
           <div>
             <h3 class="h6 mb-1">{% translate "Unit Dashboard" %}</h3>
@@ -108,7 +151,7 @@
           <div class="text-muted small">{{ units|length }} {% translate "units" %}</div>
         </div>
 
-        <form method="get" class="row g-3 mb-4">
+        <form method="get" class="row g-3 mb-4 structure-filter-panel">
           <div class="col-12 col-lg-4">
             <label for="unit-search" class="form-label small mb-1">{% translate "Search" %}</label>
             <input id="unit-search" type="search" name="q" value="{{ search }}" class="form-control" placeholder="{% translate 'Unit, structure, or society' %}">
@@ -190,7 +233,7 @@
               </thead>
               <tbody>
                 {% for unit in units %}
-                  <tr>
+                  <tr class="structure-table-row">
                     <td>
                       <a href="{% url 'housing:unit-detail' unit.pk %}" class="text-decoration-none fw-semibold">{{ unit.identifier }}</a>
                     </td>
@@ -252,8 +295,11 @@
     </div>
   </div>
 
-  <div class="quick-card mt-3">
-    <h3 class="h6 mb-2">{% translate "Unit Type Mix" %}</h3>
+  <div class="quick-card structure-overview-card mt-3">
+    <div class="structure-card-header-link structure-card-header-link--static">
+      <h3 class="h6 mb-0">{% translate "Unit Type Mix" %}</h3>
+      <span>{% translate "Distribution" %}</span>
+    </div>
     {% if unit_type_summary %}
       <div class="table-responsive">
         <table class="table table-sm table-hover align-middle mb-0">
@@ -265,7 +311,7 @@
           </thead>
           <tbody>
             {% for row in unit_type_summary %}
-              <tr>
+              <tr class="structure-table-row">
                 <td>{{ row.unit_type }}</td>
                 <td class="text-end">{{ row.total }}</td>
               </tr>

@@ -31,8 +31,18 @@
             {% if member_lookup_url %}data-member-lookup-url="{{ member_lookup_url }}"{% endif %}
             {% if unit_search_url %}data-unit-search-url="{{ unit_search_url }}"{% endif %}>
         {% csrf_token %}
+        {% if return_url %}<input type="hidden" name="next" value="{{ return_url }}">{% endif %}
         
-        <div class="row g-3">
+        {% if compact_charge_template_form %}
+          <div class="alert alert-info d-flex align-items-start gap-2 py-2 mb-3" role="note">
+            <i class="fas fa-info-circle mt-1"></i>
+            <div class="small">
+              {% translate "Fill the basic charge details, select the posting accounts, then save. Optional fields can stay blank." %}
+            </div>
+          </div>
+        {% endif %}
+
+        <div class="row {% if compact_charge_template_form %}g-2{% else %}g-3{% endif %}">
           {% if form.non_field_errors %}
             <div class="col-12">
               <div class="alert alert-danger mb-0" role="alert">
@@ -77,8 +87,8 @@
                 {% endfor %}
               </div>
             {% else %}
-              <div class="{% if field.field.widget.input_type == 'textarea' or field.name == 'description' or field.name == 'address' %}col-12{% else %}col-12 col-md-6{% endif %}">
-                <div class="form-group">
+              <div class="{% if compact_charge_template_form %}{% if field.name == 'description' %}col-12{% elif field.name == 'rate' or field.name == 'due_days' or field.name == 'late_fee_percent' %}col-6 col-lg-2{% elif field.name == 'effective_from' or field.name == 'effective_to' %}col-6 col-lg-3{% else %}col-12 col-lg-4{% endif %}{% elif field.field.widget.input_type == 'textarea' or field.name == 'description' or field.name == 'address' %}col-12{% else %}col-12 col-md-6{% endif %}">
+                <div class="form-group{% if compact_charge_template_form %} mb-1{% endif %}">
                   <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
                   {{ field }}
                   {% if field.help_text %}

@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% load static i18n %}
+{% load reconciliation_tags %}
+
+{% block title %}{% translate "Manual Reconciliation Workspace" %} | {{ block.super }}{% endblock %}
+{% block page_id %}reconciliation-manual-workspace{% endblock %}
+{% block dashboard_title %}{% translate "Manual Reconciliation Workspace" %}{% endblock %}
+{% block dashboard_subtitle %}{% translate "Keyboard-first bank statement entry and matching for printed statements." %}{% endblock %}
+
+{% block css %}
+  {{ block.super }}
+  <style>
+    .manual-grid-shell {
+      background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.98), rgba(248, 250, 252, 0.96)),
+        linear-gradient(135deg, rgba(15, 23, 42, 0.04) 0%, rgba(15, 23, 42, 0.01) 100%);
+    }
+
+    .manual-grid-table {
+      table-layout: auto;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+
+    .manual-grid-table thead th {
+      position: sticky;
+      top: 0;
+      z-index: 2;
+      background: #f8fafc;
+      box-shadow: inset 0 -1px 0 rgba(148, 163, 184, 0.35);
+      font-size: 0.75rem;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      white-space: nowrap;
+    }
+
+    .manual-grid-table tbody td,
+    .manual-grid-table tbody th {
+      border-color: rgba(148, 163, 184, 0.2);
+      vertical-align: middle;
+      padding: 0.9rem 0.85rem;
+      font-size: 0.95rem;
+    }
+
+    .manual-grid-table tbody tr:hover {
+      background-color: rgba(37, 99, 235, 0.03);
+    }
+
+    .manual-grid-narration {
+      min-width: 260px;
+      max-width: 420px;
+      white-space: normal;
+      line-height: 1.35;
+      word-break: break-word;
+    }
+
+    .manual-grid-ref {
+      min-width: 100px;
+      white-space: nowrap;
+    }
+
+    .manual-grid-amount {
+      min-width: 120px;
+      white-space: nowrap;
+    }
+
+    .manual-grid-status {
+      min-width: 90px;
+      white-space: nowrap;
+    }
+
+    .manual-grid-actions {
+      min-width: 90px;
+      white-space: nowrap;
+    }
+
+    .manual-grid-scroll {
+      overflow-x: auto;
+      padding-bottom: 0.25rem;
+    }
+
+    .manual-grid-cell-muted {
+      color: #94a3b8;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .manual-grid-table .table-active {
+      --bs-table-bg: rgba(37, 99, 235, 0.08);
+    }
+
+    .manual-grid-number {
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum";
+    }
+
+    /* Loading states */
+    .htmx-request .manual-grid-row {
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    .htmx-indicator {
+      display: none;
+    }
+
+    .htmx-request .htmx-indicator {
+      display: inline-block;
+    }
+
+    .htmx-request.htmx-indicator {
+      display: inline-block;
+    }
+
+    /* Row highlight animation */
+    @keyframes highlight-row {
+      0% { background-color: rgba(37, 99, 235, 0.2); }
+      100% { background-color: transparent; }
+    }
+
+    .manual-grid-row-new {
+      animation: highlight-row 1.5s ease-out;
+    }
+  </style>
+{% endblock css %}
+
+{% block javascript %}
+  {{ block.super }}
+  <script defer src="{% static 'reconciliation/manual_workspace.js' %}"></script>
+{% endblock javascript %}
+
+{% block content %}
+  <div class="row g-3">
+    <div class="col-12 col-xl-3">
+      <div class="card shadow-sm border-0 mb-3">
+        <div class="card-header bg-white border-0">
+          <div class="d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">{% translate "Filters" %}</h5>
+            <a href="{% url 'reconciliation:workspace' %}" class="btn btn-sm btn-outline-secondary">{% translate "Classic workspace" %}</a>
+          </div>
+        </div>
+        <div class="card-body">
+          <form method="get" class="d-grid gap-2" id="manual-workspace-filters">
+            <div>
+              <label class="form-label small mb-1" for="{{ filters_form.bank_account.id_for_label }}">{{ filters_form.bank_account.label }}</label>
+              {{ filters_form.bank_account }}
+            </div>
+            <div class="row g-2">
+              <div class="col">
+                <label class="form-label small mb-1" for="{{ filters_form.statement_date_from.id_for_label }}">{{ filters_form.statement_date_from.label }}</label>
+                {{ filters_form.statement_date_from }}
+              </div>
+              <div class="col">
+                <label class="form-label small mb-1" for="{{ filters_form.statement_date_to.id_for_label }}">{{ filters_form.statement_date_to.label }}</label>
+                {{ filters_form.statement_date_to }}
+              </div>
+            </div>
+            <div>
+              <label class="form-label small mb-1" for="{{ filters_form.search_voucher.id_for_label }}">{{ filters_form.search_voucher.label }}</label>
+              {{ filters_form.search_voucher }}
+            </div>
+            <div class="form-check">
+              {{ filters_form.show_unmatched_only }}
+              <label class="form-check-label small" for="{{ filters_form.show_unmatched_only.id_for_label }}">{{ filters_form.show_unmatched_only.label }}</label>
+            </div>
+            <div class="form-check">
+              {{ filters_form.show_reconciled }}
+              <label class="form-check-label small" for="{{ filters_form.show_reconciled.id_for_label }}">{{ filters_form.show_reconciled.label }}</label>
+            </div>
+            <div class="d-flex gap-2">
+              <button type="submit" class="btn btn-outline-primary btn-sm">{% translate "Apply filters" %}</button>
+              <a href="{% url 'reconciliation:manual-workspace' %}" class="btn btn-sm btn-outline-secondary">{% translate "Clear" %}</a>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <div id="manual-workspace-stats">
+        {% include "reconciliation/partials/manual_stats.html" %}
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+      <div class="card shadow-sm border-0 manual-grid-shell">
+        <div class="card-header bg-white border-0">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <h5 class="mb-0">{% translate "Manual Entry Grid" %}</h5>
+              <small class="text-muted">
+                {% if statement_period_start and statement_period_end %}
+                  {{ statement_period_start|date:"d/m/Y" }} - {{ statement_period_end|date:"d/m/Y" }}
+                {% else %}
+                  {% translate "New workspace batch" %}
+                  {% endif %}
+                </small>
+            </div>
+            <span class="badge bg-dark">{{ total_entries }} {% translate "rows" %}</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <h6 class="mb-0">{% translate "Statement Tape" %}</h6>
+            <span class="text-muted small">{% translate "Read only" %}</span>
+          </div>
+          <div class="table-responsive manual-grid-scroll">
+            <table class="table table-sm table-hover align-middle manual-grid-table mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th class="text-center" style="width: 56px;">#</th>
+                  <th style="width: 110px;">{% translate "Date" %}</th>
+                  <th style="min-width: 260px;">{% translate "Narration" %}</th>
+                  <th style="width: 110px;">{% translate "Ref No" %}</th>
+                  <th class="text-end" style="width: 125px;">{% translate "Debit" %}</th>
+                  <th class="text-end" style="width: 125px;">{% translate "Credit" %}</th>
+                  <th class="text-end" style="width: 135px;">{% translate "Balance" %}</th>
+                  <th style="width: 90px;">{% translate "Status" %}</th>
+                  <th style="width: 90px;">{% translate "Actions" %}</th>
+                </tr>
+              </thead>
+              <tbody id="manual-workspace-rows-body">
+                {% for transaction in transactions %}
+                  {% include "reconciliation/partials/manual_row.html" %}
+                {% empty %}
+                  <tr>
+                    <td colspan="9" class="text-center text-muted py-4">{% translate "No statement rows yet." %}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-3">
+      <div id="manual-workspace-suggestions">
+        {% include "reconciliation/partials/manual_suggestions.html" %}
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+
+
+{% block modal %}
+  <div class="modal fade" id="manual-entry-modal" tabindex="-1" aria-labelledby="manual-entry-modal-label" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content border-0 shadow">
+        <div class="modal-header bg-light">
+          <div>
+            <h5 class="modal-title mb-1" id="manual-entry-modal-label">{% translate "Bank Entry" %}</h5>
+            <small class="text-muted">{% translate "Prefilled from the selected statement row." %}</small>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% translate 'Close' %}"></button>
+        </div>
+        <div class="modal-body">
+          <form
+            id="manual-row-form"
+            method="post"
+            hx-post="{% url 'reconciliation:manual-workspace-save-row' %}"
+            hx-target="#manual-workspace-rows-body"
+            hx-swap="beforeend"
+            hx-indicator="#manual-row-form-indicator"
+            class="d-grid gap-3"
+          >
+            {% csrf_token %}
+            <div class="row g-3">
+              <div class="col-12 col-md-4">
+                <label class="form-label small mb-1" for="{{ row_form.transaction_date.id_for_label }}">{% translate "Bank Date" %}</label>
+                {{ row_form.transaction_date }}
+              </div>
+              <div class="col-12 col-md-8">
+                <label class="form-label small mb-1" for="{{ row_form.narration.id_for_label }}">{{ row_form.narration.label }}</label>
+                {{ row_form.narration }}
+              </div>
+              <div class="col-12 col-md-5">
+                <label class="form-label small mb-1" for="{{ row_form.reference_no.id_for_label }}">{{ row_form.reference_no.label }}</label>
+                {{ row_form.reference_no }}
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label small mb-1" for="{{ row_form.debit.id_for_label }}">{{ row_form.debit.label }}</label>
+                {{ row_form.debit }}
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label small mb-1" for="{{ row_form.credit.id_for_label }}">{{ row_form.credit.label }}</label>
+                {{ row_form.credit }}
+              </div>
+              <div class="col-12 col-md-3">
+                <label class="form-label small mb-1" for="{{ row_form.balance.id_for_label }}">{{ row_form.balance.label }}</label>
+                {{ row_form.balance }}
+              </div>
+            </div>
+            <div class="d-flex justify-content-between align-items-center">
+              <div class="text-muted small">
+                {% translate "Open a row, adjust details if needed, then save." %}
+                <span id="manual-row-form-indicator" class="htmx-indicator spinner-border spinner-border-sm ms-2" role="status" aria-hidden="true"></span>
+              </div>
+              <div class="d-flex gap-2">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{% translate "Cancel" %}</button>
+                <button type="submit" class="btn btn-primary" data-shortcut-action="save-row">
+                  <span class="htmx-indicator spinner-border spinner-border-sm me-1" role="status" aria-hidden="true"></span>
+                  {% translate "Save Row" %}
+                </button>
+              </div>
+            </div>
+            {{ row_form.selected_tx_id }}
+            <div id="manual-row-form-errors"></div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock modal %}

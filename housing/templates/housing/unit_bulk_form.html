@@ -21,10 +21,29 @@
       gap: 1rem;
     }
 
-    .bulk-unit-grid {
+    .bulk-top-grid {
       display: grid;
       gap: 1rem;
-      grid-template-columns: minmax(0, 340px) minmax(0, 1fr);
+      grid-template-columns: minmax(0, 1.35fr) minmax(0, 0.95fr);
+      align-items: start;
+    }
+
+    .bulk-section-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .bulk-section-title h3 {
+      margin-bottom: 0.25rem;
+    }
+
+    .bulk-setup-panel,
+    .bulk-grid-actions,
+    .bulk-grid-designer {
+      width: 100%;
     }
 
     .bulk-panel {
@@ -156,7 +175,7 @@
     }
 
     @media (max-width: 991.98px) {
-      .bulk-unit-grid {
+      .bulk-top-grid {
         grid-template-columns: 1fr;
       }
 
@@ -179,82 +198,91 @@
 
   <form method="post" class="bulk-unit-layout" data-bulk-unit-form>
     {% csrf_token %}
-    <div class="quick-card">
-      <div class="row g-3">
-        {% if form.non_field_errors %}
-          <div class="col-12">
-            <div class="alert alert-danger mb-0" role="alert">
-              {% for error in form.non_field_errors %}
-                <div>{{ error }}</div>
-              {% endfor %}
-            </div>
+    <div class="bulk-top-grid">
+      <div class="quick-card bulk-panel bulk-setup-panel">
+        <div class="bulk-section-title">
+          <div>
+            <h3 class="h6 mb-0">{% translate "Grid Setup" %}</h3>
+            <p class="text-muted small mb-0">{% translate "Set the structure, dimensions, and numbering before generating the grid." %}</p>
           </div>
-        {% endif %}
+          <span class="badge text-bg-light">{% translate "Step 1" %}</span>
+        </div>
+        <div class="row g-3">
+          {% if form.non_field_errors %}
+            <div class="col-12">
+              <div class="alert alert-danger mb-0" role="alert">
+                {% for error in form.non_field_errors %}
+                  <div>{{ error }}</div>
+                {% endfor %}
+              </div>
+            </div>
+          {% endif %}
 
-        <div class="col-12 col-md-6 col-xl-3">
-          <label class="form-label" for="{{ form.structure.id_for_label }}">{{ form.structure.label }}</label>
-          {{ form.structure }}
-          {% for error in form.structure.errors %}
-            <div class="text-danger small">{{ error }}</div>
+          <div class="col-12 col-md-6 col-xl-4">
+            <label class="form-label" for="{{ form.structure.id_for_label }}">{{ form.structure.label }}</label>
+            {{ form.structure }}
+            {% for error in form.structure.errors %}
+              <div class="text-danger small">{{ error }}</div>
+            {% endfor %}
+          </div>
+          <div class="col-6 col-md-3 col-xl-2">
+            <label class="form-label" for="{{ form.floors.id_for_label }}">{{ form.floors.label }}</label>
+            {{ form.floors }}
+          </div>
+          <div class="col-6 col-md-3 col-xl-2">
+            <label class="form-label" for="{{ form.units_per_floor.id_for_label }}">{{ form.units_per_floor.label }}</label>
+            {{ form.units_per_floor }}
+          </div>
+          <div class="col-6 col-md-3 col-xl-2">
+            <label class="form-label" for="{{ form.starting_floor.id_for_label }}">{{ form.starting_floor.label }}</label>
+            {{ form.starting_floor }}
+            <div class="form-text">{{ form.starting_floor.help_text }}</div>
+          </div>
+          <div class="col-6 col-md-3 col-xl-2">
+            <label class="form-label" for="{{ form.numbering_style.id_for_label }}">{{ form.numbering_style.label }}</label>
+            {{ form.numbering_style }}
+          </div>
+          <div class="col-6 col-md-3 col-xl-2">
+            <label class="form-label" for="{{ form.starting_number.id_for_label }}">{{ form.starting_number.label }}</label>
+            {{ form.starting_number }}
+            <div class="form-text">{{ form.starting_number.help_text }}</div>
+          </div>
+          <div class="col-6 col-md-3 col-xl-3">
+            <label class="form-label" for="{{ form.default_unit_type.id_for_label }}">{{ form.default_unit_type.label }}</label>
+            {{ form.default_unit_type }}
+          </div>
+          <div class="col-6 col-md-3 col-xl-2">
+            <label class="form-label" for="{{ form.default_area_sqft.id_for_label }}">{{ form.default_area_sqft.label }}</label>
+            {{ form.default_area_sqft }}
+          </div>
+          <div class="col-6 col-md-3 col-xl-3">
+            <label class="form-label" for="{{ form.default_chargeable_area_sqft.id_for_label }}">{{ form.default_chargeable_area_sqft.label }}</label>
+            {{ form.default_chargeable_area_sqft }}
+          </div>
+          <div class="col-12 col-xl-2 d-flex align-items-end">
+            <button type="button" class="btn btn-primary w-100" data-generate-grid>
+              <i class="fas fa-magic me-1"></i>{% translate "Generate Grid" %}
+            </button>
+          </div>
+
+          {{ form.units_json }}
+          {% for error in form.units_json.errors %}
+            <div class="col-12">
+              <div class="text-danger small">{{ error }}</div>
+            </div>
           {% endfor %}
         </div>
-        <div class="col-6 col-md-3 col-xl-2">
-          <label class="form-label" for="{{ form.floors.id_for_label }}">{{ form.floors.label }}</label>
-          {{ form.floors }}
-        </div>
-        <div class="col-6 col-md-3 col-xl-2">
-          <label class="form-label" for="{{ form.units_per_floor.id_for_label }}">{{ form.units_per_floor.label }}</label>
-          {{ form.units_per_floor }}
-        </div>
-        <div class="col-6 col-md-3 col-xl-2">
-          <label class="form-label" for="{{ form.starting_floor.id_for_label }}">{{ form.starting_floor.label }}</label>
-          {{ form.starting_floor }}
-          <div class="form-text">{{ form.starting_floor.help_text }}</div>
-        </div>
-        <div class="col-6 col-md-3 col-xl-3">
-          <label class="form-label" for="{{ form.numbering_style.id_for_label }}">{{ form.numbering_style.label }}</label>
-          {{ form.numbering_style }}
-        </div>
-        <div class="col-6 col-md-3 col-xl-2">
-          <label class="form-label" for="{{ form.starting_number.id_for_label }}">{{ form.starting_number.label }}</label>
-          {{ form.starting_number }}
-          <div class="form-text">{{ form.starting_number.help_text }}</div>
-        </div>
-        <div class="col-6 col-md-3 col-xl-3">
-          <label class="form-label" for="{{ form.default_unit_type.id_for_label }}">{{ form.default_unit_type.label }}</label>
-          {{ form.default_unit_type }}
-        </div>
-        <div class="col-6 col-md-3 col-xl-2">
-          <label class="form-label" for="{{ form.default_area_sqft.id_for_label }}">{{ form.default_area_sqft.label }}</label>
-          {{ form.default_area_sqft }}
-        </div>
-        <div class="col-6 col-md-3 col-xl-3">
-          <label class="form-label" for="{{ form.default_chargeable_area_sqft.id_for_label }}">{{ form.default_chargeable_area_sqft.label }}</label>
-          {{ form.default_chargeable_area_sqft }}
-        </div>
-        <div class="col-12 col-xl-2 d-flex align-items-end">
-          <button type="button" class="btn btn-primary w-100" data-generate-grid>
-            <i class="fas fa-magic me-1"></i>{% translate "Generate Grid" %}
-          </button>
-        </div>
-
-        {{ form.units_json }}
-        {% for error in form.units_json.errors %}
-          <div class="col-12">
-            <div class="text-danger small">{{ error }}</div>
-          </div>
-        {% endfor %}
       </div>
-    </div>
 
-    <div class="bulk-unit-grid">
-      <div class="quick-card bulk-panel">
-        <div class="bulk-toolbar">
+      <div class="quick-card bulk-panel bulk-grid-actions">
+        <div class="bulk-section-title">
           <div>
-            <h3 class="h6 mb-1">{% translate "Bulk Actions" %}</h3>
-            <p class="text-muted small mb-0">{% translate "Click cells to select them. Use Ctrl/Cmd-click to multi-select without clearing the previous selection." %}</p>
+            <h3 class="h6 mb-0">{% translate "Bulk Actions" %}</h3>
+            <p class="text-muted small mb-0">{% translate "Select one or more units, then apply changes in one go." %}</p>
           </div>
-
+          <span class="badge text-bg-light">{% translate "Step 2" %}</span>
+        </div>
+        <div class="bulk-toolbar">
           <div class="bulk-summary" data-selection-summary>
             <span>{% translate "Selected" %}: <strong data-selected-count>0</strong></span>
             <span>{% translate "Active" %}: <strong data-active-count>0</strong></span>
@@ -293,19 +321,19 @@
           </div>
         </div>
       </div>
+    </div>
 
-      <div class="quick-card bulk-panel">
-        <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-          <div>
-            <h3 class="h6 mb-1">{% translate "Unit Designer" %}</h3>
-            <p class="text-muted small mb-0">{% translate "Every card is one unit. Edit numbers inline before saving." %}</p>
-          </div>
-          <div class="small text-muted" data-grid-summary>{% translate "No grid generated yet." %}</div>
+    <div class="quick-card bulk-panel bulk-grid-designer">
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+        <div>
+          <h3 class="h6 mb-1">{% translate "Unit Designer" %}</h3>
+          <p class="text-muted small mb-0">{% translate "Every card is one unit. Edit numbers or remove a card before saving." %}</p>
         </div>
-        <div class="bulk-grid-scroll" data-grid-container>
-          <div class="bulk-empty-state">
-            {% translate "Choose a structure, set the dimensions, and generate your grid." %}
-          </div>
+        <div class="small text-muted" data-grid-summary>{% translate "No grid generated yet." %}</div>
+      </div>
+      <div class="bulk-grid-scroll" data-grid-container>
+        <div class="bulk-empty-state">
+          {% translate "Choose a structure, set the dimensions, and generate your grid." %}
         </div>
       </div>
     </div>
@@ -323,5 +351,5 @@
 
 {% block javascript %}
   {{ block.super }}
-  <script defer src="{% static 'js/bulk-unit-form.js' %}?v=20260331a"></script>
+  <script defer src="{% static 'js/bulk-unit-form.js' %}?v=20260608a"></script>
 {% endblock javascript %}

@@ -85,7 +85,12 @@ class VoucherTemplateForm(forms.ModelForm):
         society = kwargs.pop("society", None)
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
-            css = "form-select" if isinstance(field.widget, forms.Select) else "form-control"
+            if isinstance(field.widget, forms.CheckboxInput):
+                css = "form-check-input"
+            elif isinstance(field.widget, forms.Select):
+                css = "form-select"
+            else:
+                css = "form-control"
             field.widget.attrs["class"] = css
 
         if society:
@@ -126,13 +131,17 @@ class VoucherTemplateRowForm(forms.ModelForm):
             field.widget.attrs["class"] = css
 
 
-VoucherTemplateRowFormSet = inlineformset_factory(
-    VoucherTemplate,
-    VoucherTemplateRow,
-    form=VoucherTemplateRowForm,
-    extra=2,
-    can_delete=True,
-)
+def build_voucher_template_row_formset(*, extra=2):
+    return inlineformset_factory(
+        VoucherTemplate,
+        VoucherTemplateRow,
+        form=VoucherTemplateRowForm,
+        extra=extra,
+        can_delete=True,
+    )
+
+
+VoucherTemplateRowFormSet = build_voucher_template_row_formset(extra=2)
 
 
 class LedgerEntryRowForm(forms.Form):

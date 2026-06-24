@@ -4,6 +4,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.db.models import Count
 from django.db.models import Exists
 from django.db.models import OuterRef
@@ -19,12 +20,14 @@ from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.views import View
 from django.views.generic import CreateView
+from django.views.generic import FormView
 from django.views.generic import ListView
 from django.views.generic import TemplateView
 
 from housing_accounting.selection import get_selected_scope
 from members.models import Member
 from members.models import Unit
+from parking.forms import BulkParkingSlotCreateForm
 from parking.forms import ParkingSlotForm
 from parking.forms import ParkingRotationPolicyForm
 from parking.forms import ParkingVehicleLimitForm
@@ -126,6 +129,57 @@ class ParkingSlotCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView)
 
 
 parking_slot_create_view = ParkingSlotCreateView.as_view()
+
+
+class BulkParkingSlotCreateView(LoginRequiredMixin, FormView):
+    form_class = BulkParkingSlotCreateForm
+    template_name = "parking/slot_bulk_form.html"
+    success_message = _("Parking slots created successfully.")
+
+    def get_initial(self):
+        initial = super().get_initial()
+        selected_society, _ = get_selected_scope(self.request)
+        if selected_society:
+            initial["society"] = selected_society
+        return initial
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["form_title"] = _("Bulk Add Parking Slots")
+        context["form_subtitle"] = _(
+            "Generate parking slots in sequence or paste custom slot names and save them in one batch."
+        )
+        context["cancel_url"] = reverse("parking:slot-list")
+        context["cancel_label"] = _("Back to Parking Slots")
+        return context
+
+    def form_valid(self, form):
+        slot_numbers = form.cleaned_data["slot_numbers"]
+        slots = [
+            ParkingSlot(
+                society=form.cleaned_data["society"],
+                slot_number=slot_number,
+                parking_model=form.cleaned_data["parking_model"],
+                slot_type=form.cleaned_data["slot_type"],
+                is_active=form.cleaned_data["is_active"],
+                is_rotational=form.cleaned_data["is_rotational"],
+                is_transferable=form.cleaned_data["is_transferable"],
+            )
+            for slot_number in slot_numbers
+        ]
+        with transaction.atomic():
+            ParkingSlot.objects.bulk_create(slots, batch_size=500)
+        messages.success(
+            self.request,
+            _("Created %(count)s parking slots successfully.") % {"count": len(slots)},
+        )
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        return reverse("parking:slot-list")
+
+
+parking_slot_bulk_create_view = BulkParkingSlotCreateView.as_view()
 
 
 class FlatParkingDashboardListView(LoginRequiredMixin, ListView):
@@ -473,7 +527,7 @@ parking_permit_list_view = ParkingPermitListView.as_view()
 class VehicleCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
     form_class = VehicleForm
     model = Vehicle
-    template_name = "housing/form.html"
+    template_name = "parking/vehicle_form.html"
     success_message = _("Vehicle added successfully.")
 
     def get_initial(self):
@@ -492,7 +546,7 @@ class VehicleCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["form_title"] = _("Add Vehicle")
-        context["form_subtitle"] = _("Register a unit/member vehicle.")
+        context["form_subtitle"] = _("Register and validate a resident vehicle for parking access.")
         context["cancel_url"] = reverse("parking:vehicle-list")
         context["cancel_label"] = _("Back to Vehicles")
         context["auto_reload_society"] = True

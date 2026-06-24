@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% load humanize %}
 
 {% block title %}
   {% translate "Bills" %} | Housing Accounting System
@@ -14,76 +15,120 @@
 {% endblock dashboard_subtitle %}
 
 {% block content %}
-  <div class="action-bar action-bar--responsive">
-    <a href="{% url 'housing:dashboard' %}" class="btn-action btn-action--secondary">
-      <i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}
-    </a>
+  <div class="action-bar action-bar--responsive mb-4">
+    <div class="action-bar__group">
+      <a href="{% url 'housing:dashboard' %}" class="btn-action btn-action--secondary">
+        <i class="fas fa-arrow-left me-1"></i>{% translate "Dashboard" %}
+      </a>
+    </div>
     <div class="action-bar__group action-bar__group--push">
+      <a href="{% url 'billing:charge-template-list' %}" class="btn-action btn-action--outline-primary">
+        <i class="fas fa-list-alt me-1"></i>{% translate "Charge Templates" %}
+      </a>
+      <a href="{% url 'housing:charge-template-add' %}?next={{ request.get_full_path|urlencode }}" class="btn-action btn-action--secondary">
+        <i class="fas fa-plus-circle me-1"></i>{% translate "Add Charge Template" %}
+      </a>
       <a href="{% url 'housing:billing-generate' %}" class="btn-action btn-action--primary">
         <i class="fas fa-plus me-1"></i>{% translate "Generate Bills" %}
       </a>
     </div>
   </div>
 
-  <div class="table-responsive-wrapper">
-    <table class="table-enhanced">
-      <thead>
-        <tr>
-          <th>{% translate "Bill #" %}</th>
-          <th>{% translate "Member" %}</th>
-          <th>{% translate "Unit" %}</th>
-          <th>{% translate "Bill Date" %}</th>
-          <th>{% translate "Due Date" %}</th>
-          <th>{% translate "Status" %}</th>
-          <th class="text-end">{% translate "Total" %}</th>
-          <th class="text-end">{% translate "Outstanding" %}</th>
-          <th class="text-end">{% translate "Action" %}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for bill in bills %}
-          <tr>
-            <td>
-              <a href="{% url 'billing:bill-detail' bill.pk %}" class="text-decoration-none">
-                {{ bill.bill_number }}
-              </a>
-            </td>
-            <td>
-              <a href="{% url 'members:member-detail' bill.member_id %}" class="text-decoration-none">
-                {{ bill.member.full_name }}
-              </a>
-            </td>
-            <td>{{ bill.unit.identifier }}</td>
-            <td>{{ bill.bill_date|date:"M d, Y" }}</td>
-            <td>{{ bill.due_date|date:"M d, Y" }}</td>
-            <td>
-              {% if bill.status == "PAID" %}
-                <span class="badge-status badged-status--success">{{ bill.get_status_display }}</span>
-              {% elif bill.status == "PARTIAL" %}
-                <span class="badge-status badged-status--warning">{{ bill.get_status_display }}</span>
-              {% elif bill.status == "OVERDUE" %}
-                <span class="badge-status badged-status--danger">{{ bill.get_status_display }}</span>
-              {% else %}
-                <span class="badge-status badged-status--secondary">{{ bill.get_status_display }}</span>
-              {% endif %}
-            </td>
-            <td class="text-end">{{ bill.total_amount }}</td>
-            <td class="text-end">{{ bill.outstanding_amount_value }}</td>
-            <td class="text-end">
-              <a href="{% url 'billing:bill-detail' bill.pk %}" class="btn-action btn-action--sm btn-action--outline-primary">
-                <i class="fas fa-folder-open me-1"></i>{% translate "Open" %}
-              </a>
-            </td>
-          </tr>
-        {% empty %}
-          <tr>
-            <td colspan="9" class="text-center text-muted py-4">
-              {% include "components/empty_state.html" with icon="fa-file-invoice" title=_("No bills found") message=_("Generate your first bill to get started.") action_url="housing:billing-generate" action_label=_("Generate Bills") action_icon="fas fa-plus" %}
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-file-invoice" label=_("Total Bills") value=bills|length color="primary" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-check-circle" label=_("Paid") value=paid_count|default:0 color="success" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-clock" label=_("Partial") value=partial_count|default:0 color="warning" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-exclamation-triangle" label=_("Overdue") value=overdue_count|default:0 color="danger" %}
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="content-card__header d-flex justify-content-between align-items-center">
+      <div>
+        <h3 class="content-card__title mb-0">{% translate "Bill Register" %}</h3>
+        <div class="text-muted small">{% translate "Latest bill activity and current balance status." %}</div>
+      </div>
+    </div>
+    <div class="content-card__body p-0">
+      {% if bills %}
+        <div class="table-responsive">
+          <table class="table table-hover mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>{% translate "Bill #" %}</th>
+                <th>{% translate "Member" %}</th>
+                <th>{% translate "Unit" %}</th>
+                <th>{% translate "Bill Date" %}</th>
+                <th>{% translate "Due Date" %}</th>
+                <th>{% translate "Status" %}</th>
+                <th class="text-end">{% translate "Total" %}</th>
+                <th class="text-end">{% translate "Outstanding" %}</th>
+                <th class="text-end">{% translate "Action" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for bill in bills %}
+                <tr>
+                  <td>
+                    <a href="{% url 'billing:bill-detail' bill.pk %}" class="text-decoration-none fw-medium">
+                      {{ bill.bill_number }}
+                    </a>
+                  </td>
+                  <td>
+                    <a href="{% url 'members:member-detail' bill.member_id %}" class="text-decoration-none">
+                      {{ bill.member.full_name }}
+                    </a>
+                  </td>
+                  <td>
+                    <span class="badge bg-light text-dark border">{{ bill.unit.identifier }}</span>
+                  </td>
+                  <td>{{ bill.bill_date|date:"d M Y" }}</td>
+                  <td>{{ bill.due_date|date:"d M Y" }}</td>
+                  <td>
+                    {% if bill.status == "PAID" %}
+                      <span class="badge bg-success">{{ bill.get_status_display }}</span>
+                    {% elif bill.status == "PARTIAL" %}
+                      <span class="badge bg-warning text-dark">{{ bill.get_status_display }}</span>
+                    {% elif bill.status == "OVERDUE" %}
+                      <span class="badge bg-danger">{{ bill.get_status_display }}</span>
+                    {% else %}
+                      <span class="badge bg-secondary">{{ bill.get_status_display }}</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">{{ bill.total_amount|floatformat:2|intcomma }}</td>
+                  <td class="text-end fw-semibold {% if bill.outstanding_amount_value > 0 %}text-danger{% else %}text-success{% endif %}">
+                    {{ bill.outstanding_amount_value|floatformat:2|intcomma }}
+                  </td>
+                  <td class="text-end">
+                    <div class="d-inline-flex gap-2 justify-content-end flex-wrap">
+                      <a href="{% url 'billing:bill-detail' bill.pk %}" class="btn-action btn-action--sm btn-action--outline-primary">
+                        <i class="fas fa-folder-open me-1"></i>{% translate "Open" %}
+                      </a>
+                      {% if bill.outstanding_amount_value > 0 %}
+                        <a href="{% url 'housing:receipt-post' %}?bill={{ bill.pk }}" class="btn-action btn-action--sm btn-action--primary">
+                          <i class="fas fa-money-check-alt me-1"></i>{% translate "Post Receipt" %}
+                        </a>
+                      {% endif %}
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-4 text-center text-muted">
+          {% include "components/empty_state.html" with icon="fa-file-invoice" title=_("No bills found") message=_("Generate your first bill to get started.") action_url="housing:billing-generate" action_label=_("Generate Bills") action_icon="fas fa-plus" %}
+        </div>
+      {% endif %}
+    </div>
   </div>
 
   {% include "components/pagination.html" with aria_label=_("Bills pagination") %}

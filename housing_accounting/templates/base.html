@@ -12,7 +12,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Multi-user housing society accounting and management system" />
     <meta name="author" content="Tushar Sagoankar" />
-    <link rel="icon" href="{% static 'images/favicons/favicon.ico' %}" />
+    <link rel="icon" type="image/png" href="{% static 'images/brand/housynk-logo-mark-transparent.png' %}" />
 
     <script src="/static/vendor/kaiadmin-lite/assets/js/plugin/webfont/webfont.min.js"></script>
     <script>
@@ -56,6 +56,7 @@
       <script defer src="{% static 'vendor/kaiadmin-lite/assets/js/core/bootstrap.min.js' %}"></script>
       <script defer src="{% static 'vendor/kaiadmin-lite/assets/js/plugin/jquery-scrollbar/jquery.scrollbar.min.js' %}"></script>
       <script defer src="{% static 'vendor/kaiadmin-lite/assets/js/kaiadmin.min.js' %}"></script>
+      <script defer src="https://unpkg.com/htmx.org@1.9.12"></script>
       <script defer src="{% static 'js/toast.js' %}"></script>
       <script defer src="{% static 'js/components.js' %}"></script>
       <script defer src="{% static 'js/project.js' %}?v=20260429"></script>
@@ -71,9 +72,11 @@
         <div class="sidebar" data-background-color="dark">
           <div class="sidebar-logo">
             <div class="logo-header" data-background-color="dark">
-              <a href="{% url 'home' %}" class="logo app-logo" aria-label="Housing Accounting Home">
-                <span class="logo-badge">HA</span>
-                <span class="logo-label">Housing Accounting</span>
+              <a href="{% url 'home' %}" class="logo app-logo" aria-label="Housynk Home">
+                <picture class="app-logo-picture">
+                  <source srcset="{% static 'images/brand/housynk-logo-horizontal-transparent.png' %}" media="(min-width: 992px)" />
+                  <img src="{% static 'images/brand/housynk-logo-square-transparent.png' %}" alt="Housynk" class="app-logo-image" width="132" height="42" />
+                </picture>
               </a>
               <div class="nav-toggle">
                 <button class="btn btn-toggle toggle-sidebar" type="button" aria-label="Toggle sidebar">
@@ -98,22 +101,15 @@
                   <h4 class="text-section">{% translate "Main" %}</h4>
                 </li>
 
-                  <li class="nav-item {% if current_namespace == 'housing' and current_url_name == 'dashboard' %}active{% endif %}">
-                    <a href="{% url 'housing:dashboard' %}" aria-label="Dashboard">
+                  <li class="nav-item {% if current_url_name == 'home' %}active{% endif %}">
+                    <a href="{% url 'home' %}" aria-label="Dashboard" data-workspace-link hx-get="{% url 'home' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
                       <i class="fas fa-tachometer-alt"></i>
                       <p>{% translate "Dashboard" %}</p>
                     </a>
                   </li>
 
-                  <li class="nav-item {% if current_url_name == 'home' %}active{% endif %}">
-                    <a href="{% url 'home' %}" aria-label="Home">
-                      <i class="fas fa-home"></i>
-                      <p>{% translate "Home" %}</p>
-                    </a>
-                  </li>
-
                   <li class="nav-item {% if current_namespace == 'housing' and current_url_name == 'structure-unit-dashboard' or current_namespace == 'housing' and current_url_name == 'structure-add' or current_namespace == 'housing' and current_url_name == 'unit-add' or current_namespace == 'housing' and current_url_name == 'unit-bulk-add' or current_namespace == 'housing' and current_url_name == 'ownership-add' or current_namespace == 'housing' and current_url_name == 'occupancy-add' %}active{% endif %}">
-                    <a href="{% url 'housing:structure-unit-dashboard' %}" aria-label="Structure & Units">
+                    <a href="{% url 'housing:structure-unit-dashboard' %}" aria-label="Structure & Units" data-workspace-link hx-get="{% url 'housing:structure-unit-dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
                       <i class="fas fa-sitemap"></i>
                       <p>{% translate "Structure & Units" %}</p>
                     </a>
@@ -125,35 +121,35 @@
                 </li>
 
                   <li class="nav-item {% if current_namespace == 'housing' and current_url_name == 'society-list' or current_namespace == 'housing' and current_url_name == 'society-detail' or current_namespace == 'housing' and current_url_name == 'society-admin' or current_namespace == 'housing' and current_url_name == 'society-add' %}active{% endif %}">
-                    <a href="{% url 'housing:society-list' %}" aria-label="Societies">
+                    <a href="{% url 'housing:society-list' %}" aria-label="Societies" data-workspace-link hx-get="{% url 'housing:society-list' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
                       <i class="fas fa-building"></i>
                       <p>{% translate "Societies" %}</p>
                     </a>
                   </li>
 
                   <li class="nav-item {% if current_namespace == 'parking' %}active{% endif %}">
-                    <a href="{% url 'parking:dashboard' %}" aria-label="Parking">
+                    <a href="{% url 'parking:dashboard' %}" aria-label="Parking" data-workspace-link hx-get="{% url 'parking:dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
                       <i class="fas fa-parking"></i>
                       <p>{% translate "Parking" %}</p>
                     </a>
                   </li>
 
                   <li class="nav-item {% if current_namespace == 'housing' and current_url_name == 'member-list' or current_namespace == 'housing' and current_url_name == 'member-edit' or current_namespace == 'housing' and current_url_name == 'member-add' or current_namespace == 'members' %}active{% endif %}">
-                    <a href="{% url 'housing:member-list' %}" aria-label="Members">
+                    <a href="{% url 'housing:member-list' %}" aria-label="Members" data-workspace-link hx-get="{% url 'housing:member-list' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
                       <i class="fas fa-users"></i>
                       <p>{% translate "Members" %}</p>
                     </a>
                   </li>
 
                   <li class="nav-item {% if current_namespace == 'shares' %}active{% endif %}">
-                    <a href="{% url 'shares:dashboard' %}" aria-label="Shares">
+                    <a href="{% url 'shares:dashboard' %}" aria-label="Shares" data-workspace-link hx-get="{% url 'shares:dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
                       <i class="fas fa-certificate"></i>
                       <p>{% translate "Shares" %}</p>
                     </a>
                   </li>
 
                   <li class="nav-item {% if current_namespace == 'accounting' %}active{% endif %}">
-                    <a href="{% url 'accounting:dashboard' %}" aria-label="Accounting">
+                    <a href="{% url 'accounting:dashboard' %}" aria-label="Accounting" data-workspace-link hx-get="{% url 'accounting:dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
                       <i class="fas fa-calculator"></i>
                       <p>{% translate "Accounting" %}</p>
                     </a>
@@ -165,30 +161,37 @@
                 </li>
 
                   <li class="nav-item {% if current_namespace == 'reports' %}active{% endif %}">
-                    <a href="{% url 'reports:index' %}" aria-label="Reports">
+                    <a href="{% url 'reports:index' %}" aria-label="Reports" data-workspace-link hx-get="{% url 'reports:index' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
                       <i class="fas fa-chart-bar"></i>
                       <p>{% translate "Reports" %}</p>
                     </a>
                   </li>
 
                   <li class="nav-item {% if current_namespace == 'billing' and current_url_name == 'charge-template-list' or current_namespace == 'billing' and current_url_name == 'bill-list' or current_namespace == 'billing' and current_url_name == 'bill-detail' or current_namespace == 'housing' and current_url_name == 'charge-template-add' or current_namespace == 'housing' and current_url_name == 'billing-generate' %}active{% endif %}">
-                    <a href="{% url 'billing:bill-list' %}" aria-label="Bills">
+                    <a href="{% url 'billing:bill-list' %}" aria-label="Bills" data-workspace-link hx-get="{% url 'billing:bill-list' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
                       <i class="fas fa-file-invoice-dollar"></i>
                       <p>{% translate "Bills" %}</p>
                     </a>
                   </li>
 
                   <li class="nav-item {% if current_namespace == 'receipts' %}active{% endif %}">
-                    <a href="{% url 'receipts:receipt-list' %}" aria-label="Receipts">
+                    <a href="{% url 'receipts:receipt-list' %}" aria-label="Receipts" data-workspace-link hx-get="{% url 'receipts:receipt-list' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
                       <i class="fas fa-receipt"></i>
                       <p>{% translate "Receipts" %}</p>
                     </a>
                   </li>
 
                   <li class="nav-item {% if current_namespace == 'housing' and current_url_name == 'outstanding-dashboard' %}active{% endif %}">
-                    <a href="{% url 'housing:outstanding-dashboard' %}" aria-label="Outstanding">
+                    <a href="{% url 'housing:outstanding-dashboard' %}" aria-label="Outstanding" data-workspace-link hx-get="{% url 'housing:outstanding-dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
                       <i class="fas fa-exclamation-triangle"></i>
                       <p>{% translate "Outstanding" %}</p>
+                    </a>
+                  </li>
+
+                  <li class="nav-item {% if current_namespace == 'reconciliation' %}active{% endif %}">
+                    <a href="{% url 'reconciliation:dashboard' %}" aria-label="Reconciliation" data-workspace-link hx-get="{% url 'reconciliation:dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
+                      <i class="fas fa-balance-scale"></i>
+                      <p>{% translate "Reconciliation" %}</p>
                     </a>
                   </li>
 
@@ -197,7 +200,7 @@
                 </li>
 
                   <li class="nav-item {% if current_namespace == 'notifications' and current_url_name == 'reminder-list' or current_namespace == 'housing' and current_url_name == 'reminder-schedule' %}active{% endif %}">
-                    <a href="{% url 'notifications:reminder-list' %}" aria-label="Reminders">
+                    <a href="{% url 'notifications:reminder-list' %}" aria-label="Reminders" data-workspace-link hx-get="{% url 'notifications:reminder-list' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
                       <i class="fas fa-bell"></i>
                       <p>{% translate "Reminders" %}</p>
                     </a>
@@ -234,9 +237,11 @@
           <div class="main-header">
             <div class="main-header-logo">
               <div class="logo-header" data-background-color="dark">
-                <a href="{% url 'home' %}" class="logo app-logo" aria-label="Housing Accounting Home">
-                  <span class="logo-badge">HA</span>
-                  <span class="logo-label">Housing Accounting</span>
+                <a href="{% url 'home' %}" class="logo app-logo" aria-label="Housynk Home">
+                  <picture class="app-logo-picture">
+                    <source srcset="{% static 'images/brand/housynk-logo-horizontal-transparent.png' %}" media="(min-width: 992px)" />
+                    <img src="{% static 'images/brand/housynk-logo-square-transparent.png' %}" alt="Housynk" class="app-logo-image" width="132" height="42" />
+                  </picture>
                 </a>
                 <div class="nav-toggle">
                   <button class="btn btn-toggle toggle-sidebar" type="button" aria-label="Toggle sidebar">
@@ -275,7 +280,7 @@
                             {% endif %}
                           </div>
                         </div>
-                        <form method="post" action="{% url 'users:selection-update' %}" class="selection-form" id="societySelectionForm" aria-label="Society and Financial Year Selection">
+                        <form method="post" action="{% url 'users:selection-update' %}" class="selection-form" id="societySelectionForm" aria-label="Society and Financial Year Selection" hx-boost="false">
                           {% csrf_token %}
                           <input type="hidden" name="next" value="{{ request.get_full_path }}" id="nextUrlField" />
                           <label class="small mb-0" for="id_selected_society">{% translate "Society" %}</label>
@@ -339,6 +344,9 @@
           </div>
 
           <div class="container" id="main-content" tabindex="-1">
+            <div id="workspace-loading" class="workspace-loading htmx-indicator" role="status" aria-live="polite">
+              <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>{% translate "Loading..." %}
+            </div>
             <div class="page-inner">
               {% if messages %}
                 {% for message in messages %}
@@ -350,7 +358,7 @@
               {% endif %}
 
               <div class="dashboard-content-card card card-round">
-                <div class="card-body">
+                <div class="card-body" id="workspace" tabindex="-1">
                   {% block main %}
                     {% block content %}
                       <div class="row g-3">
