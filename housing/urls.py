@@ -3,6 +3,7 @@ from django.views.generic import RedirectView
 
 from housing.views import billing_generate_view
 from housing.views import charge_template_create_view
+from housing.views import finance_dashboard_view
 from housing.views import email_verification_view
 from housing.views import member_create_view
 from housing.views import member_list_view
@@ -68,6 +69,7 @@ urlpatterns = [
         name="charge-template-add",
     ),
     path("billing/generate/", view=billing_generate_view, name="billing-generate"),
+    path("finance/", view=finance_dashboard_view, name="finance-dashboard"),
     path("receipts/post/", view=receipt_post_view, name="receipt-post"),
     path("outstanding/", view=outstanding_dashboard_view, name="outstanding-dashboard"),
     path("reminders/schedule/", view=reminder_schedule_view, name="reminder-schedule"),

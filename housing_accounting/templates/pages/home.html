@@ -38,28 +38,16 @@
             </p>
             <div class="row g-3">
               <div class="col-6 col-md-3">
-                <div class="rounded-4 p-3 h-100" style="background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.22);">
-                  <div class="small text-white-50 text-uppercase fw-bold">{% translate "Societies" %}</div>
-                  <div class="h3 fw-bold mb-0">{{ total_societies|default:0|intcomma }}</div>
-                </div>
+                {% include "components/stat_card.html" with icon="fas fa-building" label=_("Societies") value=total_societies|default:0 color="light" %}
               </div>
               <div class="col-6 col-md-3">
-                <div class="rounded-4 p-3 h-100" style="background: rgba(255,255,255,0.16); border: 1px solid rgba(255,255,255,0.22);">
-                  <div class="small text-white-50 text-uppercase fw-bold">{% translate "Units" %}</div>
-                  <div class="h3 fw-bold mb-0">{{ total_units|default:0|intcomma }}</div>
-                </div>
+                {% include "components/stat_card.html" with icon="fas fa-door-open" label=_("Units") value=total_units|default:0 color="light" %}
               </div>
               <div class="col-6 col-md-3">
-                <div class="rounded-4 p-3 h-100" style="background: rgba(25,135,84,0.30); border: 1px solid rgba(255,255,255,0.22);">
-                  <div class="small text-white-50 text-uppercase fw-bold">{% translate "Collected" %}</div>
-                  <div class="h3 fw-bold mb-0">{{ total_collected|default:0|intcomma }}</div>
-                </div>
+                {% include "components/stat_card.html" with icon="fas fa-wallet" label=_("Collected") value=total_collected|default:0 color="success" %}
               </div>
               <div class="col-6 col-md-3">
-                <div class="rounded-4 p-3 h-100" style="background: rgba(255,193,7,0.28); border: 1px solid rgba(255,255,255,0.22);">
-                  <div class="small text-white-50 text-uppercase fw-bold">{% translate "Collection" %}</div>
-                  <div class="h3 fw-bold mb-0">{{ collection_rate|default:"0.00" }}%</div>
-                </div>
+                {% include "components/stat_card.html" with icon="fas fa-percentage" label=_("Collection") value=collection_rate|default:"0.00" color="warning" %}
               </div>
             </div>
           </div>
@@ -107,261 +95,170 @@
 
   <section class="row g-3 mb-4">
     <div class="col-sm-6 col-xl-3">
-      <a href="{% url 'housing:structure-unit-dashboard' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-reset">
-        <div class="card-body d-flex align-items-center gap-3">
-          <span class="rounded-circle bg-primary bg-opacity-10 text-primary d-inline-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-            <i class="fas fa-city"></i>
-          </span>
-          <div>
-            <div class="fw-bold">{% translate "Housing" %}</div>
-            <div class="small text-muted">{% translate "Societies and members" %}</div>
-          </div>
-        </div>
-      </a>
+      {% include "components/stat_card.html" with href=structure_dashboard_url icon="fas fa-city" label=_("Housing") value=total_structures|default:0 subtitle=_("Societies and units") color="primary" %}
     </div>
     <div class="col-sm-6 col-xl-3">
-      <a href="{% url 'billing:bill-list' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-reset">
-        <div class="card-body d-flex align-items-center gap-3">
-          <span class="rounded-circle bg-success bg-opacity-10 text-success d-inline-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-            <i class="fas fa-file-invoice"></i>
-          </span>
-          <div>
-            <div class="fw-bold">{% translate "Billing" %}</div>
-            <div class="small text-muted">{% translate "Bills and receipts" %}</div>
-          </div>
-        </div>
-      </a>
+      {% include "components/stat_card.html" with href=finance_dashboard_url icon="fas fa-file-invoice-dollar" label=_("Finance Hub") value=total_billed|default:0 subtitle=_("Bills, receipts, and outstanding") color="success" %}
     </div>
     <div class="col-sm-6 col-xl-3">
-      <a href="{% url 'accounting:dashboard' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-reset">
-        <div class="card-body d-flex align-items-center gap-3">
-          <span class="rounded-circle bg-info bg-opacity-10 text-info d-inline-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-            <i class="fas fa-calculator"></i>
-          </span>
-          <div>
-            <div class="fw-bold">{% translate "Accounting" %}</div>
-            <div class="small text-muted">{% translate "Vouchers and ledgers" %}</div>
-          </div>
-        </div>
-      </a>
+      {% include "components/stat_card.html" with href=accounting_dashboard_url icon="fas fa-calculator" label=_("Accounting") value=draft_vouchers|default:0 subtitle=_("Vouchers and ledgers") color="info" %}
     </div>
     <div class="col-sm-6 col-xl-3">
-      <a href="{% url 'reconciliation:dashboard' %}" class="card border-0 shadow-sm h-100 text-decoration-none text-reset">
-        <div class="card-body d-flex align-items-center gap-3">
-          <span class="rounded-circle bg-warning bg-opacity-10 text-warning d-inline-flex align-items-center justify-content-center" style="width: 48px; height: 48px;">
-            <i class="fas fa-balance-scale"></i>
-          </span>
-          <div>
-            <div class="fw-bold">{% translate "Reconciliation" %}</div>
-            <div class="small text-muted">{% translate "Bank matching" %}</div>
-          </div>
-        </div>
-      </a>
+      {% include "components/stat_card.html" with href=reconciliation_dashboard_url icon="fas fa-balance-scale" label=_("Reconciliation") value=failed_reminders|default:0 subtitle=_("Bank matching") color="warning" %}
     </div>
   </section>
-
-  <section class="row g-3 mb-4">
-    <div class="col-12 col-md-6 col-xl-3">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start mb-3">
-            <div>
-              <div class="small text-muted text-uppercase fw-bold">{% translate "Structure" %}</div>
-              <h5 class="fw-bold mb-0">{% translate "Societies & Units" %}</h5>
-            </div>
-            <i class="fas fa-sitemap text-primary fa-lg"></i>
-          </div>
-          <div class="d-flex justify-content-between small mb-2"><span>{% translate "Structures" %}</span><span class="fw-semibold">{{ total_structures|default:0|intcomma }}</span></div>
-          <div class="d-flex justify-content-between small mb-2"><span>{% translate "Active units" %}</span><span class="fw-semibold">{{ active_units|default:0|intcomma }}</span></div>
-          <div class="d-flex justify-content-between small"><span>{% translate "Vacant units" %}</span><span class="fw-semibold">{{ vacant_units|default:0|intcomma }}</span></div>
-        </div>
-      </div>
-    </div>
-    <div class="col-12 col-md-6 col-xl-3">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start mb-3">
-            <div>
-              <div class="small text-muted text-uppercase fw-bold">{% translate "Residents" %}</div>
-              <h5 class="fw-bold mb-0">{% translate "Members" %}</h5>
-            </div>
-            <i class="fas fa-users text-success fa-lg"></i>
-          </div>
-          <div class="d-flex justify-content-between small mb-2"><span>{% translate "Active" %}</span><span class="fw-semibold">{{ active_members|default:0|intcomma }}</span></div>
-          <div class="d-flex justify-content-between small mb-2"><span>{% translate "Owners" %}</span><span class="fw-semibold">{{ owner_members|default:0|intcomma }}</span></div>
-          <div class="d-flex justify-content-between small"><span>{% translate "Tenants" %}</span><span class="fw-semibold">{{ tenant_members|default:0|intcomma }}</span></div>
-        </div>
-      </div>
-    </div>
-    <div class="col-12 col-md-6 col-xl-3">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start mb-3">
-            <div>
-              <div class="small text-muted text-uppercase fw-bold">{% translate "Billing" %}</div>
-              <h5 class="fw-bold mb-0">{% translate "Collections" %}</h5>
-            </div>
-            <i class="fas fa-indian-rupee-sign text-warning fa-lg"></i>
-          </div>
-          <div class="d-flex justify-content-between small mb-2"><span>{% translate "Billed" %}</span><span class="fw-semibold">{{ total_billed|default:0|intcomma }}</span></div>
-          <div class="d-flex justify-content-between small mb-2"><span>{% translate "Open bills" %}</span><span class="fw-semibold">{{ open_bills|default:0|intcomma }}</span></div>
-          <div class="d-flex justify-content-between small"><span>{% translate "Partial bills" %}</span><span class="fw-semibold">{{ partial_bills|default:0|intcomma }}</span></div>
-        </div>
-      </div>
-    </div>
-    <div class="col-12 col-md-6 col-xl-3">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-body">
-          <div class="d-flex justify-content-between align-items-start mb-3">
-            <div>
-              <div class="small text-muted text-uppercase fw-bold">{% translate "Operations" %}</div>
-              <h5 class="fw-bold mb-0">{% translate "Parking & Alerts" %}</h5>
-            </div>
-            <i class="fas fa-square-parking text-info fa-lg"></i>
-          </div>
-          <div class="d-flex justify-content-between small mb-2"><span>{% translate "Active vehicles" %}</span><span class="fw-semibold">{{ active_vehicles|default:0|intcomma }}</span></div>
-          <div class="d-flex justify-content-between small mb-2"><span>{% translate "Active permits" %}</span><span class="fw-semibold">{{ active_permits|default:0|intcomma }}</span></div>
-          <div class="d-flex justify-content-between small"><span>{% translate "Queued reminders" %}</span><span class="fw-semibold">{{ queued_reminders|default:0|intcomma }}</span></div>
-        </div>
-      </div>
-    </div>
-  </section>
-
   <section class="row g-4">
-    <div class="col-xl-4">
+    <div class="col-lg-7">
       <div class="card border-0 shadow-sm h-100">
-        <div class="card-header bg-white border-0 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
           <div>
-            <h5 class="mb-1"><i class="fas fa-file-invoice text-primary me-2"></i>{% translate "Recent Bills" %}</h5>
-            <div class="small text-muted">{% translate "Latest member bills and due status." %}</div>
+            <h5 class="mb-1"><i class="fas fa-bolt text-primary me-2"></i>{% translate "Quick Actions" %}</h5>
+            <div class="small text-muted">{% translate "Open the most used workflows from here." %}</div>
           </div>
-          <a href="{% url 'billing:bill-list' %}" class="btn btn-sm btn-outline-primary">{% translate "View all" %}</a>
         </div>
-        <div class="card-body p-0">
-          {% if recent_bills %}
-            <div class="table-responsive border-0 shadow-none">
-              <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th>{% translate "Bill" %}</th>
-                    <th>{% translate "Member" %}</th>
-                    <th class="text-end">{% translate "Amount" %}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for bill in recent_bills %}
-                    <tr>
-                      <td>
-                        <a href="{% url 'billing:bill-detail' bill.pk %}" class="fw-semibold text-decoration-none">#{{ bill.bill_number }}</a>
-                        <div class="small text-muted">{{ bill.bill_date|date:"d M" }} · {{ bill.status }}</div>
-                      </td>
-                      <td class="text-truncate" style="max-width: 140px;">{{ bill.member.full_name }}</td>
-                      <td class="text-end fw-semibold">{{ bill.total_amount|intcomma }}</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <a href="{% url 'billing:bill-list' %}" class="card border h-100 text-decoration-none text-reset">
+                <div class="card-body d-flex align-items-center gap-3">
+                  <i class="fas fa-file-invoice text-primary fa-lg"></i>
+                  <div>
+                    <div class="fw-semibold">{% translate "Bills" %}</div>
+                    <div class="small text-muted">{% translate "Open bill register" %}</div>
+                  </div>
+                </div>
+              </a>
             </div>
-          {% else %}
-            <div class="p-5 text-muted text-center">
-              <i class="fas fa-file-invoice fa-2x mb-3 d-block text-muted opacity-50"></i>
-              {% translate "No bills found." %}
+            <div class="col-12 col-md-6">
+              <a href="{% url 'receipts:receipt-list' %}" class="card border h-100 text-decoration-none text-reset">
+                <div class="card-body d-flex align-items-center gap-3">
+                  <i class="fas fa-money-check-alt text-success fa-lg"></i>
+                  <div>
+                    <div class="fw-semibold">{% translate "Receipts" %}</div>
+                    <div class="small text-muted">{% translate "Review collections" %}</div>
+                  </div>
+                </div>
+              </a>
             </div>
-          {% endif %}
+            <div class="col-12 col-md-6">
+              <a href="{% url 'housing:outstanding-dashboard' %}" class="card border h-100 text-decoration-none text-reset">
+                <div class="card-body d-flex align-items-center gap-3">
+                  <i class="fas fa-exclamation-triangle text-danger fa-lg"></i>
+                  <div>
+                    <div class="fw-semibold">{% translate "Outstanding" %}</div>
+                    <div class="small text-muted">{% translate "Aging and overdue dues" %}</div>
+                  </div>
+                </div>
+              </a>
+            </div>
+            <div class="col-12 col-md-6">
+              <a href="{% url 'accounting:voucher-list' %}" class="card border h-100 text-decoration-none text-reset">
+                <div class="card-body d-flex align-items-center gap-3">
+                  <i class="fas fa-book text-info fa-lg"></i>
+                  <div>
+                    <div class="fw-semibold">{% translate "Accounting" %}</div>
+                    <div class="small text-muted">{% translate "Vouchers and ledgers" %}</div>
+                  </div>
+                </div>
+              </a>
+            </div>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="col-xl-4">
+    <div class="col-lg-5">
       <div class="card border-0 shadow-sm h-100">
-        <div class="card-header bg-white border-0 d-flex flex-wrap justify-content-between align-items-center gap-2">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
           <div>
-            <h5 class="mb-1"><i class="fas fa-money-check-alt text-success me-2"></i>{% translate "Recent Receipts" %}</h5>
-            <div class="small text-muted">{% translate "Latest posted and draft receipts." %}</div>
+            <h5 class="mb-1"><i class="fas fa-list-check text-warning me-2"></i>{% translate "At a Glance" %}</h5>
+            <div class="small text-muted">{% translate "A compact view of current workload." %}</div>
           </div>
-          <a href="{% url 'receipts:receipt-list' %}" class="btn btn-sm btn-outline-success">{% translate "View all" %}</a>
         </div>
-        <div class="card-body p-0">
-          {% if recent_receipts %}
-            <div class="table-responsive border-0 shadow-none">
-              <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th>{% translate "Receipt" %}</th>
-                    <th>{% translate "Member" %}</th>
-                    <th class="text-end">{% translate "Amount" %}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for receipt in recent_receipts %}
-                    <tr>
-                      <td>
-                        <a href="{% url 'receipts:receipt-detail' receipt.pk %}" class="fw-semibold text-decoration-none">#{{ receipt.id }}</a>
-                        <div class="small text-muted">{{ receipt.receipt_date|date:"d M" }} · {{ receipt.status }}</div>
-                      </td>
-                      <td class="text-truncate" style="max-width: 140px;">{{ receipt.member.full_name }}</td>
-                      <td class="text-end fw-semibold">{{ receipt.amount|intcomma }}</td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
+        <div class="card-body">
+          <div class="list-group list-group-flush">
+            <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+              <span>{% translate "Open bills" %}</span>
+              <span class="badge bg-primary rounded-pill">{{ open_bills|default:0 }}</span>
             </div>
-          {% else %}
-            <div class="p-5 text-muted text-center">
-              <i class="fas fa-money-check-alt fa-2x mb-3 d-block text-muted opacity-50"></i>
-              {% translate "No receipts found." %}
+            <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+              <span>{% translate "Overdue bills" %}</span>
+              <span class="badge bg-danger rounded-pill">{{ overdue_bills|default:0 }}</span>
             </div>
-          {% endif %}
+            <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+              <span>{% translate "Due today" %}</span>
+              <span class="badge bg-warning text-dark rounded-pill">{{ due_today_bills|default:0 }}</span>
+            </div>
+            <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+              <span>{% translate "Posted receipts" %}</span>
+              <span class="badge bg-success rounded-pill">{{ posted_receipts|default:0 }}</span>
+            </div>
+            <div class="list-group-item d-flex justify-content-between align-items-center px-0">
+              <span>{% translate "Queued reminders" %}</span>
+              <span class="badge bg-secondary rounded-pill">{{ queued_reminders|default:0 }}</span>
+            </div>
+          </div>
         </div>
       </div>
     </div>
+  </section>
 
-    <div class="col-xl-4">
-      <div class="card border-0 shadow-sm h-100">
-        <div class="card-header bg-white border-0 d-flex flex-wrap justify-content-between align-items-center gap-2">
+  <section class="row g-4 mt-1">
+    <div class="col-12">
+      <div class="card border-0 shadow-sm">
+        <div class="card-header bg-white border-0 d-flex justify-content-between align-items-center">
           <div>
-            <h5 class="mb-1"><i class="fas fa-book text-primary me-2"></i>{% translate "Recent Vouchers" %}</h5>
-            <div class="small text-muted">{% translate "Latest accounting vouchers and posting state." %}</div>
+            <h5 class="mb-1"><i class="fas fa-clock text-primary me-2"></i>{% translate "Recent Activity" %}</h5>
+            <div class="small text-muted">{% translate "Short list only to keep the page fast." %}</div>
           </div>
-          <a href="{% url 'accounting:voucher-list' %}" class="btn btn-sm btn-outline-secondary">{% translate "View all" %}</a>
         </div>
-        <div class="card-body p-0">
-          {% if recent_vouchers %}
-            <div class="table-responsive border-0 shadow-none">
-              <table class="table table-hover align-middle mb-0">
-                <thead class="table-light">
-                  <tr>
-                    <th>{% translate "Voucher" %}</th>
-                    <th>{% translate "Type" %}</th>
-                    <th>{% translate "Status" %}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% for voucher in recent_vouchers %}
-                    <tr>
-                      <td>
-                        <a href="{% url 'accounting:voucher-detail' voucher.pk %}" class="fw-semibold text-decoration-none">{{ voucher.display_number }}</a>
-                        <div class="small text-muted">{{ voucher.voucher_date|date:"d M" }}</div>
-                      </td>
-                      <td>{{ voucher.voucher_type }}</td>
-                      <td>
-                        {% if voucher.posted_at %}
-                          <span class="badge bg-success rounded-pill">{% translate "Posted" %}</span>
-                        {% else %}
-                          <span class="badge bg-warning text-dark rounded-pill">{% translate "Draft" %}</span>
-                        {% endif %}
-                      </td>
-                    </tr>
-                  {% endfor %}
-                </tbody>
-              </table>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <div class="small text-uppercase text-muted fw-bold mb-2">{% translate "Bills" %}</div>
+              {% for bill in recent_bills %}
+                <div class="d-flex justify-content-between align-items-start border-bottom py-2">
+                  <div>
+                    <a href="{% url 'billing:bill-detail' bill.pk %}" class="text-decoration-none fw-semibold">#{{ bill.bill_number }}</a>
+                    <div class="small text-muted">{{ bill.member.full_name }}</div>
+                  </div>
+                  <span class="small fw-semibold">{{ bill.total_amount|intcomma }}</span>
+                </div>
+              {% empty %}
+                <div class="text-muted small">{% translate "No recent bills." %}</div>
+              {% endfor %}
             </div>
-          {% else %}
-            <div class="p-5 text-muted text-center">
-              <i class="fas fa-book fa-2x mb-3 d-block text-muted opacity-50"></i>
-              {% translate "No vouchers found." %}
+            <div class="col-md-4">
+              <div class="small text-uppercase text-muted fw-bold mb-2">{% translate "Receipts" %}</div>
+              {% for receipt in recent_receipts %}
+                <div class="d-flex justify-content-between align-items-start border-bottom py-2">
+                  <div>
+                    <a href="{% url 'receipts:receipt-detail' receipt.pk %}" class="text-decoration-none fw-semibold">#{{ receipt.id }}</a>
+                    <div class="small text-muted">{{ receipt.member.full_name }}</div>
+                  </div>
+                  <span class="small fw-semibold">{{ receipt.amount|intcomma }}</span>
+                </div>
+              {% empty %}
+                <div class="text-muted small">{% translate "No recent receipts." %}</div>
+              {% endfor %}
             </div>
-          {% endif %}
+            <div class="col-md-4">
+              <div class="small text-uppercase text-muted fw-bold mb-2">{% translate "Vouchers" %}</div>
+              {% for voucher in recent_vouchers %}
+                <div class="d-flex justify-content-between align-items-start border-bottom py-2">
+                  <div>
+                    <a href="{% url 'accounting:voucher-detail' voucher.pk %}" class="text-decoration-none fw-semibold">{{ voucher.display_number }}</a>
+                    <div class="small text-muted">{{ voucher.voucher_date|date:"d M" }}</div>
+                  </div>
+                  <span class="small fw-semibold">
+                    {% if voucher.posted_at %}{% translate "Posted" %}{% else %}{% translate "Draft" %}{% endif %}
+                  </span>
+                </div>
+              {% empty %}
+                <div class="text-muted small">{% translate "No recent vouchers." %}</div>
+              {% endfor %}
+            </div>
+          </div>
         </div>
       </div>
     </div>

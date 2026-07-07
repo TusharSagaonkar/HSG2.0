@@ -8,10 +8,10 @@ from accounting.models import Account
 from accounting.models import AccountCategory
 from accounting.models import AccountingPeriod
 from accounting.models import FinancialYear
+from core.test_factories import SocietyFactory
 from housing.models import Bill
 from housing.models import ChargeTemplate
 from housing.models import Member
-from housing.models import Society
 from housing.models import Structure
 from housing.models import Unit
 from housing.models import ReminderLog
@@ -25,8 +25,7 @@ from housing.services.reminders import schedule_payment_reminders
 pytestmark = pytest.mark.django_db
 
 
-def _create_society_context():
-    society = Society.objects.create(name="Phase 2 Society")
+def _create_society_context(society):
     fy = FinancialYear.objects.get(
         society=society,
         start_date=date(2025, 4, 1),
@@ -130,8 +129,8 @@ def _create_templates(ctx):
     return t1, t2
 
 
-def test_billing_generation_creates_one_bill_with_multiple_lines_and_posted_voucher():
-    ctx = _create_society_context()
+def test_billing_generation_creates_one_bill_with_multiple_lines_and_posted_voucher(society):
+    ctx = _create_society_context(society)
     _create_templates(ctx)
 
     bills = generate_bills_for_period(
@@ -150,8 +149,8 @@ def test_billing_generation_creates_one_bill_with_multiple_lines_and_posted_vouc
     assert bill.voucher.entries.count() == 4
 
 
-def test_billing_generation_is_idempotent_for_same_member_period():
-    ctx = _create_society_context()
+def test_billing_generation_is_idempotent_for_same_member_period(society):
+    ctx = _create_society_context(society)
     _create_templates(ctx)
 
     first = generate_bills_for_period(
@@ -172,8 +171,8 @@ def test_billing_generation_is_idempotent_for_same_member_period():
     assert Bill.objects.filter(society=ctx["society"]).count() == 1
 
 
-def test_receipt_posting_auto_creates_voucher_and_updates_bill_status():
-    ctx = _create_society_context()
+def test_receipt_posting_auto_creates_voucher_and_updates_bill_status(society):
+    ctx = _create_society_context(society)
     _create_templates(ctx)
     bill = generate_bills_for_period(
         society=ctx["society"],
@@ -213,8 +212,8 @@ def test_receipt_posting_auto_creates_voucher_and_updates_bill_status():
     assert bill.outstanding_amount == Decimal("0.00")
 
 
-def test_receipt_posting_rejects_cross_society_deposit_account():
-    ctx = _create_society_context()
+def test_receipt_posting_rejects_cross_society_deposit_account(society):
+    ctx = _create_society_context(society)
     _create_templates(ctx)
     bill = generate_bills_for_period(
         society=ctx["society"],
@@ -223,7 +222,7 @@ def test_receipt_posting_rejects_cross_society_deposit_account():
         bill_date=date(2025, 4, 5),
     )[0]
 
-    other_society = Society.objects.create(name="Other Society")
+    other_society = SocietyFactory(name="Test Society Beta")
     other_asset_cat = AccountCategory.objects.create(
         society=other_society,
         name="Cash and Bank",
@@ -248,8 +247,8 @@ def test_receipt_posting_rejects_cross_society_deposit_account():
         )
 
 
-def test_apply_late_fees_applies_once_for_overdue_bill():
-    ctx = _create_society_context()
+def test_apply_late_fees_applies_once_for_overdue_bill(society):
+    ctx = _create_society_context(society)
     _create_templates(ctx)
     bill = generate_bills_for_period(
         society=ctx["society"],
@@ -277,8 +276,8 @@ def test_apply_late_fees_applies_once_for_overdue_bill():
     assert bill.total_amount == Decimal("1430.00")
 
 
-def test_outstanding_aging_and_reminder_scheduling_is_idempotent():
-    ctx = _create_society_context()
+def test_outstanding_aging_and_reminder_scheduling_is_idempotent(society):
+    ctx = _create_society_context(society)
     _create_templates(ctx)
     bill = generate_bills_for_period(
         society=ctx["society"],
@@ -313,8 +312,8 @@ def test_outstanding_aging_and_reminder_scheduling_is_idempotent():
     assert ReminderLog.objects.filter(society=ctx["society"]).count() == 1
 
 
-def test_charge_template_versioning_preserves_historical_bills():
-    ctx = _create_society_context()
+def test_charge_template_versioning_preserves_historical_bills(society):
+    ctx = _create_society_context(society)
     AccountingPeriod.objects.filter(
         society=ctx["society"],
         start_date=date(2025, 5, 1),
@@ -371,8 +370,8 @@ def test_charge_template_versioning_preserves_historical_bills():
     assert may_line.template_version_snapshot == 2
 
 
-def test_per_sqft_charge_uses_chargeable_area_snapshot():
-    ctx = _create_society_context()
+def test_per_sqft_charge_uses_chargeable_area_snapshot(society):
+    ctx = _create_society_context(society)
     unit = ctx["member"].unit
     unit.chargeable_area_sqft = Decimal("1250.00")
     unit.save(update_fields=["chargeable_area_sqft"])
@@ -401,8 +400,8 @@ def test_per_sqft_charge_uses_chargeable_area_snapshot():
     assert line.rate_snapshot == Decimal("2.0000")
 
 
-def test_used_template_cannot_be_mutated():
-    ctx = _create_society_context()
+def test_used_template_cannot_be_mutated(society):
+    ctx = _create_society_context(society)
     template, _ = _create_templates(ctx)
     generate_bills_for_period(
         society=ctx["society"],
@@ -415,8 +414,8 @@ def test_used_template_cannot_be_mutated():
         template.save()
 
 
-def test_overlapping_template_effective_dates_are_rejected():
-    ctx = _create_society_context()
+def test_overlapping_template_effective_dates_are_rejected(society):
+    ctx = _create_society_context(society)
     ChargeTemplate.objects.create(
         society=ctx["society"],
         name="Maintenance",

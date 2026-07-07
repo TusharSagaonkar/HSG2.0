@@ -242,6 +242,69 @@
   line-height: 1.5;
 }
 
+.auth-install-note {
+  align-items: center;
+  background: #fbfdff;
+  border: 1px solid #e6edf6;
+  border-radius: 16px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.8rem 0.9rem;
+  margin-top: 0.95rem;
+  padding: 0.8rem 0.9rem;
+}
+
+.auth-install-note__icon {
+  align-items: center;
+  background: var(--color-primary-light);
+  border-radius: 12px;
+  color: var(--color-primary);
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 36px;
+  justify-content: center;
+  width: 36px;
+}
+
+.auth-install-note__copy {
+  display: flex;
+  flex: 1 1 220px;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.auth-install-note__title {
+  color: #172033;
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.auth-install-note__description {
+  color: #64748b;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.auth-install-note__actions {
+  align-items: flex-start;
+  display: flex;
+  flex: 0 0 auto;
+  flex-direction: column;
+  gap: 0.25rem;
+  justify-content: center;
+}
+
+.auth-install-note__actions .btn {
+  min-width: 132px;
+}
+
+.auth-install-note__help {
+  color: #6b7280;
+  font-size: 0.79rem;
+  line-height: 1.35;
+  max-width: 210px;
+}
+
 .auth-form-panel {
   justify-content: center;
   padding: 2rem;
@@ -335,6 +398,10 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .auth-install-note {
+    margin-top: 1rem;
+  }
+
   .auth-form-panel {
     align-items: flex-start;
     flex: 1 1 auto;
@@ -401,6 +468,20 @@
   .auth-hero-copy p,
   .auth-feature-grid {
     display: none;
+  }
+
+  .auth-install-note {
+    margin-top: 0.85rem;
+    padding: 0.85rem;
+  }
+
+  .auth-install-note__actions {
+    width: 100%;
+  }
+
+  .auth-install-note__actions .btn {
+    min-width: 0;
+    width: 100%;
   }
 
   .auth-form-panel {
@@ -559,6 +640,80 @@
   min-width: 8.2rem;
   padding-bottom: 0.2rem;
   padding-top: 0.2rem;
+}
+
+.pwa-install-prompt {
+  bottom: 1.1rem;
+  left: 1.1rem;
+  position: fixed;
+  right: 1.1rem;
+  z-index: 1300;
+}
+
+.pwa-install-prompt__content {
+  align-items: center;
+  background: linear-gradient(135deg, rgba(8, 17, 29, 0.96), rgba(18, 59, 122, 0.95));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 22px;
+  box-shadow: 0 18px 50px rgba(3, 9, 22, 0.3);
+  color: #f8fafc;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.9rem 1rem;
+  justify-content: space-between;
+  margin: 0 auto;
+  max-width: 720px;
+  padding: 0.95rem 1rem;
+  width: 100%;
+}
+
+.pwa-install-prompt__copy {
+  display: flex;
+  flex: 1 1 320px;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.pwa-install-prompt__kicker {
+  color: #7dd3ff;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+}
+
+.pwa-install-prompt__title {
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.pwa-install-prompt__actions {
+  display: flex;
+  flex: 0 0 auto;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.pwa-install-prompt__actions .btn {
+  min-width: 96px;
+}
+
+@media (max-width: 575.98px) {
+  .pwa-install-prompt {
+    left: 0.75rem;
+    right: 0.75rem;
+  }
+
+  .pwa-install-prompt__content {
+    border-radius: 18px;
+    padding: 0.85rem;
+  }
+
+  .pwa-install-prompt__actions .btn {
+    flex: 1 1 0;
+    min-width: 0;
+  }
 }
 
 .user-chip {

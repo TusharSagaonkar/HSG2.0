@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% load gateops_extras i18n %}
+
+{% block title %}{{ form_title }} | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}{{ form_title }}{% endblock dashboard_title %}
+{% block dashboard_subtitle %}Rule setup for {{ scope_society_name }}{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% if rule %}{% url 'gateops:rule-detail' rule.pk %}{% else %}{% url 'gateops:rule-list' %}{% endif %}" class="btn-action btn-action--secondary">
+      <i class="fas fa-arrow-left me-1"></i>Back
+    </a>
+    <a href="{% url 'gateops:setup-index' %}" class="btn-action btn-action--outline-primary"><i class="fas fa-cog me-1"></i>Setup master data</a>
+    <a href="{% url 'gateops:rule-test' %}" class="btn-action btn-action--info"><i class="fas fa-vial me-1"></i>Test Rules</a>
+  </div>
+
+  <div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="note">
+    <i class="fas fa-lightbulb mt-1"></i>
+    <div>
+      <strong>How rules work:</strong> GateOps evaluates active rules for {{ scope_society_name }} in ascending priority order. The first matching rule controls the gate action, so keep broad fallback rules at a higher priority number and specific exception rules at a lower number.
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-8">
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{{ scope_society_name }}</h3>
+        </div>
+        <div class="content-card__body">
+          <form method="post" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger" role="alert">
+                {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+              </div>
+            {% endif %}
+
+            {% for section in form.fieldsets %}
+              <section class="mb-4">
+                <div class="mb-3">
+                  <h4 class="h6 mb-1">{{ section.title }}</h4>
+                  <div class="text-muted small">{{ section.description }}</div>
+                </div>
+                <div class="row g-3">
+                  {% for field_name in section.fields %}
+                    {% with field=form|get_bound_field:field_name %}
+                      {% if field.field.widget.input_type == "checkbox" %}
+                        <div class="col-12">
+                          <div class="form-check mt-2">
+                            {{ field }}
+                            <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                          </div>
+                          {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                          {% for error in field.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                        </div>
+                      {% else %}
+                        <div class="{% if field.name == 'description' %}col-12{% else %}col-12 col-md-6{% endif %}">
+                          <div class="form-group">
+                            <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                            {% for error in field.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                          </div>
+                        </div>
+                      {% endif %}
+                    {% endwith %}
+                  {% endfor %}
+                </div>
+              </section>
+            {% endfor %}
+
+            <div class="form-actions form-actions-inline mt-4">
+              <a href="{% if rule %}{% url 'gateops:rule-detail' rule.pk %}{% else %}{% url 'gateops:rule-list' %}{% endif %}" class="btn-action btn-action--secondary">
+                <i class="fas fa-times me-1"></i>Cancel
+              </a>
+              <button type="submit" class="btn-action btn-action--primary">
+                <i class="fas fa-save me-1"></i>{{ submit_label }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Rule builder checklist</h3>
+        </div>
+        <div class="content-card__body">
+          <ol class="small ps-3 mb-3">
+            <li><strong>Name and code:</strong> use a stable code for audit logs and support tickets.</li>
+            <li><strong>Priority:</strong> lower numbers run first. Put exceptions before generic fallback rules.</li>
+            <li><strong>Scope:</strong> blank category/gate selectors mean the rule applies to every value in that dimension.</li>
+            <li><strong>Validity:</strong> leave the end date empty for ongoing policies.</li>
+            <li><strong>Conditions/actions:</strong> after saving, add match conditions and the action to take from the rule detail page.</li>
+          </ol>
+          <div class="alert alert-warning mb-0" role="note">
+            Avoid duplicate active rules with the same priority and broad selectors; they make operational decisions hard to audit.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

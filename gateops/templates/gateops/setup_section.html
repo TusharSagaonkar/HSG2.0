@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+{% load gateops_extras i18n %}
+
+{% block title %}{{ config.title }} | GateOps Setup{% endblock title %}
+{% block dashboard_title %}{{ config.title }}{% endblock dashboard_title %}
+{% block dashboard_subtitle %}GateOps setup for {{ scope_society_name }}{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:setup-index' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Setup</a>
+    <a href="{% url 'gateops:dashboard' %}" class="btn-action btn-action--outline-primary"><i class="fas fa-shield-alt me-1"></i>Dashboard</a>
+    {% if singleton %}
+      <a href="{% url 'gateops:setup-edit' slug singleton_object.pk %}" class="btn-action btn-action--primary"><i class="fas fa-pen me-1"></i>Edit Settings</a>
+    {% else %}
+      <a href="{% url 'gateops:setup-create' slug %}" class="btn-action btn-action--success"><i class="fas fa-plus me-1"></i>Add {{ config.title }}</a>
+    {% endif %}
+  </div>
+
+  <div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="note">
+    <i class="fas fa-building mt-1"></i>
+    <div>{{ config.description }} This page is scoped to <strong>{{ scope_society_name }}</strong>.</div>
+  </div>
+
+  <div class="content-card">
+    <div class="content-card__header">
+      <h3 class="content-card__title">{{ config.title }}</h3>
+    </div>
+    <div class="content-card__body p-0">
+      {% if rows %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                {% for field in fields %}<th>{{ field|title }}</th>{% endfor %}
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in rows %}
+                <tr>
+                  {% for field in fields %}
+                    <td class="small">{{ row|attr_value:field }}</td>
+                  {% endfor %}
+                  <td class="text-end">
+                    <div class="d-inline-flex gap-1 flex-wrap justify-content-end">
+                      {% if slug == "visitor-categories" %}
+                        <form method="post" action="{% url 'gateops:setup-move' slug=slug pk=row.pk direction='up' %}" class="d-inline">
+                          {% csrf_token %}
+                          <button type="submit" class="btn-action btn-action--sm btn-action--outline-secondary" title="Move up" aria-label="Move up">↑</button>
+                        </form>
+                        <form method="post" action="{% url 'gateops:setup-move' slug=slug pk=row.pk direction='down' %}" class="d-inline">
+                          {% csrf_token %}
+                          <button type="submit" class="btn-action btn-action--sm btn-action--outline-secondary" title="Move down" aria-label="Move down">↓</button>
+                        </form>
+                      {% endif %}
+                      <a href="{% url 'gateops:setup-edit' slug row.pk %}" class="btn-action btn-action--sm btn-action--outline-primary"><i class="fas fa-pen me-1"></i>Edit</a>
+                      {% if not singleton %}
+                        <form method="post" action="{% url 'gateops:setup-delete' slug row.pk %}" class="d-inline">
+                          {% csrf_token %}
+                          <button type="submit" class="btn-action btn-action--sm btn-action--outline-danger"><i class="fas fa-ban me-1"></i>Deactivate</button>
+                        </form>
+                      {% endif %}
+                    </div>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-5 text-center text-muted">
+          No {{ config.title|lower }} records exist for {{ scope_society_name }}.
+          {% if not singleton %}<a href="{% url 'gateops:setup-create' slug %}">Add the first record</a>.{% endif %}
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}

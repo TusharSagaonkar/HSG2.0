@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}GateOps Setup | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}GateOps Setup{% endblock dashboard_title %}
+{% block dashboard_subtitle %}Configuration for {{ scope_society_name }}{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:dashboard' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Dashboard</a>
+    <a href="{% url 'gateops:rule-list' %}" class="btn-action btn-action--primary"><i class="fas fa-list me-1"></i>Rules</a>
+  </div>
+
+  <div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="note">
+    <i class="fas fa-building mt-1"></i>
+    <div>These setup screens only read and update GateOps data for <strong>{{ scope_society_name }}</strong>.</div>
+  </div>
+
+  <div class="row g-3">
+    {% for row in setup_rows %}
+      <div class="col-12 col-md-6 col-xl-4">
+        <div class="content-card h-100">
+          <div class="content-card__header">
+            <div>
+              <h3 class="content-card__title mb-1">{{ row.title }}</h3>
+              <div class="text-muted small">{{ row.description }}</div>
+            </div>
+          </div>
+          <div class="content-card__body">
+            <div class="d-flex gap-2 flex-wrap mb-3">
+              <span class="badge bg-primary">{{ row.count }} row{{ row.count|pluralize }}</span>
+              {% if row.active_count != None %}<span class="badge bg-success">{{ row.active_count }} active</span>{% endif %}
+              {% if row.singleton %}<span class="badge bg-secondary">Single row</span>{% endif %}
+            </div>
+            {% url 'gateops:setup-section' row.slug as section_url %}
+            <a href="{{ section_url }}" class="btn-action btn-action--outline-primary btn-action--sm" data-workspace-link hx-get="{{ section_url }}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading"><i class="fas fa-cog me-1"></i>Manage</a>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% endblock content %}

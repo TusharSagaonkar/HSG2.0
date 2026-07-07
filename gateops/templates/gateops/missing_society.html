@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Gate Operations | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}Gate Operations{% endblock dashboard_title %}
+{% block dashboard_subtitle %}Select a society to continue{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="alert alert-danger border-0 shadow-sm d-flex align-items-start gap-3" role="alert">
+    <i class="fas fa-exclamation-triangle fa-lg mt-1"></i>
+    <div>
+      <h5 class="alert-heading mb-2">No society selected</h5>
+      <p class="mb-0">{{ missing_society_message }}</p>
+    </div>
+  </div>
+{% endblock content %}

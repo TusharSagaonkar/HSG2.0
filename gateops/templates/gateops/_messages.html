@@ -1,0 +1,10 @@
+{% if messages %}
+  <div class="mb-3">
+    {% for message in messages %}
+      <div class="alert alert-{% if message.tags == 'error' %}danger{% else %}{{ message.tags|default:'info' }}{% endif %} d-flex align-items-start gap-2 mb-2" role="alert">
+        <i class="fas {% if message.tags == 'success' %}fa-check-circle{% elif message.tags == 'error' %}fa-exclamation-triangle{% else %}fa-info-circle{% endif %} mt-1"></i>
+        <div>{{ message }}</div>
+      </div>
+    {% endfor %}
+  </div>
+{% endif %}

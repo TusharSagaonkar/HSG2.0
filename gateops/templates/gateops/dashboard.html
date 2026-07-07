@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Gate Operations | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}Gate Operations{% endblock dashboard_title %}
+{% block dashboard_subtitle %}Gate operations for {{ scope_society_name }}{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="note">
+    <i class="fas fa-building mt-1"></i>
+    <div>Gate operations screens are scoped to the selected society: <strong>{{ scope_society_name }}</strong>.</div>
+  </div>
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:setup-index' %}" class="btn-action btn-action--primary"><i class="fas fa-cog me-1"></i>Setup</a>
+    <a href="{% url 'gateops:rule-list' %}" class="btn-action btn-action--outline-primary"><i class="fas fa-list me-1"></i>Rules</a>
+    <a href="{% url 'gateops:rule-create' %}" class="btn-action btn-action--success"><i class="fas fa-plus me-1"></i>Create Rule</a>
+    <a href="{% url 'gateops:rule-test' %}" class="btn-action btn-action--info"><i class="fas fa-vial me-1"></i>Run Rule Test</a>
+    <a href="{% url 'gateops:logs' %}" class="btn-action btn-action--secondary"><i class="fas fa-clipboard-list me-1"></i>Logs</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-shield-alt" label="Rules" value=totals.rules color="primary" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-toggle-on" label="Active Rules" value=totals.active_rules color="success" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-stopwatch" label="Evaluations" value=totals.evaluations color="info" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-history" label="Audit Logs" value=totals.audit_logs color="warning" %}
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-xl-5">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Setup & Settings</h3>
+          <a href="{% url 'gateops:setup-index' %}" class="btn-action btn-action--sm btn-action--outline-primary">Manage all</a>
+        </div>
+        <div class="content-card__body">
+          <div class="text-muted small mb-3">Manage gates, master settings, categories, pass types, approvals, roles, and notification preferences for {{ scope_society_name }}.</div>
+          <div class="list-group list-group-flush">
+            {% for row in setup_rows|slice:":6" %}
+              <a href="{% url 'gateops:setup-section' row.slug %}" class="list-group-item px-0 d-flex justify-content-between align-items-start gap-3 text-decoration-none">
+                <div>
+                  <div class="fw-semibold">{{ row.title }}</div>
+                  <div class="small text-muted">{{ row.description }}</div>
+                </div>
+                <span class="badge bg-primary">{{ row.count }}</span>
+              </a>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-xl-7">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{{ scope_society_name }} Bootstrap Completeness</h3>
+        </div>
+        <div class="content-card__body p-0">
+          <div class="table-responsive">
+            <table class="table table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Foundation Area</th>
+                  <th class="text-end">Rows</th>
+                  <th>Status</th>
+                  <th>Expected Data</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in bootstrap_rows %}
+                  <tr>
+                    <td class="fw-semibold">{{ row.label }}</td>
+                    <td class="text-end">{{ row.count }}</td>
+                    <td>
+                      {% if row.complete %}
+                        <span class="badge bg-success">Ready</span>
+                      {% else %}
+                        <span class="badge bg-danger">Missing</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-muted small">{{ row.note }}</td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-6">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Latest Rule Evaluations</h3>
+          <a href="{% url 'gateops:logs' %}" class="btn-action btn-action--sm btn-action--outline-primary">View all</a>
+        </div>
+        <div class="content-card__body">
+          {% if latest_evaluations %}
+            <div class="list-group list-group-flush">
+              {% for evaluation in latest_evaluations %}
+                <div class="list-group-item px-0 d-flex justify-content-between align-items-start gap-3">
+                  <div>
+                    <div class="fw-semibold">{{ evaluation.get_action_taken_display }}</div>
+                    <div class="small text-muted">
+                      {% if evaluation.rule %}{{ evaluation.rule.code }}{% else %}No matching rule{% endif %} · {{ evaluation.evaluated_at|date:"d M Y H:i:s" }}
+                    </div>
+                  </div>
+                  <span class="badge bg-secondary">{{ evaluation.execution_time_ms }} ms</span>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-muted text-center py-4">No rule evaluations yet.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Latest GateOps Audit Logs</h3>
+          <a href="{% url 'gateops:logs' %}" class="btn-action btn-action--sm btn-action--outline-primary">View all</a>
+        </div>
+        <div class="content-card__body">
+          {% if latest_audit_logs %}
+            <div class="list-group list-group-flush">
+              {% for log in latest_audit_logs %}
+                <div class="list-group-item px-0">
+                  <div class="d-flex justify-content-between gap-3">
+                    <div class="fw-semibold">{{ log.get_action_display }} {{ log.entity_type }}:{{ log.entity_id }}</div>
+                    <div class="small text-muted">{{ log.created_at|date:"d M Y H:i:s" }}</div>
+                  </div>
+                  <div class="small text-muted">{% if log.actor %}{{ log.actor }}{% else %}System/browser test{% endif %}</div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-muted text-center py-4">No audit logs yet.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

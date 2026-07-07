@@ -6,10 +6,20 @@ from django.urls import path
 from django.views import defaults as default_views
 
 from config.views import HomeDashboardView
+from config.views import PWAManifestView
+from config.views import PWAOfflineView
+from config.views import PWAServiceWorkerView
 from parking.views import verify_vehicle
 
 urlpatterns = [
     path("", HomeDashboardView.as_view(), name="home"),
+    path("manifest.webmanifest", PWAManifestView.as_view(), name="pwa-manifest"),
+    path(
+        "service-worker.js",
+        PWAServiceWorkerView.as_view(),
+        name="pwa-service-worker",
+    ),
+    path("offline/", PWAOfflineView.as_view(), name="pwa-offline"),
     # Django Admin, use {% url 'admin:index' %}
     path(settings.ADMIN_URL, admin.site.urls),
     # User management
@@ -27,6 +37,7 @@ urlpatterns = [
     path("members/", include("members.urls", namespace="members")),
     path("administration/", include("administration.urls", namespace="administration")),
     path("reconciliation/", include("reconciliation.urls", namespace="reconciliation")),
+    path("gateops/", include("gateops.urls", namespace="gateops")),
     # Your stuff: custom urls includes go here
     # ...
     # Media files

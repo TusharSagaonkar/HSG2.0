@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load humanize %}
+
+{% block title %}
+  {% translate "Finance Hub" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Finance Hub" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Bills, receipts, and outstanding balances in one operational workspace." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="action-bar action-bar--responsive mb-4">
+    <div class="action-bar__group">
+      <a href="{% url 'housing:dashboard' %}" class="btn-action btn-action--secondary">
+        <i class="fas fa-arrow-left me-1"></i>{% translate "Dashboard" %}
+      </a>
+    </div>
+    <div class="action-bar__group action-bar__group--push">
+      <a href="{% url 'billing:charge-template-list' %}" class="btn-action btn-action--outline-primary">
+        <i class="fas fa-list-alt me-1"></i>{% translate "Charge Templates" %}
+      </a>
+      <a href="{% url 'housing:billing-generate' %}" class="btn-action btn-action--primary">
+        <i class="fas fa-file-invoice me-1"></i>{% translate "Generate Bills" %}
+      </a>
+      <a href="{% url 'housing:receipt-post' %}" class="btn-action btn-action--outline-primary">
+        <i class="fas fa-money-check-alt me-1"></i>{% translate "Post Receipt" %}
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-file-invoice" label=_("Total Billed") value=total_billed|default:0 color="primary" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-wallet" label=_("Total Collected") value=total_collected|default:0 color="success" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-exclamation-triangle" label=_("Bill Outstanding") value=total_bill_outstanding|default:0 color="danger" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-clipboard-list" label=_("Open Bills") value=open_bill_count|default:0 color="warning" %}
+    </div>
+  </div>
+
+  <div class="row g-4">
+    <div class="col-12 col-xl-7">
+      <div class="content-card h-100">
+        <div class="content-card__header d-flex justify-content-between align-items-center gap-3">
+          <div>
+            <h3 class="content-card__title mb-0">{% translate "Bills" %}</h3>
+            <div class="text-muted small">{% translate "Latest bills and current balance status." %}</div>
+          </div>
+          <a href="{% url 'billing:bill-list' %}" class="btn btn-sm btn-outline-primary">{% translate "View all" %}</a>
+        </div>
+        <div class="content-card__body p-0">
+          {% if recent_bills %}
+            <div class="table-responsive">
+              <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th>{% translate "Bill" %}</th>
+                    <th>{% translate "Member" %}</th>
+                    <th>{% translate "Status" %}</th>
+                    <th class="text-end">{% translate "Total" %}</th>
+                    <th class="text-end">{% translate "Outstanding" %}</th>
+                    <th class="text-end">{% translate "Action" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for bill in recent_bills %}
+                    <tr>
+                      <td>
+                        <a href="{% url 'billing:bill-detail' bill.pk %}" class="fw-semibold text-decoration-none">
+                          #{{ bill.bill_number }}
+                        </a>
+                        <div class="small text-muted">{{ bill.bill_date|date:"d M Y" }}</div>
+                      </td>
+                      <td class="text-truncate" style="max-width: 180px;">{{ bill.member.full_name }}</td>
+                      <td>
+                        {% if bill.status == "PAID" %}
+                          <span class="badge bg-success">{{ bill.get_status_display }}</span>
+                        {% elif bill.status == "PARTIAL" %}
+                          <span class="badge bg-warning text-dark">{{ bill.get_status_display }}</span>
+                        {% elif bill.status == "OVERDUE" %}
+                          <span class="badge bg-danger">{{ bill.get_status_display }}</span>
+                        {% else %}
+                          <span class="badge bg-secondary">{{ bill.get_status_display }}</span>
+                        {% endif %}
+                      </td>
+                      <td class="text-end fw-semibold">{{ bill.total_amount|floatformat:2|intcomma }}</td>
+                      <td class="text-end fw-semibold {% if bill.outstanding_amount_value > 0 %}text-danger{% else %}text-success{% endif %}">
+                        {{ bill.outstanding_amount_value|floatformat:2|intcomma }}
+                      </td>
+                      <td class="text-end">
+                        <div class="d-inline-flex gap-2 justify-content-end flex-wrap">
+                          <a href="{% url 'billing:bill-detail' bill.pk %}" class="btn-action btn-action--sm btn-action--outline-primary">
+                            <i class="fas fa-folder-open me-1"></i>{% translate "Open" %}
+                          </a>
+                          {% if bill.outstanding_amount_value > 0 %}
+                            <a href="{% url 'housing:receipt-post' %}?bill={{ bill.pk }}" class="btn-action btn-action--sm btn-action--primary">
+                              <i class="fas fa-money-check-alt me-1"></i>{% translate "Post Receipt" %}
+                            </a>
+                          {% endif %}
+                        </div>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="p-4 text-center text-muted">
+              {% include "components/empty_state.html" with icon="fa-file-invoice" title=_("No bills found") message=_("Generate a bill to start tracking receivables.") action_url="housing:billing-generate" action_label=_("Generate Bills") action_icon="fas fa-plus" %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-5">
+      <div class="content-card h-100">
+        <div class="content-card__header d-flex justify-content-between align-items-center gap-3">
+          <div>
+            <h3 class="content-card__title mb-0">{% translate "Receipts" %}</h3>
+            <div class="text-muted small">{% translate "Recent posted receipts and allocations." %}</div>
+          </div>
+          <a href="{% url 'receipts:receipt-list' %}" class="btn btn-sm btn-outline-success">{% translate "View all" %}</a>
+        </div>
+        <div class="content-card__body p-0">
+          {% if recent_receipts %}
+            <div class="table-responsive">
+              <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th>{% translate "Receipt" %}</th>
+                    <th>{% translate "Member" %}</th>
+                    <th class="text-end">{% translate "Amount" %}</th>
+                    <th>{% translate "Bills" %}</th>
+                    <th class="text-end">{% translate "Action" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for receipt in recent_receipts %}
+                    <tr>
+                      <td>
+                        <a href="{% url 'receipts:receipt-detail' receipt.pk %}" class="fw-semibold text-decoration-none">
+                          #{{ receipt.pk }}
+                        </a>
+                        <div class="small text-muted">{{ receipt.receipt_date|date:"d M Y" }}</div>
+                      </td>
+                      <td class="text-truncate" style="max-width: 140px;">{{ receipt.member.full_name }}</td>
+                      <td class="text-end fw-semibold">{{ receipt.amount|floatformat:2|intcomma }}</td>
+                      <td>
+                        {% for allocation in receipt.allocations.all %}
+                          <a href="{% url 'billing:bill-detail' allocation.bill_id %}" class="text-decoration-none">
+                            #{{ allocation.bill.bill_number }}
+                          </a>{% if not forloop.last %}, {% endif %}
+                        {% empty %}
+                          -
+                        {% endfor %}
+                      </td>
+                      <td class="text-end">
+                        <a href="{% url 'receipts:receipt-detail' receipt.pk %}" class="btn-action btn-action--sm btn-action--outline-success">
+                          <i class="fas fa-folder-open me-1"></i>{% translate "Open" %}
+                        </a>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="p-4 text-center text-muted">
+              {% include "components/empty_state.html" with icon="fa-receipt" title=_("No receipts found") message=_("Post a receipt to record a collection.") action_url="housing:receipt-post" action_label=_("Post Receipt") action_icon="fas fa-plus" %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12">
+      <div class="content-card">
+        <div class="content-card__header d-flex justify-content-between align-items-center gap-3">
+          <div>
+            <h3 class="content-card__title mb-0">{% translate "Outstanding Snapshot" %}</h3>
+            <div class="text-muted small">
+              {% translate "Lightweight summary for quick review, with the full aging report available separately." %}
+            </div>
+          </div>
+          <a href="{% url 'housing:outstanding-dashboard' %}" class="btn btn-sm btn-outline-danger">{% translate "Open aging report" %}</a>
+        </div>
+        <div class="content-card__body p-3">
+          {% if selected_society %}
+            <div class="row g-3">
+              <div class="col-12 col-sm-6 col-xl-3">
+                {% include "components/stat_card.html" with icon="fas fa-users" label=_("Bills Due Today") value=due_today_bills|default:0 color="warning" %}
+              </div>
+              <div class="col-12 col-sm-6 col-xl-3">
+                {% include "components/stat_card.html" with icon="fas fa-clock" label=_("Overdue Bills") value=overdue_bills_today|default:0 color="danger" %}
+              </div>
+              <div class="col-12 col-sm-6 col-xl-3">
+                {% include "components/stat_card.html" with icon="fas fa-file-invoice-dollar" label=_("Open Bills") value=open_bill_count|default:0 color="primary" %}
+              </div>
+              <div class="col-12 col-sm-6 col-xl-3">
+                {% include "components/stat_card.html" with icon="fas fa-exclamation-triangle" label=_("Bill Outstanding") value=total_bill_outstanding|default:0 color="danger" %}
+              </div>
+            </div>
+          {% else %}
+            <div class="alert alert-warning mb-0">
+              <i class="fas fa-exclamation-triangle me-2"></i>
+              {% translate "Select a society to view the finance snapshot." %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

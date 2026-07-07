@@ -1,0 +1,210 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ event.event_uuid }} | Gate Events{% endblock title %}
+{% block dashboard_title %}{{ event.event_uuid }}{% endblock dashboard_title %}
+{% block dashboard_subtitle %}
+  <span class="badge {{ status_badge }}">{{ event.get_status_display }}</span>
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:event-list' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Back to Events</a>
+    {% if event.status == "arrived" %}
+      <form method="post" action="{% url 'gateops:event-approve' event.event_uuid %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn-action btn-action--success"><i class="fas fa-check me-1"></i>Approve</button>
+      </form>
+      <form method="post" action="{% url 'gateops:event-reject' event.event_uuid %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn-action btn-action--danger"><i class="fas fa-times me-1"></i>Reject</button>
+      </form>
+    {% endif %}
+    {% if event.status == "approved" %}
+      <span class="btn-action btn-action--outline-success disabled"><i class="fas fa-info-circle me-1"></i>Approved — awaiting entry</span>
+    {% endif %}
+    {% if event.status == "entered" %}
+      <form method="post" action="{% url 'gateops:event-exit' event.event_uuid %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn-action btn-action--warning"><i class="fas fa-door-closed me-1"></i>Record Exit</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-lg-5">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Event Summary</h3>
+          <span class="badge {{ status_badge }}">{{ event.get_status_display }}</span>
+        </div>
+        <div class="content-card__body">
+          <dl class="row mb-0">
+            <dt class="col-sm-4">Person</dt>
+            <dd class="col-sm-8">
+              {% if event.person %}
+                {{ event.person.name }}
+                <div class="small text-muted">{{ event.person.phone }}</div>
+                {% if event.person.is_blacklisted %}<span class="badge bg-danger">Blacklisted</span>{% endif %}
+                {% if event.person.is_vip %}<span class="badge bg-warning text-dark">VIP</span>{% endif %}
+              {% else %}
+                <span class="text-muted">Unknown visitor</span>
+              {% endif %}
+            </dd>
+            <dt class="col-sm-4">Visitor Category</dt><dd class="col-sm-8">{{ event.visitor_category.code }}</dd>
+            <dt class="col-sm-4">Gate</dt><dd class="col-sm-8">{{ event.gate.code }}</dd>
+            <dt class="col-sm-4">Direction</dt><dd class="col-sm-8">{{ event.get_direction_display }}</dd>
+            <dt class="col-sm-4">Event Type</dt><dd class="col-sm-8">{{ event.get_event_type_display }}</dd>
+            <dt class="col-sm-4">ID Verified</dt>
+            <dd class="col-sm-8">{% if event.id_verified %}<span class="badge bg-success">Yes</span>{% else %}<span class="badge bg-secondary">No</span>{% endif %}</dd>
+            <dt class="col-sm-4">Purpose</dt><dd class="col-sm-8">{{ event.purpose|default:"—" }}</dd>
+            <dt class="col-sm-4">Notes</dt><dd class="col-sm-8">{{ event.notes|default:"—" }}</dd>
+            {% if event.photo_url %}
+              <dt class="col-sm-4">Photo</dt>
+              <dd class="col-sm-8"><a href="{{ event.photo_url }}" target="_blank" rel="noopener">View photo</a></dd>
+            {% endif %}
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Lifecycle Timeline</h3>
+        </div>
+        <div class="content-card__body">
+          <ul class="list-group list-group-flush">
+            <li class="list-group-item d-flex justify-content-between gap-3 {% if event.status == 'arrived' %}border-start border-4 border-warning{% endif %}">
+              <div><strong>Arrived</strong></div>
+              <div class="text-muted small">{{ event.arrived_at|date:"d M Y H:i:s"|default:"—" }}</div>
+            </li>
+            <li class="list-group-item d-flex justify-content-between gap-3 {% if event.status == 'approved' %}border-start border-4 border-success{% endif %}">
+              <div><strong>Approved</strong></div>
+              <div class="text-muted small">{{ event.approved_at|date:"d M Y H:i:s"|default:"—" }}</div>
+            </li>
+            <li class="list-group-item d-flex justify-content-between gap-3 {% if event.status == 'entered' %}border-start border-4 border-success{% endif %}">
+              <div><strong>Entered</strong></div>
+              <div class="text-muted small">{{ event.entered_at|date:"d M Y H:i:s"|default:"—" }}</div>
+            </li>
+            <li class="list-group-item d-flex justify-content-between gap-3 {% if event.status == 'exited' or event.status == 'auto_closed' %}border-start border-4 border-secondary{% endif %}">
+              <div><strong>Exited</strong></div>
+              <div class="text-muted small">{{ event.exited_at|date:"d M Y H:i:s"|default:"—" }}</div>
+            </li>
+            <li class="list-group-item d-flex justify-content-between gap-3">
+              <div><strong>Auto Close At</strong></div>
+              <div class="text-muted small">{{ event.auto_close_at|date:"d M Y H:i:s"|default:"Disabled" }}</div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-lg-6">
+      <div class="content-card h-100">
+        <div class="content-card__header"><h3 class="content-card__title">Rule Evaluation</h3></div>
+        <div class="content-card__body">
+          <dl class="row mb-0">
+            <dt class="col-sm-4">Matched Rule</dt>
+            <dd class="col-sm-8">
+              {% if event.rule_evaluated %}
+                {{ event.rule_evaluated.rule.code|default:"No rule" }}
+                <div class="small text-muted">{{ event.rule_evaluated.evaluated_at|date:"d M Y H:i:s" }}</div>
+              {% else %}
+                <span class="text-muted">No rule evaluation recorded</span>
+              {% endif %}
+            </dd>
+            <dt class="col-sm-4">Rule Action</dt>
+            <dd class="col-sm-8">
+              {% if event.rule_action %}<code>{{ event.rule_action }}</code>{% else %}<span class="text-muted">—</span>{% endif %}
+            </dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="content-card h-100">
+        <div class="content-card__header"><h3 class="content-card__title">Approvals</h3></div>
+        <div class="content-card__body">
+          {% if approvals %}
+            <div class="list-group list-group-flush">
+              {% for approval in approvals %}
+                <div class="list-group-item px-0 d-flex justify-content-between gap-3">
+                  <div>
+                    <div class="fw-semibold">
+                      <span class="badge {% if approval.decision == 'approved' %}bg-success{% elif approval.decision == 'rejected' %}bg-danger{% elif approval.decision == 'escalated' %}bg-warning text-dark{% else %}bg-info{% endif %}">{{ approval.get_decision_display }}</span>
+                      {% if approval.decision_method %}<span class="small text-muted">{{ approval.get_decision_method_display }}</span>{% endif %}
+                    </div>
+                    <div class="small text-muted">
+                      Requested {{ approval.requested_at|date:"d M Y H:i" }}
+                      {% if approval.decided_at %}· Decided {{ approval.decided_at|date:"d M Y H:i" }}{% endif %}
+                      {% if approval.decided_by %}· by {{ approval.decided_by }}{% endif %}
+                    </div>
+                    {% if approval.notes %}<div class="small">{{ approval.notes }}</div>{% endif %}
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-muted text-center py-4">No approval requests for this event.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-6">
+      <div class="content-card h-100">
+        <div class="content-card__header"><h3 class="content-card__title">Photos</h3></div>
+        <div class="content-card__body">
+          {% if photos %}
+            <div class="row g-2">
+              {% for photo in photos %}
+                <div class="col-6 col-md-4">
+                  <div class="card h-100">
+                    <img src="{{ photo.image.url }}" class="card-img-top" alt="{{ photo.get_photo_type_display }}" loading="lazy">
+                    <div class="card-body p-2">
+                      <div class="small fw-semibold">{{ photo.get_photo_type_display }}</div>
+                      <div class="small text-muted">{{ photo.captured_at|date:"d M Y H:i" }}</div>
+                    </div>
+                  </div>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-muted text-center py-4">No photos attached to this event.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+      <div class="content-card h-100">
+        <div class="content-card__header"><h3 class="content-card__title">Documents</h3></div>
+        <div class="content-card__body">
+          {% if documents %}
+            <div class="list-group list-group-flush">
+              {% for document in documents %}
+                <a href="{{ document.file.url }}" target="_blank" rel="noopener" class="list-group-item list-group-item-action px-0 d-flex justify-content-between gap-3">
+                  <div>
+                    <div class="fw-semibold">{{ document.document_type }}</div>
+                    <div class="small text-muted">Uploaded {{ document.uploaded_at|date:"d M Y H:i" }}</div>
+                  </div>
+                  <i class="fas fa-file-download align-self-center text-muted"></i>
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-muted text-center py-4">No documents attached to this event.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

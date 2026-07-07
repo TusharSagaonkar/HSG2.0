@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% load gateops_extras i18n %}
+
+{% block title %}{{ form_title }} | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}{{ form_title }}{% endblock dashboard_title %}
+{% block dashboard_subtitle %}Record a visitor arrival for {{ scope_society_name }}{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:event-list' %}" class="btn-action btn-action--secondary">
+      <i class="fas fa-arrow-left me-1"></i>Cancel
+    </a>
+    <a href="{% url 'gateops:currently-inside' %}" class="btn-action btn-action--info"><i class="fas fa-door-open me-1"></i>Currently Inside</a>
+  </div>
+
+  <div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="note">
+    <i class="fas fa-lightbulb mt-1"></i>
+    <div>
+      <strong>Arrival flow:</strong> Enter the visitor's phone to link an existing person, or supply a name to create a new master record. After saving, the rule engine evaluates the event and may auto-approve, reject, or hold it for manual approval.
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-8">
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{{ scope_society_name }}</h3>
+        </div>
+        <div class="content-card__body">
+          <form method="post" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger" role="alert">
+                {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+              </div>
+            {% endif %}
+
+            <section class="mb-4">
+              <div class="mb-3">
+                <h4 class="h6 mb-1">Person lookup</h4>
+                <div class="text-muted small">If a person with this phone exists, they will be linked; otherwise a new person is created.</div>
+              </div>
+              <div class="row g-3">
+                {% with field=form|get_bound_field:"person_phone" %}
+                  <div class="col-12 col-md-6">
+                    <div class="form-group">
+                      <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                      {{ field }}
+                      {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                      {% for error in field.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                    </div>
+                  </div>
+                {% endwith %}
+                {% with field=form|get_bound_field:"person_name" %}
+                  <div class="col-12 col-md-6">
+                    <div class="form-group">
+                      <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                      {{ field }}
+                      {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                      {% for error in field.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                    </div>
+                  </div>
+                {% endwith %}
+              </div>
+            </section>
+
+            <section class="mb-4">
+              <div class="mb-3">
+                <h4 class="h6 mb-1">Event details</h4>
+                <div class="text-muted small">Visitor category, gate, and direction drive rule evaluation.</div>
+              </div>
+              <div class="row g-3">
+                {% for field_name in form.Meta.fields %}
+                  {% with field=form|get_bound_field:field_name %}
+                    {% if field.field.widget.input_type == "checkbox" %}
+                      <div class="col-12">
+                        <div class="form-check mt-2">
+                          {{ field }}
+                          <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                        </div>
+                        {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                        {% for error in field.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                      </div>
+                    {% else %}
+                      <div class="{% if field.name == 'purpose' or field.name == 'notes' %}col-12{% else %}col-12 col-md-6{% endif %}">
+                        <div class="form-group">
+                          <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                          {{ field }}
+                          {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                          {% for error in field.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                        </div>
+                      </div>
+                    {% endif %}
+                  {% endwith %}
+                {% endfor %}
+              </div>
+            </section>
+
+            <div class="form-actions form-actions-inline mt-4">
+              <a href="{% url 'gateops:event-list' %}" class="btn-action btn-action--secondary">
+                <i class="fas fa-times me-1"></i>Cancel
+              </a>
+              <button type="submit" class="btn-action btn-action--primary">
+                <i class="fas fa-door-open me-1"></i>{{ submit_label }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Arrival checklist</h3>
+        </div>
+        <div class="content-card__body">
+          <ol class="small ps-3 mb-3">
+            <li><strong>Phone:</strong> use the visitor's mobile to deduplicate against existing persons.</li>
+            <li><strong>Name:</strong> required when creating a new person record.</li>
+            <li><strong>Visitor category:</strong> drives the rule engine match (e.g. DELIVERY, GUEST).</li>
+            <li><strong>Gate & direction:</strong> record which gate and whether the visitor is inbound or outbound.</li>
+            <li><strong>Rule engine:</strong> after saving, rules decide auto-approve, reject, or pending approval.</li>
+          </ol>
+          <div class="alert alert-warning mb-0" role="note">
+            A blacklisted person can never be auto-approved — the event is held for manual approval regardless of rule outcome.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

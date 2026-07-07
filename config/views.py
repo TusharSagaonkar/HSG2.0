@@ -5,6 +5,7 @@ from django.db.models import DecimalField
 from django.db.models import Sum
 from django.db.models import Value
 from django.db.models.functions import Coalesce
+from django.urls import reverse
 from django.utils import timezone
 from django.views.generic import TemplateView
 
@@ -124,9 +125,17 @@ class HomeDashboardView(LoginRequiredMixin, TemplateView):
         if total_billed > 0:
             collection_rate = (total_collected * Decimal("100.00")) / total_billed
 
+        recent_bills = list(bills_qs.order_by("-bill_date", "-id")[:3])
+        recent_receipts = list(receipts_qs.order_by("-receipt_date", "-id")[:3])
+        recent_vouchers = list(vouchers_qs.order_by("-voucher_date", "-id")[:3])
+
         context.update(
             {
                 "today": today,
+                "structure_dashboard_url": reverse("housing:structure-unit-dashboard"),
+                "finance_dashboard_url": reverse("housing:finance-dashboard"),
+                "accounting_dashboard_url": reverse("accounting:dashboard"),
+                "reconciliation_dashboard_url": reverse("reconciliation:dashboard"),
                 "total_societies": societies_qs.count(),
                 "total_structures": structures_qs.count(),
                 "total_units": total_units,
@@ -159,9 +168,23 @@ class HomeDashboardView(LoginRequiredMixin, TemplateView):
                 ).count(),
                 "queued_reminders": reminders_qs.filter(status=ReminderLog.ReminderStatus.QUEUED).count(),
                 "failed_reminders": reminders_qs.filter(status=ReminderLog.ReminderStatus.FAILED).count(),
-                "recent_bills": bills_qs.order_by("-bill_date", "-id")[:6],
-                "recent_receipts": receipts_qs.order_by("-receipt_date", "-id")[:6],
-                "recent_vouchers": vouchers_qs.order_by("-voucher_date", "-id")[:6],
+                "recent_bills": recent_bills,
+                "recent_receipts": recent_receipts,
+                "recent_vouchers": recent_vouchers,
             }
         )
         return context
+
+
+class PWAManifestView(TemplateView):
+    template_name = "pwa/manifest.webmanifest"
+    content_type = "application/manifest+json"
+
+
+class PWAServiceWorkerView(TemplateView):
+    template_name = "pwa/service-worker.js"
+    content_type = "application/javascript"
+
+
+class PWAOfflineView(TemplateView):
+    template_name = "pages/offline.html"

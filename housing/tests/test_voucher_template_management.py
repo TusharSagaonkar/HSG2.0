@@ -7,7 +7,6 @@ from django.urls import reverse
 from accounting.models import Account
 from accounting.models import VoucherTemplate
 from accounting.models import VoucherTemplateRow
-from housing.models import Society
 from housing.models import Structure
 from housing.models import Unit
 from societies.models import Membership
@@ -15,8 +14,7 @@ from societies.models import Membership
 pytestmark = pytest.mark.django_db
 
 
-def test_society_voucher_templates_lists_active_and_inactive_templates(client, user):
-    society = Society.objects.create(name="Management Society")
+def test_society_voucher_templates_lists_active_and_inactive_templates(client, user, society):
     Membership.objects.create(user=user, society=society, role=Membership.Role.ADMIN)
     VoucherTemplate.objects.create(
         society=society,
@@ -47,8 +45,7 @@ def test_society_voucher_templates_lists_active_and_inactive_templates(client, u
     assert 'id="deleteTemplateModal' in content
 
 
-def test_society_voucher_templates_create_template_in_page(client, user):
-    society = Society.objects.create(name="Create Society")
+def test_society_voucher_templates_create_template_in_page(client, user, society):
     Membership.objects.create(user=user, society=society, role=Membership.Role.ADMIN)
     client.force_login(user)
     structure = Structure.objects.create(
@@ -101,8 +98,7 @@ def test_society_voucher_templates_create_template_in_page(client, user):
     assert template.rows.order_by("order").first().default_amount == Decimal("500.00")
 
 
-def test_society_voucher_templates_requires_admin_or_above(client, user):
-    society = Society.objects.create(name="Restricted Society")
+def test_society_voucher_templates_requires_admin_or_above(client, user, society):
     Membership.objects.create(user=user, society=society, role=Membership.Role.VIEWER)
     client.force_login(user)
 
@@ -113,8 +109,7 @@ def test_society_voucher_templates_requires_admin_or_above(client, user):
     assert response.status_code == HTTPStatus.FORBIDDEN
 
 
-def test_society_voucher_templates_toggle_active(client, user):
-    society = Society.objects.create(name="Toggle Society")
+def test_society_voucher_templates_toggle_active(client, user, society):
     Membership.objects.create(user=user, society=society, role=Membership.Role.ADMIN)
     template = VoucherTemplate.objects.create(
         society=society,
@@ -135,8 +130,7 @@ def test_society_voucher_templates_toggle_active(client, user):
     assert template.is_active is False
 
 
-def test_society_voucher_templates_update_template_in_page(client, user):
-    society = Society.objects.create(name="Update Society")
+def test_society_voucher_templates_update_template_in_page(client, user, society):
     Membership.objects.create(user=user, society=society, role=Membership.Role.ADMIN)
     client.force_login(user)
     template = VoucherTemplate.objects.create(
@@ -182,8 +176,7 @@ def test_society_voucher_templates_update_template_in_page(client, user):
     assert template.is_pinned is True
 
 
-def test_society_voucher_templates_copy_template_in_page(client, user):
-    society = Society.objects.create(name="Copy Society")
+def test_society_voucher_templates_copy_template_in_page(client, user, society):
     Membership.objects.create(user=user, society=society, role=Membership.Role.ADMIN)
     client.force_login(user)
     source = VoucherTemplate.objects.create(
@@ -259,8 +252,7 @@ def test_society_voucher_templates_copy_template_in_page(client, user):
     assert VoucherTemplate.objects.filter(society=society, name="Electricity Payment").count() == 1
 
 
-def test_society_voucher_templates_delete_template(client, user):
-    society = Society.objects.create(name="Delete Template Society")
+def test_society_voucher_templates_delete_template(client, user, society):
     Membership.objects.create(user=user, society=society, role=Membership.Role.ADMIN)
     template = VoucherTemplate.objects.create(
         society=society,

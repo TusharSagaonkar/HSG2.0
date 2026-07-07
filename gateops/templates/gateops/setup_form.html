@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ form_title }} | GateOps Setup{% endblock title %}
+{% block dashboard_title %}{{ form_title }}{% endblock dashboard_title %}
+{% block dashboard_subtitle %}{{ config.title }} for {{ scope_society_name }}{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:setup-section' slug %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>{{ config.title }}</a>
+    <a href="{% url 'gateops:setup-index' %}" class="btn-action btn-action--outline-primary"><i class="fas fa-cog me-1"></i>All Setup</a>
+  </div>
+
+  <div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="note">
+    <i class="fas fa-building mt-1"></i>
+    <div>{{ config.description }} Changes are written only for <strong>{{ scope_society_name }}</strong>.</div>
+  </div>
+
+  <div class="content-card">
+    <div class="content-card__header">
+      <h3 class="content-card__title">{{ config.title }}</h3>
+    </div>
+    <div class="content-card__body">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger" role="alert">
+            {% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}
+          </div>
+        {% endif %}
+        <div class="row g-3">
+          {% for field in form %}
+            {% if field.field.widget.input_type == "checkbox" %}
+              <div class="col-12 col-md-6">
+                <div class="form-check mt-2">
+                  {{ field }}
+                  <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                </div>
+                {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                {% for error in field.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+              </div>
+            {% else %}
+              <div class="{% if field.field.widget.input_type == 'textarea' or field.name == 'settings_text' or field.name == 'permissions_text' %}col-12{% else %}col-12 col-md-6{% endif %}">
+                <div class="form-group">
+                  <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                  {{ field }}
+                  {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                  {% for error in field.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                </div>
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+        <div class="form-actions form-actions-inline mt-4">
+          <a href="{% url 'gateops:setup-section' slug %}" class="btn-action btn-action--secondary"><i class="fas fa-times me-1"></i>Cancel</a>
+          <button type="submit" class="btn-action btn-action--primary"><i class="fas fa-save me-1"></i>{{ submit_label }}</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}

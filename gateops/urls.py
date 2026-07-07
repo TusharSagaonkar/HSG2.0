@@ -1,0 +1,65 @@
+from django.urls import path
+
+from gateops import views
+
+app_name = "gateops"
+
+urlpatterns = [
+    path("", view=views.gateops_dashboard_view, name="dashboard"),
+    path("setup/", view=views.setup_index_view, name="setup-index"),
+    path("setup/<slug:slug>/", view=views.setup_section_view, name="setup-section"),
+    path("setup/<slug:slug>/create/", view=views.setup_create_view, name="setup-create"),
+    path("setup/<slug:slug>/<int:pk>/edit/", view=views.setup_edit_view, name="setup-edit"),
+    path("setup/<slug:slug>/<int:pk>/delete/", view=views.setup_delete_view, name="setup-delete"),
+    path("setup/<slug:slug>/<int:pk>/move/<str:direction>/", view=views.setup_move_view, name="setup-move"),
+    path("rules/", view=views.rule_list_view, name="rule-list"),
+    path("rules/create/", view=views.rule_create_view, name="rule-create"),
+    path("rules/<int:pk>/", view=views.rule_detail_view, name="rule-detail"),
+    path("rules/<int:pk>/edit/", view=views.rule_edit_view, name="rule-edit"),
+    path("rules/<int:pk>/toggle/", view=views.rule_toggle_view, name="rule-toggle"),
+    path("rules/<int:pk>/conditions/create/", view=views.condition_create_view, name="condition-create"),
+    path("rules/<int:pk>/actions/create/", view=views.action_create_view, name="action-create"),
+    path("test/", view=views.rule_test_view, name="rule-test"),
+    path("logs/", view=views.logs_view, name="logs"),
+    path("events/", view=views.gate_event_list_view, name="event-list"),
+    path("events/new/", view=views.gate_event_form_view, name="event-create"),
+    path("events/<uuid:uuid>/", view=views.gate_event_detail_view, name="event-detail"),
+    path("events/<uuid:uuid>/exit/", view=views.gate_event_record_exit_view, name="event-exit"),
+    path("events/<uuid:uuid>/approve/", view=views.gate_event_approve_view, name="event-approve"),
+    path("events/<uuid:uuid>/reject/", view=views.gate_event_reject_view, name="event-reject"),
+    path("currently-inside/", view=views.currently_inside_view, name="currently-inside"),
+    # --- Phase 5: Pass Management ---
+    path("passes/", view=views.pass_list_view, name="pass-list"),
+    path("passes/<int:pk>/", view=views.pass_detail_view, name="pass-detail"),
+    path("passes/<int:pk>/revoke/", view=views.pass_revoke_view, name="pass-revoke"),
+    path("passes/<int:pk>/suspend/", view=views.pass_suspend_view, name="pass-suspend"),
+    path("passes/<int:pk>/reactivate/", view=views.pass_reactivate_view, name="pass-reactivate"),
+    path("passes/<int:pk>/validate/", view=views.pass_validate_view, name="pass-validate"),
+    path("passes/issue/", view=views.pass_issue_view, name="pass-issue"),
+    # --- Phase 6: Vehicle Module ---
+    path("vehicles/", view=views.vehicle_list_view, name="vehicle-list"),
+    path("vehicles/register/", view=views.vehicle_register_view, name="vehicle-register"),
+    path("vehicles/search/", view=views.vehicle_search_view, name="vehicle-search"),
+    path("vehicles/anpr-lookup/", view=views.vehicle_anpr_lookup_view, name="vehicle-anpr-lookup"),
+    path("vehicles/<int:pk>/", view=views.vehicle_detail_view, name="vehicle-detail"),
+    path("vehicles/<int:pk>/watchlist/", view=views.vehicle_watchlist_view, name="vehicle-watchlist"),
+    path("vehicles/<int:pk>/unwatchlist/", view=views.vehicle_unwatchlist_view, name="vehicle-unwatchlist"),
+    # --- Phase 7: Material Movement ---
+    path("materials/", view=views.material_list_view, name="material-list"),
+    path("materials/record/", view=views.material_record_view, name="material-record"),
+    path("materials/pending/", view=views.material_pending_view, name="material-pending"),
+    path("materials/overdue/", view=views.material_overdue_view, name="material-overdue"),
+    path("materials/<int:pk>/", view=views.material_detail_view, name="material-detail"),
+    path("materials/<int:pk>/return/", view=views.material_return_view, name="material-return"),
+    path("materials/<int:pk>/cancel/", view=views.material_cancel_view, name="material-cancel"),
+    path("materials/<int:pk>/gate-pass/", view=views.material_gate_pass_view, name="material-gate-pass"),
+    # --- Phase 8: Parcel Management ---
+    path("parcels/", view=views.parcel_list_view, name="parcel-list"),
+    path("parcels/receive/", view=views.parcel_receive_view, name="parcel-receive"),
+    path("parcels/pending/", view=views.parcel_pending_view, name="parcel-pending"),
+    path("parcels/overdue/", view=views.parcel_overdue_view, name="parcel-overdue"),
+    path("parcels/<int:pk>/", view=views.parcel_detail_view, name="parcel-detail"),
+    path("parcels/<int:pk>/collect/", view=views.parcel_collect_view, name="parcel-collect"),
+    path("parcels/<int:pk>/return/", view=views.parcel_return_view, name="parcel-return"),
+    path("parcels/<int:pk>/mark-lost/", view=views.parcel_mark_lost_view, name="parcel-mark-lost"),
+]

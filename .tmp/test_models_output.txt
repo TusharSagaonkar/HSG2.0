@@ -1,4 +1,0 @@
-============================= test session starts ==============================
-collected 48 items
-
-reconciliation/tests/test_models.py ...........F..FFFF.FFFFFFF.FFFFFFFFF [ 75%]

@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Rule Test | Gate Operations{% endblock title %}
+{% block dashboard_title %}Rule Test{% endblock dashboard_title %}
+{% block dashboard_subtitle %}Run the real RuleEngineService for {{ scope_society_name }}{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:dashboard' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Dashboard</a>
+    <a href="{% url 'gateops:rule-list' %}" class="btn-action btn-action--primary"><i class="fas fa-list me-1"></i>Rules</a>
+    <a href="{% url 'gateops:logs' %}" class="btn-action btn-action--secondary"><i class="fas fa-clipboard-list me-1"></i>Logs</a>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-5">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Context Form</h3>
+          <span class="badge bg-primary">{{ scope_society_name }}</span>
+        </div>
+        <div class="content-card__body">
+          <form method="post" novalidate>
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger">{% for error in form.non_field_errors %}<div>{{ error }}</div>{% endfor %}</div>
+            {% endif %}
+            <div class="row g-3">
+              {% for field in form %}
+                {% if field.field.widget.input_type == "checkbox" %}
+                  <div class="col-12 col-md-6">
+                    <div class="form-check mt-2">
+                      {{ field }}
+                      <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    </div>
+                    {% for error in field.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                  </div>
+                {% else %}
+                  <div class="{% if field.name == 'extra_context' %}col-12{% else %}col-12 col-md-6{% endif %}">
+                    <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                    {{ field }}
+                    {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                    {% for error in field.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                  </div>
+                {% endif %}
+              {% endfor %}
+            </div>
+            <button type="submit" class="btn-action btn-action--primary mt-4"><i class="fas fa-play me-1"></i>Run Real Engine</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-7">
+      <div class="content-card mb-3">
+        <div class="content-card__header"><h3 class="content-card__title">RuleEngineService Result</h3></div>
+        <div class="content-card__body">
+          {% if engine_result %}
+            <div class="row g-3 mb-3">
+              <div class="col-sm-6 col-lg-3">
+                <div class="border rounded p-3 h-100">
+                  <div class="small text-muted text-uppercase fw-bold">Matched</div>
+                  <div class="h5 mb-0">{% if engine_result.matched %}<span class="text-success">Yes</span>{% else %}<span class="text-secondary">No</span>{% endif %}</div>
+                </div>
+              </div>
+              <div class="col-sm-6 col-lg-3">
+                <div class="border rounded p-3 h-100">
+                  <div class="small text-muted text-uppercase fw-bold">Action</div>
+                  <div class="h6 mb-0">{{ engine_result.action }}</div>
+                </div>
+              </div>
+              <div class="col-sm-6 col-lg-3">
+                <div class="border rounded p-3 h-100">
+                  <div class="small text-muted text-uppercase fw-bold">Execution</div>
+                  <div class="h6 mb-0">{{ engine_result.execution_time_ms }} ms</div>
+                </div>
+              </div>
+              <div class="col-sm-6 col-lg-3">
+                <div class="border rounded p-3 h-100">
+                  <div class="small text-muted text-uppercase fw-bold">Evaluation Log</div>
+                  <div class="h6 mb-0">#{{ engine_result.evaluation.pk }}</div>
+                </div>
+              </div>
+            </div>
+
+            <dl class="row">
+              <dt class="col-sm-3">Matched Rule</dt>
+              <dd class="col-sm-9">
+                {% if engine_result.rule %}
+                  <a href="{% url 'gateops:rule-detail' engine_result.rule.pk %}">{{ engine_result.rule.code }} — {{ engine_result.rule.name }}</a>
+                {% else %}
+                  No matching rule; default action returned.
+                {% endif %}
+              </dd>
+              <dt class="col-sm-3">Matched Conditions</dt>
+              <dd class="col-sm-9"><pre class="bg-light border rounded p-3 small mb-0"><code>{{ engine_result.evaluation.matched_conditions }}</code></pre></dd>
+            </dl>
+          {% else %}
+            <div class="text-muted text-center py-5">Submit the context form to run the real rule engine.</div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if dry_run_result %}
+        <div class="content-card mb-3">
+          <div class="content-card__header"><h3 class="content-card__title">RuleTestService Dry Run</h3></div>
+          <div class="content-card__body">
+            <div class="d-flex flex-wrap gap-2 mb-3">
+              <span class="badge {% if dry_run_result.matched %}bg-success{% else %}bg-secondary{% endif %}">Matched: {{ dry_run_result.matched }}</span>
+              <span class="badge bg-info">Action: {{ dry_run_result.action|default:"None" }}</span>
+              <span class="badge bg-secondary">{{ dry_run_result.execution_time_ms }} ms</span>
+            </div>
+            <pre class="bg-light border rounded p-3 small mb-0"><code>{{ dry_run_result_json }}</code></pre>
+          </div>
+        </div>
+      {% endif %}
+
+      {% if latest_evaluation %}
+        <div class="content-card mb-3">
+          <div class="content-card__header"><h3 class="content-card__title">Latest RuleEvaluation Row</h3></div>
+          <div class="content-card__body">
+            <div class="small text-muted mb-2">{{ latest_evaluation.evaluated_at|date:"d M Y H:i:s" }} · {{ latest_evaluation.get_action_taken_display }}</div>
+            {% if latest_evaluation.error_message %}<div class="alert alert-danger">{{ latest_evaluation.error_message }}</div>{% endif %}
+            <pre class="bg-light border rounded p-3 small mb-0"><code>{{ engine_result_json }}</code></pre>
+          </div>
+        </div>
+      {% endif %}
+
+      {% if context_json %}
+        <div class="content-card">
+          <div class="content-card__header"><h3 class="content-card__title">Submitted Context JSON</h3></div>
+          <div class="content-card__body">
+            <pre class="bg-dark text-white rounded p-3 small mb-0"><code>{{ context_json }}</code></pre>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}

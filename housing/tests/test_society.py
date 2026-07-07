@@ -1,8 +1,6 @@
-from django.test import TestCase
-from housing.models import Society
+from core.test_base import SocietyTestCase
 
 
-class SocietyModelTest(TestCase):
+class SocietyModelTest(SocietyTestCase):
     def test_create_society(self):
-        society = Society.objects.create(name="Green Heights")
-        self.assertEqual(str(society), "Green Heights")
+        self.assertEqual(str(self.society), self.society.name)

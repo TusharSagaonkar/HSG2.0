@@ -20,6 +20,7 @@ from accounting.models import (
     LedgerEntry,
     Voucher,
 )
+from core.test_factories import SocietyFactory  # noqa: F401 — re-exported for backwards compat
 from housing_accounting.users.tests.factories import UserFactory
 from reconciliation.models import (
     BankStatementImport,
@@ -29,22 +30,14 @@ from reconciliation.models import (
     ReconciliationHistory,
     ReconciliationLink,
 )
-from societies.models import Society
 
 
 # ---------------------------------------------------------------------------
 # Society
 # ---------------------------------------------------------------------------
-
-class SocietyFactory(DjangoModelFactory):
-    """Minimal society for test isolation."""
-
-    name = factory.Sequence(lambda n: f"Test Society {n}")
-    registration_number = factory.Sequence(lambda n: f"REG-{n:05d}")
-
-    class Meta:
-        model = Society
-        django_get_or_create = ("name",)
+# SocietyFactory is now imported from core.test_factories (single source of
+# truth). It is re-exported here so existing imports of the form
+# `from reconciliation.tests.factories import SocietyFactory` keep working.
 
 
 # ---------------------------------------------------------------------------

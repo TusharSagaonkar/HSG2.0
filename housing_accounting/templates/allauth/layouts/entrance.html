@@ -58,6 +58,21 @@
           {% endblock content %}
           {% block extra_body %}
           {% endblock extra_body %}
+          <div class="auth-install-note" data-pwa-install-entry aria-label="{% trans 'Install app' %}">
+            <div class="auth-install-note__icon" aria-hidden="true">
+              <i class="fas fa-mobile-alt"></i>
+            </div>
+            <div class="auth-install-note__copy">
+              <div class="auth-install-note__title">{% trans "Install Housynk on your device" %}</div>
+              <div class="auth-install-note__description">{% trans "Add the app to your home screen for faster access and offline use." %}</div>
+            </div>
+            <div class="auth-install-note__actions">
+              <button type="button" class="btn btn-primary btn-sm d-none" data-pwa-install-action>
+                <i class="fas fa-download me-1" aria-hidden="true"></i>{% trans "Install" %}
+              </button>
+              <div class="auth-install-note__help">{% trans "Use your browser menu if the button is unavailable." %}</div>
+            </div>
+          </div>
         </div>
       </section>
     </div>

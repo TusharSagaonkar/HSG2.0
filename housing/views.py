@@ -1,12 +1,20 @@
+from decimal import Decimal
+
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
 from django.core.exceptions import ValidationError
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.db.models import DecimalField
 from django.db.models import Count
+from django.db.models import ExpressionWrapper
+from django.db.models import F
 from django.db.models import Prefetch
 from django.db.models import Q
+from django.db.models import Sum
+from django.db.models import Value
+from django.db.models.functions import Coalesce
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext_lazy as _
@@ -49,6 +57,7 @@ from billing.models import Bill
 from billing.models import ChargeTemplate
 from billing.services import generate_bills_for_period
 from billing.reports import build_member_outstanding
+from receipts.models import PaymentReceipt
 from receipts.services import post_receipt_for_bill
 from accounting.models import Account
 from accounting.models import VoucherTemplate
@@ -1328,6 +1337,97 @@ class OutstandingDashboardView(LoginRequiredMixin, TemplateView):
 
 
 outstanding_dashboard_view = OutstandingDashboardView.as_view()
+
+
+class FinanceDashboardView(LoginRequiredMixin, TemplateView):
+    template_name = "housing/finance_dashboard.html"
+
+    @staticmethod
+    def _sum_amount(queryset, field_name):
+        return queryset.aggregate(
+            total=Coalesce(
+                Sum(field_name),
+                Value(
+                    Decimal("0.00"),
+                    output_field=DecimalField(max_digits=12, decimal_places=2),
+                ),
+            )
+        )["total"]
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        selected_society, _ = get_selected_scope(self.request)
+        today = timezone.localdate()
+        money_field = DecimalField(max_digits=12, decimal_places=2)
+        zero = Value(Decimal("0.00"), output_field=money_field)
+        allocated_amount = Coalesce(Sum("receipt_allocations__amount"), zero)
+        outstanding_amount = ExpressionWrapper(
+            F("total_amount") - allocated_amount,
+            output_field=money_field,
+        )
+
+        bills_qs = Bill.objects.select_related(
+            "society",
+            "member",
+            "unit",
+            "voucher",
+            "receivable_account",
+        )
+        receipts_qs = PaymentReceipt.objects.select_related(
+            "society",
+            "member",
+            "unit",
+            "deposited_account",
+            "voucher",
+        ).prefetch_related("allocations__bill")
+
+        if selected_society:
+            bills_qs = bills_qs.filter(society=selected_society)
+            receipts_qs = receipts_qs.filter(society=selected_society)
+
+        bills_with_balance = bills_qs.annotate(
+            allocated_amount_value=allocated_amount,
+            outstanding_amount_value=outstanding_amount,
+        )
+        receipts_with_allocations = receipts_qs.annotate(
+            allocation_count=Count("allocations"),
+        )
+        context.update(
+            {
+                "selected_society": selected_society,
+                "today": today,
+                "bill_count": bills_qs.count(),
+                "open_bill_count": bills_qs.filter(status=Bill.BillStatus.OPEN).count(),
+                "partial_bill_count": bills_qs.filter(status=Bill.BillStatus.PARTIAL).count(),
+                "overdue_bill_count": bills_qs.filter(status=Bill.BillStatus.OVERDUE).count(),
+                "total_billed": self._sum_amount(bills_qs, "total_amount"),
+                "total_bill_outstanding": bills_with_balance.aggregate(
+                    total=Coalesce(Sum("outstanding_amount_value"), zero)
+                )["total"],
+                "recent_bills": bills_with_balance.order_by("-bill_date", "-id")[:6],
+                "receipt_count": receipts_qs.count(),
+                "posted_receipt_count": receipts_qs.filter(
+                    status=PaymentReceipt.ReceiptStatus.POSTED,
+                ).count(),
+                "void_receipt_count": receipts_qs.filter(
+                    status=PaymentReceipt.ReceiptStatus.VOID,
+                ).count(),
+                "unallocated_receipt_count": receipts_with_allocations.filter(
+                    allocation_count=0,
+                ).count(),
+                "total_collected": self._sum_amount(
+                    receipts_qs.filter(status=PaymentReceipt.ReceiptStatus.POSTED),
+                    "amount",
+                ),
+                "recent_receipts": receipts_qs.order_by("-receipt_date", "-id")[:6],
+                "overdue_bills_today": bills_qs.exclude(status=Bill.BillStatus.PAID).filter(due_date__lt=today).count(),
+                "due_today_bills": bills_qs.exclude(status=Bill.BillStatus.PAID).filter(due_date=today).count(),
+            }
+        )
+        return context
+
+
+finance_dashboard_view = FinanceDashboardView.as_view()
 
 
 class SocietyAdminView(LoginRequiredMixin, DetailView):

@@ -24,6 +24,93 @@ const initShortcutHelpTrigger = () => {
   });
 };
 
+const initPwa = () => {
+  const installPrompt = document.querySelector("[data-pwa-install-prompt]");
+  const installActions = Array.from(document.querySelectorAll("[data-pwa-install-action]"));
+  const installDismiss = document.querySelector("[data-pwa-install-dismiss]");
+  let deferredPrompt = null;
+
+  const setInstallActionVisibility = (visible) => {
+    installActions.forEach((action) => {
+      action.classList.toggle("d-none", !visible);
+    });
+  };
+
+  const isStandalone =
+    window.matchMedia?.("(display-mode: standalone)")?.matches ||
+    window.navigator.standalone === true;
+
+  if (isStandalone && installPrompt) {
+    installPrompt.remove();
+    setInstallActionVisibility(false);
+    return;
+  }
+
+  const hideInstallPrompt = (persist = false) => {
+    if (installPrompt) {
+      installPrompt.classList.add("d-none");
+    }
+    setInstallActionVisibility(false);
+    deferredPrompt = null;
+    if (persist) {
+      sessionStorage.setItem("housing_accounting_pwa_install_dismissed", "true");
+    }
+  };
+
+  if (sessionStorage.getItem("housing_accounting_pwa_install_dismissed") === "true") {
+    hideInstallPrompt();
+  }
+
+  if (installDismiss) {
+    installDismiss.addEventListener("click", () => {
+      hideInstallPrompt(true);
+    });
+  }
+
+  installActions.forEach((installAction) => {
+    installAction.addEventListener("click", async () => {
+      if (!deferredPrompt) {
+        return;
+      }
+
+      deferredPrompt.prompt();
+      await deferredPrompt.userChoice.catch(() => null);
+      hideInstallPrompt();
+    });
+  });
+
+  window.addEventListener("beforeinstallprompt", (event) => {
+    event.preventDefault();
+    if (!installPrompt) {
+      return;
+    }
+
+    if (sessionStorage.getItem("housing_accounting_pwa_install_dismissed") === "true") {
+      deferredPrompt = event;
+      return;
+    }
+
+    deferredPrompt = event;
+    installPrompt.classList.remove("d-none");
+    setInstallActionVisibility(true);
+  });
+
+  window.addEventListener("appinstalled", () => {
+    sessionStorage.removeItem("housing_accounting_pwa_install_dismissed");
+    hideInstallPrompt();
+  });
+
+  if (!("serviceWorker" in navigator)) {
+    return;
+  }
+
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/service-worker.js").catch((error) => {
+      console.warn("Service worker registration failed:", error);
+    });
+  });
+};
+
 const stopToggleEvent = (event) => {
   event.preventDefault();
   event.stopPropagation();
@@ -316,6 +403,15 @@ const initLayoutToggles = () => {
         saveSidebarScrollState();
         window.dispatchEvent(new Event("resize"));
         return;
+      }
+
+      // Auto-collapse mobile sidenav when a sidebar link is clicked.
+      const sidebarLink = event.target.closest('.sidebar a[href]');
+      const isMobile = window.matchMedia && window.matchMedia('(max-width: 991px)').matches;
+      if (sidebarLink && isMobile && htmlElement.classList.contains('nav_open')) {
+        // Allow navigation to proceed, but close the mobile nav UI.
+        htmlElement.classList.remove('nav_open');
+        syncSidenavToggleState();
       }
 
       const sidenavToggle = event.target.closest(".sidenav-toggler");
@@ -871,5 +967,6 @@ window.addEventListener("DOMContentLoaded", () => {
   initVoucherDetailModal();
   initWorkspaceContent();
   initShortcutHelpTrigger();
+  initPwa();
   initPersistentWorkspace();
 });

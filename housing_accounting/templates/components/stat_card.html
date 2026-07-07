@@ -1,13 +1,21 @@
 {% load i18n %}
-<div class="stat-card">
-  <div class="stat-card__icon stat-card__icon--{{ color|default:'primary' }}">
-    <i class="{{ icon }}"></i>
-  </div>
-  <div class="stat-card__content">
-    <p class="stat-card__label">{{ label }}</p>
-    <h3 class="stat-card__value">{{ value }}</h3>
-    {% if subtitle %}
-      <p class="stat-card__subtitle">{{ subtitle }}</p>
-    {% endif %}
-  </div>
+{% if href %}
+  <a href="{{ href }}" class="stat-card text-decoration-none text-reset d-block h-100">
+{% else %}
+  <div class="stat-card">
+{% endif %}
+    <div class="stat-card__icon stat-card__icon--{{ color|default:'primary' }}">
+      <i class="{{ icon }}"></i>
+    </div>
+    <div class="stat-card__content">
+      <p class="stat-card__label">{{ label }}</p>
+      <h3 class="stat-card__value">{{ value }}</h3>
+      {% if subtitle %}
+        <p class="stat-card__subtitle">{{ subtitle }}</p>
+      {% endif %}
+    </div>
+{% if href %}
+  </a>
+{% else %}
 </div>
+{% endif %}

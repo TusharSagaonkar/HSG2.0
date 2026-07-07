@@ -12,7 +12,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content="Multi-user housing society accounting and management system" />
     <meta name="author" content="Tushar Sagoankar" />
+    <meta name="theme-color" content="#123b7a" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-title" content="Housynk" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <link rel="manifest" href="{% url 'pwa-manifest' %}" />
     <link rel="icon" type="image/png" href="{% static 'images/brand/housynk-logo-mark-transparent.png' %}" />
+    <link rel="apple-touch-icon" sizes="180x180" href="{% static 'images/favicons/apple-touch-icon.png' %}" />
+    <link rel="icon" type="image/png" sizes="192x192" href="{% static 'images/favicons/pwa-icon-192.png' %}" />
+    <link rel="icon" type="image/png" sizes="512x512" href="{% static 'images/favicons/pwa-icon-512.png' %}" />
 
     <script src="/static/vendor/kaiadmin-lite/assets/js/plugin/webfont/webfont.min.js"></script>
     <script>
@@ -134,6 +143,13 @@
                     </a>
                   </li>
 
+                  <li class="nav-item {% if current_namespace == 'gateops' %}active{% endif %}">
+                    <a href="{% url 'gateops:dashboard' %}" aria-label="Gate Management" data-workspace-link hx-get="{% url 'gateops:dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
+                      <i class="fas fa-shield-alt"></i>
+                      <p>{% translate "Gate Management" %}</p>
+                    </a>
+                  </li>
+
                   <li class="nav-item {% if current_namespace == 'housing' and current_url_name == 'member-list' or current_namespace == 'housing' and current_url_name == 'member-edit' or current_namespace == 'housing' and current_url_name == 'member-add' or current_namespace == 'members' %}active{% endif %}">
                     <a href="{% url 'housing:member-list' %}" aria-label="Members" data-workspace-link hx-get="{% url 'housing:member-list' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
                       <i class="fas fa-users"></i>
@@ -167,24 +183,10 @@
                     </a>
                   </li>
 
-                  <li class="nav-item {% if current_namespace == 'billing' and current_url_name == 'charge-template-list' or current_namespace == 'billing' and current_url_name == 'bill-list' or current_namespace == 'billing' and current_url_name == 'bill-detail' or current_namespace == 'housing' and current_url_name == 'charge-template-add' or current_namespace == 'housing' and current_url_name == 'billing-generate' %}active{% endif %}">
-                    <a href="{% url 'billing:bill-list' %}" aria-label="Bills" data-workspace-link hx-get="{% url 'billing:bill-list' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
+                  <li class="nav-item {% if current_namespace == 'billing' and current_url_name == 'charge-template-list' or current_namespace == 'billing' and current_url_name == 'bill-list' or current_namespace == 'billing' and current_url_name == 'bill-detail' or current_namespace == 'receipts' and current_url_name == 'receipt-list' or current_namespace == 'receipts' and current_url_name == 'receipt-detail' or current_namespace == 'housing' and current_url_name == 'finance-dashboard' or current_namespace == 'housing' and current_url_name == 'outstanding-dashboard' or current_namespace == 'housing' and current_url_name == 'charge-template-add' or current_namespace == 'housing' and current_url_name == 'billing-generate' or current_namespace == 'housing' and current_url_name == 'receipt-post' %}active{% endif %}">
+                    <a href="{% url 'housing:finance-dashboard' %}" aria-label="Finance Hub" data-workspace-link hx-get="{% url 'housing:finance-dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
                       <i class="fas fa-file-invoice-dollar"></i>
-                      <p>{% translate "Bills" %}</p>
-                    </a>
-                  </li>
-
-                  <li class="nav-item {% if current_namespace == 'receipts' %}active{% endif %}">
-                    <a href="{% url 'receipts:receipt-list' %}" aria-label="Receipts" data-workspace-link hx-get="{% url 'receipts:receipt-list' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
-                      <i class="fas fa-receipt"></i>
-                      <p>{% translate "Receipts" %}</p>
-                    </a>
-                  </li>
-
-                  <li class="nav-item {% if current_namespace == 'housing' and current_url_name == 'outstanding-dashboard' %}active{% endif %}">
-                    <a href="{% url 'housing:outstanding-dashboard' %}" aria-label="Outstanding" data-workspace-link hx-get="{% url 'housing:outstanding-dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
-                      <i class="fas fa-exclamation-triangle"></i>
-                      <p>{% translate "Outstanding" %}</p>
+                      <p>{% translate "Finance Hub" %}</p>
                     </a>
                   </li>
 
@@ -476,5 +478,22 @@
       Script tags with only code, no src (defer by default).
       {% endcomment %}
     {% endblock inline_javascript %}
+
+    <div class="pwa-install-prompt d-none" data-pwa-install-prompt role="region" aria-live="polite" aria-label="{% translate 'Install app' %}">
+      <div class="pwa-install-prompt__content">
+        <div class="pwa-install-prompt__copy">
+          <div class="pwa-install-prompt__kicker">{% translate "Get the app" %}</div>
+          <div class="pwa-install-prompt__title">{% translate "Install Housynk for faster access and offline use." %}</div>
+        </div>
+        <div class="pwa-install-prompt__actions">
+          <button type="button" class="btn btn-primary btn-sm d-none" data-pwa-install-action>
+            <i class="fas fa-download me-1" aria-hidden="true"></i>{% translate "Install" %}
+          </button>
+          <button type="button" class="btn btn-light btn-sm" data-pwa-install-dismiss>
+            {% translate "Not now" %}
+          </button>
+        </div>
+      </div>
+    </div>
   </body>
 </html>

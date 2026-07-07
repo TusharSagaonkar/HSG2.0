@@ -5,7 +5,6 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 
-from housing.models import Society
 from housing.models import Structure
 from housing.models import Unit
 from housing.models import Member
@@ -39,8 +38,7 @@ class TestHousingDashboardView:
 
 
 class TestSocietyViews:
-    def test_society_list_view(self, client, user):
-        Society.objects.create(name="Green Heights")
+    def test_society_list_view(self, client, user, society):
         client.force_login(user)
 
         response = client.get(reverse("housing:society-list"))
@@ -49,8 +47,7 @@ class TestSocietyViews:
         assert "housing/society_list.html" in [t.name for t in response.templates]
         assert response.context["societies"].count() == 1
 
-    def test_society_detail_view(self, client, user):
-        society = Society.objects.create(name="Green Heights")
+    def test_society_detail_view(self, client, user, society):
         structure = Structure.objects.create(
             society=society,
             structure_type=Structure.StructureType.BUILDING,
@@ -75,8 +72,7 @@ class TestSocietyViews:
             in response.content.decode()
         )
 
-    def test_society_detail_shows_primary_owner(self, client, user):
-        society = Society.objects.create(name="Green Heights")
+    def test_society_detail_shows_primary_owner(self, client, user, society):
         structure = Structure.objects.create(
             society=society,
             structure_type=Structure.StructureType.BUILDING,
@@ -122,8 +118,7 @@ class TestSocietyViews:
         assert "Primary Owner" in content
         assert "Secondary Owner" not in content
 
-    def test_society_email_settings_view(self, client, user):
-        society = Society.objects.create(name="Green Heights")
+    def test_society_email_settings_view(self, client, user, society):
         client.force_login(user)
 
         response = client.get(
@@ -136,8 +131,7 @@ class TestSocietyViews:
         ]
         assert response.context["society"] == society
 
-    def test_society_email_settings_post_creates_override(self, client, user):
-        society = Society.objects.create(name="Green Heights")
+    def test_society_email_settings_post_creates_override(self, client, user, society):
         client.force_login(user)
 
         response = client.post(
@@ -162,8 +156,7 @@ class TestSocietyViews:
         assert settings_record.smtp_host == "smtp.society.test"
         assert settings_record.smtp_password == "override-secret"  # noqa: S105
 
-    def test_bulk_unit_create_view_renders(self, client, user):
-        society = Society.objects.create(name="Bulk Heights")
+    def test_bulk_unit_create_view_renders(self, client, user, society):
         structure = Structure.objects.create(
             society=society,
             structure_type=Structure.StructureType.BUILDING,
@@ -179,8 +172,7 @@ class TestSocietyViews:
         assert response.status_code == HTTPStatus.OK
         assert "housing/unit_bulk_form.html" in [t.name for t in response.templates]
 
-    def test_bulk_unit_create_view_saves_units(self, client, user):
-        society = Society.objects.create(name="Bulk Heights")
+    def test_bulk_unit_create_view_saves_units(self, client, user, society):
         structure = Structure.objects.create(
             society=society,
             structure_type=Structure.StructureType.BUILDING,
@@ -232,8 +224,7 @@ class TestSocietyViews:
         assert units[1].unit_type == Unit.UnitType.SHOP
         assert units[1].is_active is False
 
-    def test_member_add_view_accepts_minimal_payload(self, client, user):
-        society = Society.objects.create(name="Quick Add Heights")
+    def test_member_add_view_accepts_minimal_payload(self, client, user, society):
         structure = Structure.objects.create(
             society=society,
             structure_type=Structure.StructureType.BUILDING,
@@ -264,8 +255,7 @@ class TestSocietyViews:
         assert member.status == Member.MemberStatus.ACTIVE
         assert member.start_date is not None
 
-    def test_member_add_owner_creates_primary_ownership_and_occupancy(self, client, user):
-        society = Society.objects.create(name="Owner Heights")
+    def test_member_add_owner_creates_primary_ownership_and_occupancy(self, client, user, society):
         structure = Structure.objects.create(
             society=society,
             structure_type=Structure.StructureType.BUILDING,
@@ -307,8 +297,7 @@ class TestSocietyViews:
         assert occupancy.occupant == owner_user
         assert member.unit == unit
 
-    def test_owner_member_auto_creates_user_and_ownership(self, client, user):
-        society = Society.objects.create(name="Auto Owner Heights")
+    def test_owner_member_auto_creates_user_and_ownership(self, client, user, society):
         structure = Structure.objects.create(
             society=society,
             structure_type=Structure.StructureType.BUILDING,
@@ -341,8 +330,7 @@ class TestSocietyViews:
         assert ownership.owner.name == "Auto Owner"
         assert ownership.owner.is_active is True
 
-    def test_second_owner_becomes_secondary_without_replacing_owner_occupancy(self, client, user):
-        society = Society.objects.create(name="Owner Heights")
+    def test_second_owner_becomes_secondary_without_replacing_owner_occupancy(self, client, user, society):
         structure = Structure.objects.create(
             society=society,
             structure_type=Structure.StructureType.BUILDING,
@@ -400,8 +388,7 @@ class TestSocietyViews:
         assert occupancy.occupancy_type == UnitOccupancy.OccupancyType.OWNER
         assert occupancy.occupant == owner_user
 
-    def test_tenant_add_replaces_current_occupancy(self, client, user):
-        society = Society.objects.create(name="Tenant Heights")
+    def test_tenant_add_replaces_current_occupancy(self, client, user, society):
         structure = Structure.objects.create(
             society=society,
             structure_type=Structure.StructureType.BUILDING,
@@ -456,8 +443,7 @@ class TestSocietyViews:
         assert current_occupancy.occupancy_type == UnitOccupancy.OccupancyType.TENANT
         assert current_occupancy.occupant == tenant_user
 
-    def test_non_owner_member_receivable_account_is_cleared(self, client, user):
-        society = Society.objects.create(name="Tenant Heights")
+    def test_non_owner_member_receivable_account_is_cleared(self, client, user, society):
         asset_cat = AccountCategory.objects.create(
             society=society,
             name="Assets Receivable Test",
@@ -500,8 +486,7 @@ class TestSocietyViews:
         member = Member.objects.get(full_name="Tenant User")
         assert member.receivable_account is None
 
-    def test_member_add_modal_is_slimmed_down(self, client, user):
-        society = Society.objects.create(name="Quick Add Heights")
+    def test_member_add_modal_is_slimmed_down(self, client, user, society):
         structure = Structure.objects.create(
             society=society,
             structure_type=Structure.StructureType.BUILDING,
@@ -524,8 +509,7 @@ class TestSocietyViews:
         assert 'name="start_date"' not in content
         assert 'name="end_date"' not in content
 
-    def test_member_add_page_includes_unit_search_ui(self, client, user):
-        society = Society.objects.create(name="Search Heights")
+    def test_member_add_page_includes_unit_search_ui(self, client, user, society):
         structure = Structure.objects.create(
             society=society,
             structure_type=Structure.StructureType.BUILDING,
@@ -548,8 +532,7 @@ class TestSocietyViews:
 
 
 class TestMemberListFilters:
-    def test_structure_filter_on_member_list(self, client, user):
-        society = Society.objects.create(name="Green Heights")
+    def test_structure_filter_on_member_list(self, client, user, society):
         alpha = Structure.objects.create(
             society=society,
             structure_type=Structure.StructureType.BUILDING,
@@ -594,8 +577,7 @@ class TestMemberListFilters:
         assert len(members) == 1
         assert members[0].full_name == "Alpha Member"
 
-    def test_search_filter_on_member_list(self, client, user):
-        society = Society.objects.create(name="Green Heights")
+    def test_search_filter_on_member_list(self, client, user, society):
         structure = Structure.objects.create(
             society=society,
             structure_type=Structure.StructureType.BUILDING,

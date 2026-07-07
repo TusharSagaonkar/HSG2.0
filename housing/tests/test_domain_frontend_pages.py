@@ -15,16 +15,14 @@ from housing.models import Member
 from housing.models import PaymentReceipt
 from housing.models import ReceiptAllocation
 from housing.models import ReminderLog
-from housing.models import Society
 from housing.models import Structure
 from housing.models import Unit
 
 pytestmark = pytest.mark.django_db
 
 
-def _build_domain_data():
+def _build_domain_data(society):
     today = timezone.localdate()
-    society = Society.objects.create(name="Domain Pages Society")
     structure = Structure.objects.create(
         society=society,
         structure_type=Structure.StructureType.BUILDING,
@@ -119,8 +117,8 @@ def _build_domain_data():
     }
 
 
-def test_billing_pages_render(client, user):
-    data = _build_domain_data()
+def test_billing_pages_render(client, user, society):
+    data = _build_domain_data(society)
     client.force_login(user)
 
     response = client.get(reverse("billing:bill-list"))
@@ -146,8 +144,8 @@ def test_bill_list_exposes_charge_template_actions(client, user):
     assert "Add Charge Template" in content
 
 
-def test_receipt_pages_render(client, user):
-    data = _build_domain_data()
+def test_receipt_pages_render(client, user, society):
+    data = _build_domain_data(society)
     client.force_login(user)
 
     response = client.get(reverse("receipts:receipt-list"))
@@ -161,8 +159,8 @@ def test_receipt_pages_render(client, user):
     assert "receipts/receipt_detail.html" in [t.name for t in response.templates]
 
 
-def test_notification_and_member_pages_render(client, user):
-    data = _build_domain_data()
+def test_notification_and_member_pages_render(client, user, society):
+    data = _build_domain_data(society)
     client.force_login(user)
 
     response = client.get(reverse("notifications:reminder-list"))
@@ -176,8 +174,8 @@ def test_notification_and_member_pages_render(client, user):
     assert "members/member_detail.html" in [t.name for t in response.templates]
 
 
-def test_structure_unit_dashboard_page_renders(client, user):
-    _build_domain_data()
+def test_structure_unit_dashboard_page_renders(client, user, society):
+    _build_domain_data(society)
     client.force_login(user)
 
     response = client.get(reverse("housing:structure-unit-dashboard"))
@@ -185,8 +183,8 @@ def test_structure_unit_dashboard_page_renders(client, user):
     assert "housing/structure_unit_dashboard.html" in [t.name for t in response.templates]
 
 
-def test_outstanding_dashboard_page_renders(client, user):
-    _build_domain_data()
+def test_outstanding_dashboard_page_renders(client, user, society):
+    _build_domain_data(society)
     client.force_login(user)
 
     response = client.get(reverse("housing:outstanding-dashboard"))
@@ -194,8 +192,21 @@ def test_outstanding_dashboard_page_renders(client, user):
     assert "housing/outstanding_dashboard.html" in [t.name for t in response.templates]
 
 
-def test_charge_template_status_change_sets_effective_to_date(client, user):
-    data = _build_domain_data()
+def test_finance_dashboard_page_renders(client, user, society):
+    _build_domain_data(society)
+    client.force_login(user)
+
+    response = client.get(reverse("housing:finance-dashboard"))
+    assert response.status_code == HTTPStatus.OK
+    assert "housing/finance_dashboard.html" in [t.name for t in response.templates]
+    content = response.content.decode()
+    assert reverse("billing:bill-list") in content
+    assert reverse("receipts:receipt-list") in content
+    assert reverse("housing:outstanding-dashboard") in content
+
+
+def test_charge_template_status_change_sets_effective_to_date(client, user, society):
+    data = _build_domain_data(society)
     client.force_login(user)
     template = data["template"]
 
@@ -211,8 +222,8 @@ def test_charge_template_status_change_sets_effective_to_date(client, user):
     assert template.effective_to == timezone.localdate()
 
 
-def test_charge_template_status_same_value_keeps_existing_effective_to(client, user):
-    data = _build_domain_data()
+def test_charge_template_status_same_value_keeps_existing_effective_to(client, user, society):
+    data = _build_domain_data(society)
     client.force_login(user)
     template = data["template"]
     old_date = timezone.localdate() - timedelta(days=5)
@@ -232,8 +243,8 @@ def test_charge_template_status_same_value_keeps_existing_effective_to(client, u
     assert template.effective_to == old_date
 
 
-def test_charge_template_inactive_and_new_redirects_to_prefilled_create(client, user):
-    data = _build_domain_data()
+def test_charge_template_inactive_and_new_redirects_to_prefilled_create(client, user, society):
+    data = _build_domain_data(society)
     client.force_login(user)
     template = data["template"]
 
@@ -249,8 +260,8 @@ def test_charge_template_inactive_and_new_redirects_to_prefilled_create(client, 
     assert template.effective_to == timezone.localdate()
 
 
-def test_charge_template_create_redirects_to_safe_next_url(client, user):
-    data = _build_domain_data()
+def test_charge_template_create_redirects_to_safe_next_url(client, user, society):
+    data = _build_domain_data(society)
     client.force_login(user)
     template = data["template"]
     next_url = reverse("billing:bill-list")
@@ -279,8 +290,8 @@ def test_charge_template_create_redirects_to_safe_next_url(client, user):
     assert response.url == next_url
 
 
-def test_charge_template_create_rejects_external_next_url(client, user):
-    data = _build_domain_data()
+def test_charge_template_create_rejects_external_next_url(client, user, society):
+    data = _build_domain_data(society)
     client.force_login(user)
     template = data["template"]
 
@@ -308,8 +319,8 @@ def test_charge_template_create_rejects_external_next_url(client, user):
     assert response.url == reverse("billing:charge-template-list")
 
 
-def test_charge_template_create_from_clone_sets_previous_version(client, user):
-    data = _build_domain_data()
+def test_charge_template_create_from_clone_sets_previous_version(client, user, society):
+    data = _build_domain_data(society)
     client.force_login(user)
     template = data["template"]
 

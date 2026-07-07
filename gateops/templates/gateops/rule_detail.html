@@ -1,0 +1,165 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ rule.code }} | Gate Rules{% endblock title %}
+{% block dashboard_title %}{{ rule.code }}{% endblock dashboard_title %}
+{% block dashboard_subtitle %}Rule detail for {{ scope_society_name }}{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:rule-list' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Rules</a>
+    <a href="{% url 'gateops:rule-edit' rule.pk %}" class="btn-action btn-action--primary"><i class="fas fa-edit me-1"></i>Edit Rule</a>
+    <a href="{% url 'gateops:rule-test' %}" class="btn-action btn-action--info"><i class="fas fa-vial me-1"></i>Test Context</a>
+    <form method="post" action="{% url 'gateops:rule-toggle' rule.pk %}" class="d-inline">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{% url 'gateops:rule-detail' rule.pk %}">
+      <button type="submit" class="btn-action {% if rule.is_active %}btn-action--warning{% else %}btn-action--success{% endif %}">
+        <i class="fas fa-power-off me-1"></i>{% if rule.is_active %}Disable{% else %}Enable{% endif %}
+      </button>
+    </form>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-lg-5">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Rule Summary</h3>
+          {% if rule.is_active %}<span class="badge bg-success">Enabled</span>{% else %}<span class="badge bg-secondary">Disabled</span>{% endif %}
+        </div>
+        <div class="content-card__body">
+          <dl class="row mb-0">
+            <dt class="col-sm-4">Name</dt><dd class="col-sm-8">{{ rule.name }}</dd>
+            <dt class="col-sm-4">Priority</dt><dd class="col-sm-8">{{ rule.priority }}</dd>
+            <dt class="col-sm-4">Applies</dt><dd class="col-sm-8">{{ rule.get_applies_on_display }}</dd>
+            <dt class="col-sm-4">Valid From</dt><dd class="col-sm-8">{{ rule.valid_from }}</dd>
+            <dt class="col-sm-4">Valid Until</dt><dd class="col-sm-8">{{ rule.valid_until|default:"Open ended" }}</dd>
+            <dt class="col-sm-4">Scope</dt>
+            <dd class="col-sm-8">
+              {% if rule.visitor_category %}<div>Visitor: {{ rule.visitor_category.code }}</div>{% endif %}
+              {% if rule.vehicle_category %}<div>Vehicle: {{ rule.vehicle_category.code }}</div>{% endif %}
+              {% if rule.material_category %}<div>Material: {{ rule.material_category.code }}</div>{% endif %}
+              {% if rule.gate %}<div>Gate: {{ rule.gate.code }}</div>{% endif %}
+              {% if not rule.visitor_category and not rule.vehicle_category and not rule.material_category and not rule.gate %}All scopes{% endif %}
+            </dd>
+          </dl>
+          {% if rule.description %}<hr><div class="text-muted">{{ rule.description|linebreaksbr }}</div>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-7">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Recent Evaluations</h3>
+        </div>
+        <div class="content-card__body">
+          {% if latest_evaluations %}
+            <div class="list-group list-group-flush">
+              {% for evaluation in latest_evaluations %}
+                <div class="list-group-item px-0 d-flex justify-content-between gap-3">
+                  <div>
+                    <div class="fw-semibold">{{ evaluation.get_action_taken_display }}</div>
+                    <div class="small text-muted">{{ evaluation.evaluated_at|date:"d M Y H:i:s" }}</div>
+                  </div>
+                  <span class="badge bg-secondary align-self-start">{{ evaluation.execution_time_ms }} ms</span>
+                </div>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="text-muted text-center py-4">This rule has not matched yet.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-xl-6">
+      <div class="content-card h-100">
+        <div class="content-card__header"><h3 class="content-card__title">Conditions</h3></div>
+        <div class="content-card__body">
+          {% if rule.conditions.all %}
+            <div class="table-responsive mb-4">
+              <table class="table table-sm align-middle">
+                <thead><tr><th>Order</th><th>Field</th><th>Operator</th><th>Value</th><th>Connector</th></tr></thead>
+                <tbody>
+                  {% for condition in rule.conditions.all %}
+                    <tr>
+                      <td>{{ condition.sort_order }}</td>
+                      <td>{{ condition.get_field_display }}</td>
+                      <td>{{ condition.get_operator_display }}</td>
+                      <td><code>{{ condition.value }}</code></td>
+                      <td>{{ condition.get_logical_connector_display }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="alert alert-warning">No conditions exist. This rule matches unconditionally while active.</div>
+          {% endif %}
+
+          <h5 class="fw-semibold mb-3">Add Condition</h5>
+          <form method="post" action="{% url 'gateops:condition-create' rule.pk %}" novalidate>
+            {% csrf_token %}
+            <div class="row g-2">
+              {% for field in condition_form %}
+                <div class="{% if field.name == 'value_text' %}col-12{% else %}col-12 col-md-6{% endif %}">
+                  <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                  {{ field }}
+                  {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                  {% for error in field.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                </div>
+              {% endfor %}
+            </div>
+            <button type="submit" class="btn-action btn-action--primary mt-3"><i class="fas fa-plus me-1"></i>Add Condition</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+      <div class="content-card h-100">
+        <div class="content-card__header"><h3 class="content-card__title">Actions</h3></div>
+        <div class="content-card__body">
+          {% if rule.actions.all %}
+            <div class="table-responsive mb-4">
+              <table class="table table-sm align-middle">
+                <thead><tr><th>Order</th><th>Action</th><th>Parameters</th></tr></thead>
+                <tbody>
+                  {% for action in rule.actions.all %}
+                    <tr>
+                      <td>{{ action.execution_order }}</td>
+                      <td>{{ action.get_action_display }}</td>
+                      <td><code>{{ action.parameters }}</code></td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="alert alert-warning">No actions exist. A matching rule will fall back to the default approval action.</div>
+          {% endif %}
+
+          <h5 class="fw-semibold mb-3">Add Action</h5>
+          <form method="post" action="{% url 'gateops:action-create' rule.pk %}" novalidate>
+            {% csrf_token %}
+            <div class="row g-2">
+              {% for field in action_form %}
+                <div class="{% if field.name == 'parameters_text' %}col-12{% else %}col-12 col-md-6{% endif %}">
+                  <label class="form-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+                  {{ field }}
+                  {% if field.help_text %}<div class="form-text">{{ field.help_text }}</div>{% endif %}
+                  {% for error in field.errors %}<div class="form-error">{{ error }}</div>{% endfor %}
+                </div>
+              {% endfor %}
+            </div>
+            <button type="submit" class="btn-action btn-action--primary mt-3"><i class="fas fa-plus me-1"></i>Add Action</button>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
