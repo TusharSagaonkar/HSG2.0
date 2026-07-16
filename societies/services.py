@@ -93,3 +93,73 @@ def transfer_ownership(*, current_owner, new_owner, society):
     new_membership.role = Membership.Role.OWNER
     old_membership.save(update_fields=["role"])
     new_membership.save(update_fields=["role"])
+
+
+@transaction.atomic
+def start_impersonation(*, impersonator, society, reason, duration_minutes=60):
+    """Start a super-admin impersonation session.
+
+    Args:
+        impersonator: The super-admin user initiating impersonation.
+        society: The target society to impersonate into.
+        reason: Required reason for impersonation.
+        duration_minutes: Session timeout (default 60 minutes).
+
+    Returns:
+        ImpersonationSession instance.
+
+    Raises:
+        PermissionDenied: If the impersonator is not a super-admin.
+    """
+    from django.utils import timezone
+
+    from societies.models import ImpersonationSession
+
+    if not (
+        getattr(impersonator, "is_super_admin", False)
+        or getattr(impersonator, "is_superuser", False)
+    ):
+        raise PermissionDenied("Only super-admins can impersonate.")
+
+    if not reason or not reason.strip():
+        raise PermissionDenied("A reason is required for impersonation.")
+
+    # End any existing active sessions for this impersonator
+    ImpersonationSession.objects.filter(
+        impersonator=impersonator,
+        status=ImpersonationSession.Status.ACTIVE,
+    ).update(
+        status=ImpersonationSession.Status.EXPIRED,
+        ended_at=timezone.now(),
+    )
+
+    session = ImpersonationSession.objects.create(
+        impersonator=impersonator,
+        target_society=society,
+        reason=reason.strip(),
+        expires_at=timezone.now() + timezone.timedelta(minutes=duration_minutes),
+    )
+
+    return session
+
+
+def end_impersonation(*, session):
+    """End an active impersonation session."""
+    session.end()
+
+
+def get_active_impersonation(user):
+    """Get the active impersonation session for a user, if any."""
+    from django.utils import timezone
+
+    from societies.models import ImpersonationSession
+
+    return (
+        ImpersonationSession.objects.filter(
+            impersonator=user,
+            status=ImpersonationSession.Status.ACTIVE,
+            expires_at__gt=timezone.now(),
+        )
+        .select_related("target_society")
+        .first()
+    )

@@ -1,0 +1,212 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags i18n %}
+
+{% block title %}Peak Hours Analysis | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}Peak Hours Analysis{% endblock dashboard_title %}
+{% block dashboard_subtitle %}Hourly and daily traffic distribution for {{ scope_society_name }}{% endblock dashboard_subtitle %}
+
+{% block javascript %}
+  {{ block.super }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock javascript %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:analytics-dashboard' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Analytics Dashboard</a>
+  </div>
+
+  <div class="content-card mb-4">
+    <div class="content-card__header">
+      <h3 class="content-card__title">Date Range Filter</h3>
+    </div>
+    <div class="content-card__body">
+      {% crispy form %}
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-hourglass-half" label="Peak Hour" value=data.peak_hour color="danger" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-chart-line" label="Peak Hour Count" value=data.peak_hour_count color="warning" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-door-enter" label="Total Entries" value=data.total_entries color="info" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-calendar" label="Date Range" value=data.date_range.start color="primary" %}
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-xl-6">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Hourly Distribution (0&ndash;23)</h3>
+        </div>
+        <div class="content-card__body">
+          <canvas id="hourlyChart" height="160"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-6">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Daily Distribution (Mon&ndash;Sun)</h3>
+        </div>
+        <div class="content-card__body">
+          <canvas id="dailyChart" height="160"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="content-card__header">
+      <h3 class="content-card__title">Predictions Table</h3>
+      <span class="badge bg-info">{{ data.date_range.start }} &rarr; {{ data.date_range.end }}</span>
+    </div>
+    <div class="content-card__body p-0">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Day of Week</th>
+              <th>Hour</th>
+              <th class="text-end">Predicted Count</th>
+              <th class="text-end">Actual Count</th>
+              <th class="text-end">Confidence Score</th>
+            </tr>
+          </thead>
+          <tbody id="predictions-tbody">
+            <tr><td colspan="5" class="text-muted text-center py-3">Loading predictions&hellip;</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block inline_javascript %}
+  {{ data|json_script:"peak-hours-data" }}
+  <script>
+    (function () {
+      "use strict";
+
+      var rawData = JSON.parse(document.getElementById("peak-hours-data").textContent);
+      var actualHourly = (rawData.actual && rawData.actual.hourly) || {};
+      var actualDaily = (rawData.actual && rawData.actual.daily) || {};
+      var predicted = rawData.predicted || {};
+
+      var hourLabels = [];
+      for (var i = 0; i < 24; i++) {
+        hourLabels.push(String(i).padStart(2, "0") + ":00");
+      }
+      var hourValues = hourLabels.map(function (_, h) {
+        return actualHourly[String(h)] || 0;
+      });
+      var predictedValues = hourLabels.map(function (_, h) {
+        return predicted[String(h)] || 0;
+      });
+
+      var dayNames = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+      var dayValues = dayNames.map(function (_, d) {
+        return actualDaily[String(d)] || 0;
+      });
+
+      // --- Hourly bar+line chart ---
+      var hourlyCtx = document.getElementById("hourlyChart");
+      if (hourlyCtx && typeof Chart !== "undefined") {
+        new Chart(hourlyCtx, {
+          type: "bar",
+          data: {
+            labels: hourLabels,
+            datasets: [
+              {
+                label: "Actual Entries",
+                data: hourValues,
+                backgroundColor: "rgba(54, 162, 235, 0.6)",
+                borderColor: "rgba(54, 162, 235, 1)",
+                borderWidth: 1,
+                order: 2,
+              },
+              {
+                label: "Predicted",
+                type: "line",
+                data: predictedValues,
+                borderColor: "rgba(255, 99, 132, 1)",
+                backgroundColor: "rgba(255, 99, 132, 0.2)",
+                fill: false,
+                tension: 0.3,
+                order: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: { beginAtZero: true, title: { text: "Visitor Count", display: true } },
+              x: { title: { text: "Hour of Day", display: true } },
+            },
+          },
+        });
+      }
+
+      // --- Daily bar chart ---
+      var dailyCtx = document.getElementById("dailyChart");
+      if (dailyCtx && typeof Chart !== "undefined") {
+        new Chart(dailyCtx, {
+          type: "bar",
+          data: {
+            labels: dayNames,
+            datasets: [
+              {
+                label: "Entries by Day of Week",
+                data: dayValues,
+                backgroundColor: "rgba(75, 192, 192, 0.6)",
+                borderColor: "rgba(75, 192, 192, 1)",
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: { beginAtZero: true, title: { text: "Visitor Count", display: true } },
+              x: { title: { text: "Day of Week", display: true } },
+            },
+          },
+        });
+      }
+
+      // --- Predictions table ---
+      var tbody = document.getElementById("predictions-tbody");
+      if (tbody) {
+        var rows = [];
+        var peakHour = rawData.peak_hour || 0;
+        for (var h = 0; h < 24; h++) {
+          var pred = predicted[String(h)] || 0;
+          var act = actualHourly[String(h)] || 0;
+          if (pred === 0 && act === 0) continue;
+          var confidence = pred > 0 ? Math.min(100, Math.round((pred / (pred + Math.abs(pred - act) + 1)) * 100)) : 0;
+          rows.push(
+            "<tr>" +
+            "<td>—</td>" +
+            "<td>" + String(h).padStart(2, "0") + ":00" + (h === peakHour ? ' <span class="badge bg-danger ms-1">Peak</span>' : "") + "</td>" +
+            '<td class="text-end">' + pred + "</td>" +
+            '<td class="text-end">' + act + "</td>" +
+            '<td class="text-end">' + confidence + "%</td>" +
+            "</tr>"
+          );
+        }
+        tbody.innerHTML = rows.length > 0
+          ? rows.join("")
+          : '<tr><td colspan="5" class="text-muted text-center py-3">No prediction data available.</td></tr>';
+      }
+    })();
+  </script>
+{% endblock inline_javascript %}

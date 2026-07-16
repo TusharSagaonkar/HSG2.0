@@ -1,0 +1,70 @@
+{% extends "onboarding/base_wizard.html" %}
+{% load i18n %}
+
+{% block wizard_content %}
+  <div class="content-card">
+    <div class="content-card__body">
+      <p class="text-muted mb-3">
+        {% blocktrans %}
+          Choose whether this is a brand-new society starting fresh, or an
+          existing society migrating accounting data from another system.
+          New societies skip the migration steps (10–27) and go directly
+          to the society ready page.
+        {% endblocktrans %}
+      </p>
+
+      <form method="post"
+            action="{% url 'onboarding:wizard-step-save' wizard.id step_number %}">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger" role="alert">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
+
+        {% for field in form %}
+          {% if field.is_hidden %}
+            {{ field }}
+          {% else %}
+            <div class="form-group mb-3">
+              <label class="form-label d-block">
+                {{ field.label }}
+                <span class="text-danger">*</span>
+              </label>
+              {% if field.help_text %}
+                <small class="form-text text-muted d-block mb-2">
+                  {{ field.help_text }}
+                </small>
+              {% endif %}
+              <div class="d-flex flex-column gap-2">
+                {% for radio in field %}
+                  <div class="form-check border rounded p-3">
+                    {{ radio.tag }}
+                    <label for="{{ radio.id_for_label }}"
+                           class="form-check-label ms-2">
+                      {{ radio.choice_label }}
+                    </label>
+                  </div>
+                {% endfor %}
+              </div>
+              {% for error in field.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        {% endfor %}
+
+        <div class="form-actions mt-4">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-check me-1"></i>{% trans "Save & Continue" %}
+          </button>
+          <a href="{% url 'onboarding:wizard-step' wizard.id 1 %}"
+             class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>{% trans "Back" %}
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock wizard_content %}

@@ -127,6 +127,142 @@ DEFAULT_EMAIL_TEMPLATE_DEFINITIONS = (
             "verification_link",
         ],
     },
+    # --- Phase 10: Smart Notification Engine — gate-specific templates ---
+    {
+        "template_name": "gateops.visitor_arrival",
+        "subject_template": "Visitor Arrival: {{ visitor_name }} at {{ society_name }}",
+        "body_template": (
+            "Dear {{ host_name }},\n\n"
+            "A visitor has arrived at the gate:\n\n"
+            "Visitor: {{ visitor_name }}\n"
+            "Phone: {{ visitor_phone }}\n"
+            "Category: {{ visitor_category }}\n"
+            "Purpose: {{ purpose }}\n"
+            "Gate: {{ gate_name }}\n\n"
+            "Please approve or reject the entry.\n\n"
+            "Regards,\n"
+            "{{ society_name }} Security"
+        ),
+        "variables": [
+            "visitor_name",
+            "visitor_phone",
+            "visitor_category",
+            "purpose",
+            "gate_name",
+            "host_name",
+            "society_name",
+        ],
+    },
+    {
+        "template_name": "gateops.visitor_entry",
+        "subject_template": "Visitor Entered: {{ visitor_name }} at {{ society_name }}",
+        "body_template": (
+            "Dear {{ host_name }},\n\n"
+            "Your visitor has entered the society:\n\n"
+            "Visitor: {{ visitor_name }}\n"
+            "Phone: {{ visitor_phone }}\n"
+            "Category: {{ visitor_category }}\n"
+            "Gate: {{ gate_name }}\n"
+            "Entered at: {{ entered_at }}\n\n"
+            "Regards,\n"
+            "{{ society_name }} Security"
+        ),
+        "variables": [
+            "visitor_name",
+            "visitor_phone",
+            "visitor_category",
+            "gate_name",
+            "entered_at",
+            "host_name",
+            "society_name",
+        ],
+    },
+    {
+        "template_name": "gateops.visitor_exit",
+        "subject_template": "Visitor Exited: {{ visitor_name }} at {{ society_name }}",
+        "body_template": (
+            "Dear {{ host_name }},\n\n"
+            "Your visitor has exited the society:\n\n"
+            "Visitor: {{ visitor_name }}\n"
+            "Exited at: {{ exited_at }}\n"
+            "Gate: {{ gate_name }}\n\n"
+            "Regards,\n"
+            "{{ society_name }} Security"
+        ),
+        "variables": [
+            "visitor_name",
+            "exited_at",
+            "gate_name",
+            "host_name",
+            "society_name",
+        ],
+    },
+    {
+        "template_name": "gateops.approval_request",
+        "subject_template": "Approval Required: {{ visitor_name }} at {{ society_name }}",
+        "body_template": (
+            "Dear {{ host_name }},\n\n"
+            "A visitor is waiting for your approval at the gate:\n\n"
+            "Visitor: {{ visitor_name }}\n"
+            "Phone: {{ visitor_phone }}\n"
+            "Category: {{ visitor_category }}\n"
+            "Purpose: {{ purpose }}\n"
+            "Gate: {{ gate_name }}\n\n"
+            "Please approve or reject the entry.\n\n"
+            "Regards,\n"
+            "{{ society_name }} Security"
+        ),
+        "variables": [
+            "visitor_name",
+            "visitor_phone",
+            "visitor_category",
+            "purpose",
+            "gate_name",
+            "host_name",
+            "society_name",
+        ],
+    },
+    {
+        "template_name": "gateops.parcel_ready",
+        "subject_template": "Parcel Ready for Collection: {{ tracking_number }} at {{ society_name }}",
+        "body_template": (
+            "Dear {{ host_name }},\n\n"
+            "A parcel has arrived for you:\n\n"
+            "Tracking: {{ tracking_number }}\n"
+            "Courier: {{ courier }}\n"
+            "Received at: {{ received_at }}\n\n"
+            "Please collect it from the security desk.\n\n"
+            "Regards,\n"
+            "{{ society_name }} Security"
+        ),
+        "variables": [
+            "tracking_number",
+            "courier",
+            "received_at",
+            "host_name",
+            "society_name",
+        ],
+    },
+    {
+        "template_name": "gateops.auto_close",
+        "subject_template": "Auto-Closed Visit: {{ visitor_name }} at {{ society_name }}",
+        "body_template": (
+            "Dear {{ host_name }},\n\n"
+            "A visitor visit was auto-closed due to overstay:\n\n"
+            "Visitor: {{ visitor_name }}\n"
+            "Entered at: {{ entered_at }}\n"
+            "Auto-closed at: {{ auto_closed_at }}\n\n"
+            "Regards,\n"
+            "{{ society_name }} Security"
+        ),
+        "variables": [
+            "visitor_name",
+            "entered_at",
+            "auto_closed_at",
+            "host_name",
+            "society_name",
+        ],
+    },
 )
 
 

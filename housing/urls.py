@@ -16,6 +16,8 @@ from housing.views import reminder_schedule_view
 from housing.views import resend_verification_email_view
 from housing.views import update_membership_view
 from housing.views import society_admin_view
+from housing.views import society_profile_update_view
+from housing.views import society_settings_update_view
 from housing.views import society_user_create_view
 from housing.views import society_create_view
 from housing.views import society_detail_view
@@ -38,6 +40,8 @@ urlpatterns = [
     path("societies/", view=society_list_view, name="society-list"),
     path("societies/<int:pk>/", view=society_detail_view, name="society-detail"),
     path("societies/<int:pk>/admin/", view=society_admin_view, name="society-admin"),
+    path("societies/<int:pk>/admin/settings/", view=society_settings_update_view, name="society-settings-update"),
+    path("societies/<int:pk>/admin/profile/", view=society_profile_update_view, name="society-profile-update"),
     path("societies/<int:pk>/admin/voucher-templates/", view=society_voucher_templates_view, name="society-voucher-templates"),
     path("societies/<int:pk>/admin/user/create/", view=society_user_create_view, name="society-user-create"),
     path("societies/<int:society_pk>/members/<int:user_id>/resend-verification/", view=resend_verification_email_view, name="resend-verification-email"),

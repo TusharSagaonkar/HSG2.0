@@ -3,6 +3,7 @@ import logging
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.core.exceptions import ValidationError
+from django.http import JsonResponse
 from django.db.models import F
 from django.db import transaction
 from django.db.models import Exists
@@ -27,6 +28,7 @@ logger = logging.getLogger(__name__)
 
 from accounting.forms import LedgerEntryRowForm
 from accounting.forms import LedgerEntryRowBaseFormSet
+from accounting.forms import AccountForm
 from accounting.forms import VoucherForm
 from accounting.forms import VoucherTemplateForm
 from accounting.forms import build_voucher_template_row_formset
@@ -40,9 +42,16 @@ from accounting.services.reporting import build_account_ledger
 from accounting.services.reporting import build_trial_balance
 from housing_accounting.selection import get_selected_scope
 from societies.models import Society
+from societies.utils import get_tenant_object_or_404
+from societies.permissions import has_permission
+from societies.mixins import PermissionRequiredMixin
+from societies.mixins import TenantScopeMixin
+from auditlog.models import AuditLog
+from django.core.exceptions import PermissionDenied
 
 
-class AccountingDashboardView(LoginRequiredMixin, TemplateView):
+class AccountingDashboardView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
+    permission_required = "accounting.voucher.view"
     template_name = "accounting/dashboard.html"
 
     def get_context_data(self, **kwargs):
@@ -92,7 +101,8 @@ class AccountingDashboardView(LoginRequiredMixin, TemplateView):
 accounting_dashboard_view = AccountingDashboardView.as_view()
 
 
-class AccountListView(LoginRequiredMixin, ListView):
+class AccountListView(LoginRequiredMixin, PermissionRequiredMixin, TenantScopeMixin, ListView):
+    permission_required = "accounting.account.view"
     model = Account
     template_name = "accounting/account_list.html"
     context_object_name = "accounts"
@@ -167,7 +177,8 @@ def _build_account_tree(accounts):
     return root_nodes
 
 
-class AccountTreeView(LoginRequiredMixin, TemplateView):
+class AccountTreeView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
+    permission_required = "accounting.account.view"
     template_name = "accounting/account_tree.html"
 
     def get_context_data(self, **kwargs):
@@ -204,13 +215,169 @@ class AccountTreeView(LoginRequiredMixin, TemplateView):
             ]
 
         context["total_accounts"] = queryset.count()
+        context["can_create_account"] = has_permission(
+            self.request.user,
+            "accounting.account.create",
+            selected_society,
+        )
+        context["can_edit_account"] = has_permission(
+            self.request.user,
+            "accounting.account.edit",
+            selected_society,
+        )
         return context
 
 
 account_tree_view = AccountTreeView.as_view()
 
 
-class AccountLedgerView(LoginRequiredMixin, TemplateView):
+class AccountModalFormView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    template_name = "accounting/partials/account_form_modal_body.html"
+    permission_required = "accounting.account.create"
+    mode = "create"
+
+    def _is_xhr(self):
+        return self.request.headers.get("X-Requested-With") == "XMLHttpRequest"
+
+    def _get_selected_society(self):
+        selected_society, _ = get_selected_scope(self.request)
+        return selected_society
+
+    def _get_parent(self):
+        parent_pk = self.request.GET.get("parent") or self.request.POST.get("parent")
+        if not parent_pk:
+            return None
+        try:
+            parent = Account.objects.select_related("society", "category", "parent").get(pk=int(parent_pk))
+        except (Account.DoesNotExist, TypeError, ValueError):
+            return None
+        selected_society = self._get_selected_society()
+        if selected_society and parent.society_id != selected_society.id:
+            return None
+        return parent
+
+    def _get_account(self):
+        account = get_object_or_404(
+            Account.objects.select_related("society", "category", "parent"),
+            pk=self.kwargs["pk"],
+        )
+        selected_society = self._get_selected_society()
+        if selected_society and account.society_id != selected_society.id:
+            raise Http404("Account not found in selected scope.")
+        return account
+
+    def _get_form_kwargs(self):
+        selected_society = self._get_selected_society()
+        parent = self._get_parent() if self.mode == "create" else None
+        account = self._get_account() if self.mode == "update" else None
+
+        society = selected_society
+        if parent and not society:
+            society = parent.society
+        if account and not society:
+            society = account.society
+
+        kwargs = {
+            "society": society,
+            "parent": parent or (account.parent if account else None),
+        }
+        if account:
+            kwargs["instance"] = account
+        if self.request.method == "POST":
+            kwargs["data"] = self.request.POST
+        return kwargs
+
+    def get_form(self):
+        return AccountForm(**self._get_form_kwargs())
+
+    def get_context_data(self, *, form):
+        selected_society = self._get_selected_society()
+        parent = self._get_parent() if self.mode == "create" else None
+        account = self._get_account() if self.mode == "update" else None
+        society = selected_society or (parent.society if parent else None) or (account.society if account else None)
+        if self.mode == "create":
+            action_url = reverse("accounting:account-add")
+            if parent:
+                action_url = f"{action_url}?parent={parent.pk}"
+        else:
+            action_url = reverse("accounting:account-edit", kwargs={"pk": account.pk})
+
+        context = {
+            "form": form,
+            "mode": self.mode,
+            "action_url": action_url,
+            "title": (
+                "Add account"
+                if self.mode == "create"
+                else f"Edit account: {account.name}"
+            ),
+            "subtitle": (
+                "Add a new account to this branch without leaving the tree."
+                if self.mode == "create"
+                else "Update the account details while keeping its place in the hierarchy."
+            ),
+            "society": society,
+            "parent_account": parent,
+            "account": account,
+            "submit_label": "Create account" if self.mode == "create" else "Save changes",
+        }
+        return context
+
+    def get(self, request, *args, **kwargs):
+        form = self.get_form()
+        return render(request, self.template_name, self.get_context_data(form=form))
+
+    def post(self, request, *args, **kwargs):
+        form = self.get_form()
+        if form.is_valid():
+            with transaction.atomic():
+                account = form.save(commit=False)
+                selected_society = self._get_selected_society()
+                parent = self._get_parent() if self.mode == "create" else None
+                if self.mode == "create":
+                    account.society = selected_society or (parent.society if parent else account.society)
+                    account.parent = parent
+                else:
+                    existing = self._get_account()
+                    account.society = existing.society
+                    account.parent = existing.parent
+                account.save()
+
+            payload = {
+                "success": True,
+                "redirect_url": reverse("accounting:account-tree"),
+                "message": f"Account {'created' if self.mode == 'create' else 'updated'} successfully.",
+            }
+            if self._is_xhr():
+                return JsonResponse(payload)
+            messages.success(request, payload["message"])
+            return redirect(payload["redirect_url"])
+
+        response = render(request, self.template_name, self.get_context_data(form=form))
+        if self._is_xhr():
+            return response
+        messages.warning(request, "Account was not saved. Please fix the highlighted issues.")
+        return response
+
+
+class AccountCreateView(AccountModalFormView):
+    permission_required = "accounting.account.create"
+    mode = "create"
+
+
+account_create_view = AccountCreateView.as_view()
+
+
+class AccountUpdateView(AccountModalFormView):
+    permission_required = "accounting.account.edit"
+    mode = "update"
+
+
+account_update_view = AccountUpdateView.as_view()
+
+
+class AccountLedgerView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
+    permission_required = "accounting.account.view"
     template_name = "accounting/account_ledger.html"
 
     def get_context_data(self, **kwargs):
@@ -248,7 +415,8 @@ class AccountLedgerView(LoginRequiredMixin, TemplateView):
 account_ledger_view = AccountLedgerView.as_view()
 
 
-class TrialBalanceView(LoginRequiredMixin, TemplateView):
+class TrialBalanceView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
+    permission_required = "accounting.report.view"
     template_name = "accounting/trial_balance.html"
 
     def get_context_data(self, **kwargs):
@@ -278,7 +446,8 @@ class TrialBalanceView(LoginRequiredMixin, TemplateView):
 trial_balance_view = TrialBalanceView.as_view()
 
 
-class AccountLedgerExportCsvView(LoginRequiredMixin, View):
+class AccountLedgerExportCsvView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = "accounting.report.export"
     def get(self, request, pk):
         selected_society, selected_financial_year = get_selected_scope(self.request)
         account = get_object_or_404(
@@ -339,7 +508,8 @@ class AccountLedgerExportCsvView(LoginRequiredMixin, View):
 account_ledger_export_csv_view = AccountLedgerExportCsvView.as_view()
 
 
-class TrialBalanceExportCsvView(LoginRequiredMixin, View):
+class TrialBalanceExportCsvView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = "accounting.report.export"
     def get(self, request):
         selected_society, selected_financial_year = get_selected_scope(self.request)
         if not selected_society:
@@ -401,7 +571,8 @@ class TrialBalanceExportCsvView(LoginRequiredMixin, View):
 trial_balance_export_csv_view = TrialBalanceExportCsvView.as_view()
 
 
-class VoucherListView(LoginRequiredMixin, ListView):
+class VoucherListView(LoginRequiredMixin, PermissionRequiredMixin, TenantScopeMixin, ListView):
+    permission_required = "accounting.voucher.view"
     model = Voucher
     template_name = "accounting/voucher_list.html"
     context_object_name = "vouchers"
@@ -470,7 +641,8 @@ class VoucherTemplateScopeMixin:
         )
 
 
-class VoucherTemplateListView(VoucherTemplateScopeMixin, LoginRequiredMixin, ListView):
+class VoucherTemplateListView(VoucherTemplateScopeMixin, LoginRequiredMixin, PermissionRequiredMixin, ListView):
+    permission_required = "accounting.vouchertemplate.view"
     model = VoucherTemplate
     template_name = "accounting/voucher_template_list.html"
     context_object_name = "templates"
@@ -488,7 +660,8 @@ class VoucherTemplateListView(VoucherTemplateScopeMixin, LoginRequiredMixin, Lis
 voucher_template_list_view = VoucherTemplateListView.as_view()
 
 
-class VoucherTemplateEditBaseView(VoucherTemplateScopeMixin, LoginRequiredMixin, TemplateView):
+class VoucherTemplateEditBaseView(VoucherTemplateScopeMixin, LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
+    permission_required = "accounting.vouchertemplate.edit"
     template_name = "accounting/voucher_template_form.html"
     success_message = None
     mode = "create"
@@ -606,7 +779,8 @@ class VoucherTemplateUpdateView(VoucherTemplateEditBaseView):
 voucher_template_update_view = VoucherTemplateUpdateView.as_view()
 
 
-class VoucherTemplateDeleteView(VoucherTemplateScopeMixin, LoginRequiredMixin, TemplateView):
+class VoucherTemplateDeleteView(VoucherTemplateScopeMixin, LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
+    permission_required = "accounting.vouchertemplate.delete"
     template_name = "accounting/voucher_template_confirm_delete.html"
 
     def get_object(self):
@@ -635,7 +809,8 @@ class VoucherTemplateDeleteView(VoucherTemplateScopeMixin, LoginRequiredMixin, T
 voucher_template_delete_view = VoucherTemplateDeleteView.as_view()
 
 
-class VoucherEntryView(LoginRequiredMixin, TemplateView):
+class VoucherEntryView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
+    permission_required = "accounting.voucher.create"
     template_name = "accounting/voucher_entry.html"
     row_formset_class = formset_factory(
         LedgerEntryRowForm,
@@ -943,7 +1118,8 @@ class VoucherEntryView(LoginRequiredMixin, TemplateView):
 voucher_entry_view = VoucherEntryView.as_view()
 
 
-class VoucherPostingMenuView(LoginRequiredMixin, ListView):
+class VoucherPostingMenuView(LoginRequiredMixin, PermissionRequiredMixin, TenantScopeMixin, ListView):
+    permission_required = "accounting.voucher.view"
     model = Voucher
     template_name = "accounting/voucher_posting.html"
     context_object_name = "draft_vouchers"
@@ -985,9 +1161,26 @@ voucher_posting_menu_view = VoucherPostingMenuView.as_view()
 
 class VoucherPostView(LoginRequiredMixin, View):
     def post(self, request, pk):
-        voucher = get_object_or_404(Voucher, pk=pk)
+        society = getattr(request, "current_society", None)
+        if society is None:
+            messages.error(request, "No society selected.")
+            return redirect("accounting:voucher-posting")
+        
+        voucher = get_tenant_object_or_404(Voucher, society, pk=pk)
+        
+        if not has_permission(request.user, "accounting.voucher.post", society):
+            raise PermissionDenied("You do not have permission to post vouchers.")
+        
         try:
             voucher.post()
+            AuditLog.log(
+                society=society,
+                action=AuditLog.Action.POST,
+                entity_type="voucher",
+                entity_id=voucher.pk,
+                actor=request.user,
+                module="accounting",
+            )
             messages.success(request, f"{voucher.display_number} posted successfully.")
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
@@ -999,12 +1192,30 @@ voucher_post_view = VoucherPostView.as_view()
 
 class VoucherDeleteDraftView(LoginRequiredMixin, View):
     def post(self, request, pk):
-        voucher = get_object_or_404(Voucher, pk=pk)
+        society = getattr(request, "current_society", None)
+        if society is None:
+            messages.error(request, "No society selected.")
+            return redirect("accounting:voucher-posting")
+        
+        voucher = get_tenant_object_or_404(Voucher, society, pk=pk)
+        
+        if not has_permission(request.user, "accounting.voucher.delete", society):
+            raise PermissionDenied("You do not have permission to delete vouchers.")
+        
         if voucher.posted_at is not None:
             messages.error(request, "Only draft vouchers can be deleted.")
             return redirect("accounting:voucher-posting")
 
         voucher_label = voucher.display_number
+        AuditLog.log(
+            society=society,
+            action=AuditLog.Action.DELETE,
+            entity_type="voucher",
+            entity_id=voucher.pk,
+            actor=request.user,
+            before_value={"display_number": voucher_label, "status": "draft"},
+            module="accounting",
+        )
         voucher.delete()
         messages.success(request, f"{voucher_label} deleted successfully.")
         return redirect("accounting:voucher-posting")
@@ -1015,10 +1226,19 @@ voucher_delete_draft_view = VoucherDeleteDraftView.as_view()
 
 class VoucherReverseView(LoginRequiredMixin, View):
     def post(self, request, pk):
-        voucher = get_object_or_404(
+        society = getattr(request, "current_society", None)
+        if society is None:
+            messages.error(request, "No society selected.")
+            return redirect("accounting:voucher-list")
+        
+        voucher = get_tenant_object_or_404(
             Voucher.objects.select_related("society").prefetch_related("entries__account"),
+            society,
             pk=pk,
         )
+
+        if not has_permission(request.user, "accounting.voucher.reverse", society):
+            raise PermissionDenied("You do not have permission to reverse vouchers.")
 
         if not voucher.posted_at:
             messages.error(request, "Only posted vouchers can be reversed.")
@@ -1026,7 +1246,7 @@ class VoucherReverseView(LoginRequiredMixin, View):
         if voucher.reversal_of_id:
             messages.error(request, "Reversal vouchers cannot be reversed again.")
             return redirect("accounting:voucher-list")
-        if Voucher.objects.filter(reversal_of=voucher).exists():
+        if Voucher.objects.filter(reversal_of=voucher, society=society).exists():
             messages.error(request, "This voucher has already been reversed.")
             return redirect("accounting:voucher-list")
 
@@ -1050,6 +1270,15 @@ class VoucherReverseView(LoginRequiredMixin, View):
                     )
 
                 reversal.post()
+                AuditLog.log(
+                    society=society,
+                    action=AuditLog.Action.REVERSE,
+                    entity_type="voucher",
+                    entity_id=voucher.pk,
+                    actor=request.user,
+                    after_value={"reversal_voucher_id": reversal.pk, "reversal_display_number": reversal.display_number},
+                    module="accounting",
+                )
         except ValidationError as exc:
             messages.error(request, "; ".join(exc.messages))
             return redirect("accounting:voucher-list")
@@ -1066,14 +1295,24 @@ voucher_reverse_view = VoucherReverseView.as_view()
 
 class VoucherDetailView(LoginRequiredMixin, View):
     def get(self, request, pk):
-        voucher = get_object_or_404(
+        society = getattr(request, "current_society", None)
+        if society is None:
+            messages.error(request, "No society selected.")
+            return redirect("accounting:voucher-list")
+        
+        voucher = get_tenant_object_or_404(
             Voucher.objects.select_related("society", "reversal_of").prefetch_related(
                 "entries__account__category",
                 "entries__unit",
             ),
+            society,
             pk=pk,
         )
-        reversal_voucher = Voucher.objects.filter(reversal_of=voucher).first()
+        
+        if not has_permission(request.user, "accounting.voucher.view", society):
+            raise PermissionDenied("You do not have permission to view vouchers.")
+        
+        reversal_voucher = Voucher.objects.filter(reversal_of=voucher, society=society).first()
         entries = list(voucher.entries.all().order_by("id"))
         total_debit = sum((entry.debit for entry in entries), start=Decimal("0.00"))
         total_credit = sum((entry.credit for entry in entries), start=Decimal("0.00"))

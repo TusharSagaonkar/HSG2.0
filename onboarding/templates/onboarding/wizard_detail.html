@@ -1,0 +1,100 @@
+{% extends "onboarding/base_wizard.html" %}
+{% load i18n %}
+{% load onboarding_tags %}
+
+{% block wizard_content %}
+  <div class="content-card">
+    <div class="content-card__body">
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <h5 class="mb-0">
+            {% if wizard.society %}
+              {{ wizard.society.name }}
+            {% else %}
+              {% blocktrans %}Wizard #{{ wizard.pk }}{% endblocktrans %}
+            {% endif %}
+          </h5>
+          <p class="text-muted small mb-0">
+            {% trans "Started" %} {{ wizard.started_at|date:"M d, Y H:i" }}
+          </p>
+        </div>
+        <div class="text-end">
+          {% if wizard.status == "COMPLETED" %}
+            <span class="badge bg-success">{{ wizard.get_status_display }}</span>
+          {% elif wizard.status == "ABANDONED" %}
+            <span class="badge bg-secondary">{{ wizard.get_status_display }}</span>
+          {% else %}
+            <span class="badge bg-info">{{ wizard.get_status_display }}</span>
+          {% endif %}
+        </div>
+      </div>
+
+      <dl class="row mb-3">
+        <dt class="col-sm-4">{% trans "Current Step" %}</dt>
+        <dd class="col-sm-8">
+          <strong>{{ wizard.current_step }}</strong> / 28
+          — {{ step_names|get_item:step_number|default:step_name }}
+        </dd>
+
+        <dt class="col-sm-4">{% trans "Society Type" %}</dt>
+        <dd class="col-sm-8">{{ wizard.get_society_type_display|default:"—" }}</dd>
+
+        <dt class="col-sm-4">{% trans "Society" %}</dt>
+        <dd class="col-sm-8">
+          {% if wizard.society %}
+            <a href="{% url 'housing:society-detail' wizard.society.pk %}">
+              {{ wizard.society.name }}
+            </a>
+          {% else %}
+            <span class="text-muted">{% trans "Not yet created" %}</span>
+          {% endif %}
+        </dd>
+
+        <dt class="col-sm-4">{% trans "Selected Modules" %}</dt>
+        <dd class="col-sm-8">
+          {% if wizard.selected_modules %}
+            {% for module in wizard.selected_modules %}
+              <span class="badge bg-light text-dark border me-1">
+                {{ module|cut:"_"|title }}
+              </span>
+            {% endfor %}
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </dd>
+
+        <dt class="col-sm-4">{% trans "Finalized" %}</dt>
+        <dd class="col-sm-8">
+          {% if wizard.is_finalized %}
+            <span class="badge bg-success">{% trans "Yes" %}</span>
+          {% else %}
+            <span class="badge bg-secondary">{% trans "No" %}</span>
+          {% endif %}
+        </dd>
+
+        {% if wizard.completed_at %}
+          <dt class="col-sm-4">{% trans "Completed At" %}</dt>
+          <dd class="col-sm-8">{{ wizard.completed_at|date:"M d, Y H:i" }}</dd>
+        {% endif %}
+      </dl>
+
+      <div class="form-actions">
+        {% if wizard.status == "COMPLETED" %}
+          <a href="{% url 'onboarding:wizard-complete' wizard.pk %}"
+             class="btn btn-primary">
+            <i class="fas fa-check-circle me-1"></i>{% trans "View Summary" %}
+          </a>
+        {% else %}
+          <a href="{% url 'onboarding:wizard-step' wizard.pk wizard.current_step %}"
+             class="btn btn-primary">
+            <i class="fas fa-play me-1"></i>{% trans "Resume Wizard" %}
+          </a>
+        {% endif %}
+        <a href="{% url 'onboarding:wizard-list' %}"
+           class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left me-1"></i>{% trans "Back to List" %}
+        </a>
+      </div>
+    </div>
+  </div>
+{% endblock wizard_content %}

@@ -24,6 +24,163 @@ const initShortcutHelpTrigger = () => {
   });
 };
 
+const initAccountTreeModal = () => {
+  const modalElement = document.getElementById("accountFormModal");
+
+  if (!modalElement || !window.bootstrap) {
+    return;
+  }
+
+  const titleElement = modalElement.querySelector("[data-account-form-title]");
+  const subtitleElement = modalElement.querySelector("[data-account-form-subtitle]");
+  const bodyElement = modalElement.querySelector("[data-account-form-body]");
+  const modal = window.bootstrap.Modal.getOrCreateInstance(modalElement);
+
+  const setPlaceholder = () => {
+    if (!bodyElement) {
+      return;
+    }
+
+    bodyElement.innerHTML = `
+      <div class="text-center py-4">
+        <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+        <p class="text-muted mt-3 mb-0">Loading account form...</p>
+      </div>
+    `;
+  };
+
+  const focusFirstField = () => {
+    const firstField = bodyElement?.querySelector("input:not([type=hidden]), select, textarea");
+    if (firstField) {
+      firstField.focus();
+    }
+  };
+
+  const loadForm = async (url, trigger) => {
+    if (titleElement) {
+      titleElement.textContent = trigger?.getAttribute("data-account-form-title") || "Account";
+    }
+    if (subtitleElement) {
+      const parentPath = trigger?.getAttribute("data-account-form-parent");
+      subtitleElement.textContent = parentPath
+        ? `Parent branch: ${parentPath}`
+        : "Use this form to create or update the selected account.";
+    }
+
+    setPlaceholder();
+    modal.show();
+
+    try {
+      const response = await fetch(url, {
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          Accept: "text/html",
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error("Failed to load account form");
+      }
+
+      if (bodyElement) {
+        bodyElement.innerHTML = await response.text();
+        focusFirstField();
+      }
+    } catch (error) {
+      if (bodyElement) {
+        bodyElement.innerHTML = `
+          <div class="alert alert-danger mb-0" role="alert">
+            Unable to load the account form. Please try again.
+          </div>
+        `;
+      }
+    }
+  };
+
+  const submitForm = async (form) => {
+    if (!bodyElement) {
+      return;
+    }
+
+    const response = await fetch(form.action, {
+      method: "POST",
+      body: new FormData(form),
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        Accept: "application/json, text/html",
+      },
+    });
+
+    const contentType = response.headers.get("content-type") || "";
+
+    if (contentType.includes("application/json")) {
+      const payload = await response.json();
+      if (response.ok && payload.success) {
+        modal.hide();
+        window.location.href = payload.redirect_url || window.location.href;
+        return;
+      }
+
+      bodyElement.innerHTML = `
+        <div class="alert alert-danger mb-3" role="alert">
+          ${payload.message || "Unable to save the account."}
+        </div>
+      `;
+      return;
+    }
+
+    bodyElement.innerHTML = await response.text();
+    focusFirstField();
+  };
+
+  document.addEventListener("click", (event) => {
+    const trigger = event.target.closest("[data-account-form-url]");
+    if (!trigger) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const url = trigger.getAttribute("data-account-form-url");
+    if (!url) {
+      return;
+    }
+
+    loadForm(url, trigger);
+  });
+
+  document.addEventListener("submit", (event) => {
+    const form = event.target.closest("form[data-account-form]");
+    if (!form) {
+      return;
+    }
+
+    event.preventDefault();
+    submitForm(form).catch(() => {
+      if (bodyElement) {
+        bodyElement.innerHTML = `
+          <div class="alert alert-danger mb-0" role="alert">
+            The account could not be saved right now.
+          </div>
+        `;
+      }
+    });
+  });
+
+  modalElement.addEventListener("hidden.bs.modal", () => {
+    if (bodyElement) {
+      bodyElement.innerHTML = "";
+    }
+    if (titleElement) {
+      titleElement.textContent = "Account";
+    }
+    if (subtitleElement) {
+      subtitleElement.textContent = "Loading account form...";
+    }
+  });
+};
+
 const initPwa = () => {
   const installPrompt = document.querySelector("[data-pwa-install-prompt]");
   const installActions = Array.from(document.querySelectorAll("[data-pwa-install-action]"));
@@ -965,6 +1122,7 @@ const initPersistentWorkspace = () => {
 window.addEventListener("DOMContentLoaded", () => {
   initLayoutToggles();
   initVoucherDetailModal();
+  initAccountTreeModal();
   initWorkspaceContent();
   initShortcutHelpTrigger();
   initPwa();

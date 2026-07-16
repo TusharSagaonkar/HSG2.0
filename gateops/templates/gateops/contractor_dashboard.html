@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Contractor Dashboard | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}Contractor Dashboard{% endblock dashboard_title %}
+{% block dashboard_subtitle %}Command center for contractor management at {{ scope_society_name }}{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:dashboard' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Dashboard</a>
+    <a href="{% url 'gateops:contractor-create' %}" class="btn-action btn-action--primary"><i class="fas fa-plus me-1"></i>New Contractor</a>
+    <a href="{% url 'gateops:contract-create' %}" class="btn-action btn-action--primary"><i class="fas fa-file-contract me-1"></i>New Contract</a>
+    <a href="{% url 'gateops:worker-register' %}" class="btn-action btn-action--primary"><i class="fas fa-user-plus me-1"></i>Register Worker</a>
+    <a href="{% url 'gateops:work-permit-issue' %}" class="btn-action btn-action--primary"><i class="fas fa-id-card me-1"></i>Issue Work Permit</a>
+  </div>
+
+  <div class="row g-3 mb-3">
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="content-card h-100">
+        <div class="content-card__body text-center">
+          <i class="fas fa-building fa-2x mb-2 text-primary"></i>
+          <div class="display-6 fw-bold">{{ active_contracts_count }}</div>
+          <div class="text-muted small">Active Contracts</div>
+          <a href="{% url 'gateops:contract-list' %}" class="btn btn-sm btn-outline-primary mt-2">View Contracts</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="content-card h-100">
+        <div class="content-card__body text-center">
+          <i class="fas fa-exclamation-triangle fa-2x mb-2 text-danger"></i>
+          <div class="display-6 fw-bold">{{ expired_contracts_count }}</div>
+          <div class="text-muted small">Expired Contracts</div>
+          <a href="{% url 'gateops:contract-list' %}" class="btn btn-sm btn-outline-danger mt-2">Review Now</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="content-card h-100">
+        <div class="content-card__body text-center">
+          <i class="fas fa-clock fa-2x mb-2 text-warning"></i>
+          <div class="display-6 fw-bold">{{ expired_permits_count }}</div>
+          <div class="text-muted small">Expired Work Permits</div>
+          <a href="{% url 'gateops:work-permit-list' %}" class="btn btn-sm btn-outline-warning mt-2">Review Now</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-md-6 col-xl-3">
+      <div class="content-card h-100">
+        <div class="content-card__body text-center">
+          <i class="fas fa-hard-hat fa-2x mb-2 text-success"></i>
+          <div class="display-6 fw-bold">{{ active_workers_on_site_count }}</div>
+          <div class="text-muted small">Workers On Site</div>
+          <a href="{% url 'gateops:worker-list' %}" class="btn btn-sm btn-outline-success mt-2">View Workers</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-6">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Quick Actions</h3>
+        </div>
+        <div class="content-card__body">
+          <div class="d-grid gap-2">
+            <a href="{% url 'gateops:contractor-list' %}" class="btn-action btn-action--primary"><i class="fas fa-list me-1"></i>All Contractors</a>
+            <a href="{% url 'gateops:contract-list' %}" class="btn-action btn-action--primary"><i class="fas fa-file-contract me-1"></i>All Contracts</a>
+            <a href="{% url 'gateops:worker-list' %}" class="btn-action btn-action--primary"><i class="fas fa-users me-1"></i>All Workers</a>
+            <a href="{% url 'gateops:work-permit-list' %}" class="btn-action btn-action--primary"><i class="fas fa-id-card me-1"></i>All Work Permits</a>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Create New</h3>
+        </div>
+        <div class="content-card__body">
+          <div class="d-grid gap-2">
+            <a href="{% url 'gateops:contractor-create' %}" class="btn-action btn-action--success"><i class="fas fa-plus me-1"></i>New Contractor</a>
+            <a href="{% url 'gateops:contract-create' %}" class="btn-action btn-action--success"><i class="fas fa-file-contract me-1"></i>New Contract</a>
+            <a href="{% url 'gateops:worker-register' %}" class="btn-action btn-action--success"><i class="fas fa-user-plus me-1"></i>Register Worker</a>
+            <a href="{% url 'gateops:work-permit-issue' %}" class="btn-action btn-action--success"><i class="fas fa-id-card me-1"></i>Issue Work Permit</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

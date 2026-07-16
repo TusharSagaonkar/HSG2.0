@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% if step_name %}{{ step_name }} — {% endif %}{% trans "Migration Wizard" %} | {% trans "Housing Accounting System" %}
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% if step_name %}{{ step_name }}{% else %}{% trans "Migration Wizard" %}{% endif %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% if wizard %}
+    {% blocktrans with step=step_number total=total_steps %}
+      Step {{ step }} of {{ total }}
+    {% endblocktrans %}
+    {% if wizard.society %}— {{ wizard.society.name }}{% endif %}
+  {% else %}
+    {% trans "Society Creation & Accounting Migration" %}
+  {% endif %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="wizard-container">
+    {% if wizard %}
+      {% include "onboarding/partials/step_progress_bar.html" %}
+    {% endif %}
+
+    <div class="wizard-content mt-3">
+      {% block wizard_content %}{% endblock wizard_content %}
+    </div>
+  </div>
+{% endblock content %}

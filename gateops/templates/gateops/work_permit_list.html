@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Work Permits | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}Work Permits{% endblock dashboard_title %}
+{% block dashboard_subtitle %}
+  {% if filter_contract %}Permits for {{ filter_contract.title }}{% else %}Work authorizations for {{ scope_society_name }}{% endif %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:contractor-dashboard' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Dashboard</a>
+    <a href="{% url 'gateops:work-permit-issue' %}" class="btn-action btn-action--primary"><i class="fas fa-id-card me-1"></i>Issue Work Permit</a>
+  </div>
+
+  {% if filter_contract %}
+    <div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="note">
+      <i class="fas fa-filter mt-1"></i>
+      <div>
+        Filtered by contract: <strong>{{ filter_contract.title }}</strong>.
+        <a href="{% url 'gateops:work-permit-list' %}" class="alert-link">Clear filter</a>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="content-card">
+    <div class="content-card__header">
+      <h3 class="content-card__title">Work Permits</h3>
+      <span class="badge bg-primary">{{ scope_society_name }}</span>
+    </div>
+    <div class="content-card__body p-0">
+      {% if work_permits %}
+        <div class="table-responsive">
+          <table class="table table-striped table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Permit Number</th>
+                <th>Contract</th>
+                <th>Issued At</th>
+                <th>Expires At</th>
+                <th>Hazard Level</th>
+                <th>Status</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for permit in work_permits %}
+                <tr>
+                  <td class="fw-semibold">
+                    <a href="{% url 'gateops:work-permit-detail' permit.pk %}">{{ permit.permit_number }}</a>
+                  </td>
+                  <td>
+                    <a href="{% url 'gateops:contract-detail' permit.contract.pk %}">{{ permit.contract.title }}</a>
+                  </td>
+                  <td class="small">{{ permit.issued_at|date:"d M Y H:i" }}</td>
+                  <td class="small">{{ permit.expires_at|date:"d M Y H:i" }}</td>
+                  <td>
+                    <span class="badge {% if permit.hazard_level == 'high' %}bg-danger{% elif permit.hazard_level == 'medium' %}bg-warning text-dark{% else %}bg-success{% endif %}">{{ permit.get_hazard_level_display }}</span>
+                  </td>
+                  <td>
+                    <span class="badge {% if permit.status == 'active' %}bg-success{% elif permit.status == 'expired' %}bg-warning text-dark{% else %}bg-danger{% endif %}">{{ permit.get_status_display }}</span>
+                  </td>
+                  <td class="text-end">
+                    <a href="{% url 'gateops:work-permit-detail' permit.pk %}" class="btn btn-sm btn-outline-primary">Details</a>
+                    <a href="{% url 'gateops:work-permit-edit' permit.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                    {% if permit.status == 'active' %}
+                      <form method="post" action="{% url 'gateops:work-permit-revoke' permit.pk %}" class="d-inline" onsubmit="return confirm('Revoke work permit {{ permit.permit_number|escapejs }}?');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-sm btn-outline-danger">Revoke</button>
+                      </form>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-5 text-center text-muted">
+          <i class="fas fa-id-card fa-2x mb-3 d-block opacity-50"></i>
+          <p>No work permits issued for {{ scope_society_name }} yet.</p>
+          <a href="{% url 'gateops:work-permit-issue' %}" class="btn-action btn-action--primary"><i class="fas fa-id-card me-1"></i>Issue the first work permit</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}

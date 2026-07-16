@@ -10,11 +10,14 @@
 {% endblock dashboard_title %}
 
 {% block dashboard_subtitle %}
-  {{ society.name }} - {% translate "Manage members and roles" %}
+  {{ society.name }} - {% translate "Manage members, settings, and onboarding" %}
 {% endblock dashboard_subtitle %}
 
+{% block bodyclass %}society-admin{% endblock bodyclass %}
+{% block page_id %}society-admin{% endblock page_id %}
+
 {% block content %}
-  <div class="page-actions">
+  <div class="page-actions mb-3">
     <a href="{% url 'housing:society-detail' society.pk %}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i>{% translate "Back to Dashboard" %}</a>
     <a href="{% url 'housing:society-voucher-templates' society.pk %}" class="btn btn-outline-primary">
       <i class="fas fa-file-invoice me-1"></i>{% translate "Voucher Templates" %}
@@ -27,163 +30,632 @@
     </a>
   </div>
 
-  <div class="card">
-    <div class="card-header">
-      <div class="card-title">
-        <i class="fas fa-users me-2"></i>{% translate "Society Members" %}
+  {# Tab navigation #}
+  <ul class="nav nav-tabs mb-3" id="societyAdminTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+      <button class="nav-link active" id="overview-tab" data-bs-toggle="tab" data-bs-target="#overview" type="button" role="tab" aria-controls="overview" aria-selected="true">
+        <i class="fas fa-chart-line me-1"></i>{% translate "Overview" %}
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab" aria-controls="users" aria-selected="false">
+        <i class="fas fa-users me-1"></i>{% translate "Users & Roles" %}
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="settings-tab" data-bs-toggle="tab" data-bs-target="#settings" type="button" role="tab" aria-controls="settings" aria-selected="false">
+        <i class="fas fa-cog me-1"></i>{% translate "Society Settings" %}
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="profile-tab" data-bs-toggle="tab" data-bs-target="#profile" type="button" role="tab" aria-controls="profile" aria-selected="false">
+        <i class="fas fa-id-card me-1"></i>{% translate "Society Profile" %}
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="onboarding-tab" data-bs-toggle="tab" data-bs-target="#onboarding" type="button" role="tab" aria-controls="onboarding" aria-selected="false">
+        <i class="fas fa-rocket me-1"></i>{% translate "Onboarding" %}
+      </button>
+    </li>
+    <li class="nav-item" role="presentation">
+      <button class="nav-link" id="integrations-tab" data-bs-toggle="tab" data-bs-target="#integrations" type="button" role="tab" aria-controls="integrations" aria-selected="false">
+        <i class="fas fa-plug me-1"></i>{% translate "Integrations" %}
+      </button>
+    </li>
+  </ul>
+
+  <div class="tab-content" id="societyAdminTabContent">
+
+    {# ===================== Tab 1: Overview ===================== #}
+    <div class="tab-pane fade show active" id="overview" role="tabpanel" aria-labelledby="overview-tab" tabindex="0">
+      {# Society profile card #}
+      <div class="card mb-3">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fas fa-building me-2"></i>{% translate "Society Profile" %}
+          </div>
+        </div>
+        <div class="card-body">
+          <dl class="row mb-0">
+            <dt class="col-sm-3">{% translate "Name" %}</dt>
+            <dd class="col-sm-9">{{ society.name }}</dd>
+
+            <dt class="col-sm-3">{% translate "Registration Number" %}</dt>
+            <dd class="col-sm-9">
+              {% if society.registration_number %}{{ society.registration_number }}{% else %}<span class="text-muted">{% translate "Not set" %}</span>{% endif %}
+            </dd>
+
+            <dt class="col-sm-3">{% translate "Address" %}</dt>
+            <dd class="col-sm-9">
+              {% if society.address %}{{ society.address|linebreaksbr }}{% else %}<span class="text-muted">{% translate "Not set" %}</span>{% endif %}
+            </dd>
+
+            <dt class="col-sm-3">{% translate "Created Date" %}</dt>
+            <dd class="col-sm-9">{{ society.created_at|date:"SHORT_DATE_FORMAT" }}</dd>
+
+            <dt class="col-sm-3">{% translate "Created By" %}</dt>
+            <dd class="col-sm-9">
+              {% if society.created_by %}{{ society.created_by.name|default:society.created_by.email }}{% else %}<span class="text-muted">{% translate "Unknown" %}</span>{% endif %}
+            </dd>
+          </dl>
+        </div>
+      </div>
+
+      {# Onboarding status card #}
+      <div class="card mb-3">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fas fa-rocket me-2"></i>{% translate "Onboarding Status" %}
+          </div>
+        </div>
+        <div class="card-body">
+          {% if onboarding_wizard %}
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+              <span class="badge {% if onboarding_wizard.status == 'IN_PROGRESS' %}bg-warning{% elif onboarding_wizard.status == 'COMPLETED' %}bg-success{% elif onboarding_wizard.status == 'ABANDONED' %}bg-danger{% else %}bg-secondary{% endif %}">
+                {{ onboarding_wizard.get_status_display }}
+              </span>
+              <span class="text-muted small">
+                {% translate "Current step:" %} <strong>{{ onboarding_wizard.current_step }}</strong> / 28
+              </span>
+              <span class="text-muted small">
+                {% translate "Started:" %} {{ onboarding_wizard.started_at|date:"SHORT_DATE_FORMAT" }}
+              </span>
+            </div>
+            <div class="progress mb-0" role="progressbar" aria-label="{% translate 'Onboarding progress' %}" aria-valuenow="{{ onboarding_progress_percent }}" aria-valuemin="0" aria-valuemax="100" style="height: 10px;">
+              <div class="progress-bar {% if onboarding_wizard.status == 'COMPLETED' %}bg-success{% elif onboarding_wizard.status == 'ABANDONED' %}bg-danger{% else %}{% endif %}" style="width: {{ onboarding_progress_percent }}%"></div>
+            </div>
+          {% else %}
+            <div class="alert alert-info mb-0" role="alert">
+              <i class="fas fa-info-circle me-2"></i>
+              {% translate "No onboarding wizard found for this society." %}
+              <a href="{% url 'onboarding:wizard-list' %}" class="alert-link">{% translate "Start one" %}</a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      {# Quick stats row #}
+      <div class="row g-3">
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="quick-card">
+            <p class="small text-muted mb-1">{% translate "Total Members" %}</p>
+            <h2 class="h4 mb-0">{{ total_members }}</h2>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="quick-card">
+            <p class="small text-muted mb-1">{% translate "Total Users" %}</p>
+            <h2 class="h4 mb-0">{{ total_users }}</h2>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="quick-card">
+            <p class="small text-muted mb-1">{% translate "Active Users" %}</p>
+            <h2 class="h4 mb-0">{{ active_users }}</h2>
+          </div>
+        </div>
+        <div class="col-12 col-sm-6 col-xl-3">
+          <div class="quick-card">
+            <p class="small text-muted mb-1">{% translate "Pending Verifications" %}</p>
+            <h2 class="h4 mb-0">{{ pending_verifications }}</h2>
+          </div>
+        </div>
       </div>
     </div>
-    <div class="card-body">
-      {% if memberships %}
-        <div class="table-responsive">
-          <table class="table table-hover">
-            <thead>
-              <tr>
-                <th>{% translate "User" %}</th>
-                <th>{% translate "Email" %}</th>
-                <th>{% translate "Role" %}</th>
-                <th>{% translate "Status" %}</th>
-                <th>{% translate "Added On" %}</th>
-                <th>{% translate "Actions" %}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for membership in memberships %}
-                <tr>
-                  <td>
-                    <strong>{{ membership.user.name|default:membership.user.email }}</strong>
-                  </td>
-                  <td>
-                    {{ membership.user.email }}
-                  </td>
-                  <td>
-                    <span class="badge bg-info">
-                      {{ membership.role_label }}
-                    </span>
-                  </td>
-                  <td>
-                    <span class="badge {{ membership.status_badge_class }}">
-                      <i class="{{ membership.status_icon }} me-1"></i>{{ membership.status_display }}
-                    </span>
-                  </td>
-                  <td>
-                    <small class="text-muted">
-                      {{ membership.joined_at|date:"SHORT_DATE_FORMAT" }}
-                    </small>
-                  </td>
-                  <td>
-                    <div class="d-flex gap-2">
-                      {% if not membership.user.email_verified and membership.is_active %}
-                        <form method="post" action="{% url 'housing:resend-verification-email' society.pk membership.user.id %}" style="display: inline;">
-                          {% csrf_token %}
-                          <button type="submit" class="btn btn-sm btn-warning" title="{% translate 'Resend verification email' %}">
-                            <i class="fas fa-redo me-1"></i>{% translate "Resend Email" %}
-                          </button>
-                        </form>
-                      {% endif %}
-                      <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#updateMembershipModal{{ membership.id }}" title="{% translate 'Edit member' %}">
-                        <i class="fas fa-edit me-1"></i>{% translate "Edit" %}
-                      </button>
-                    </div>
 
-                    <!-- Update Membership Modal -->
-                    <div class="modal fade" id="updateMembershipModal{{ membership.id }}" tabindex="-1">
-                      <div class="modal-dialog">
-                        <div class="modal-content">
-                          <div class="modal-header">
-                            <h5 class="modal-title">
-                              {% translate "Edit Member" %}: {{ membership.user.name|default:membership.user.email }}
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                          </div>
-                          <form method="post" action="{% url 'housing:update-membership' society.pk membership.user.id %}">
-                            {% csrf_token %}
-                            <div class="modal-body">
-                              <div class="mb-3">
-                                <label for="id_role_{{ membership.id }}" class="form-label">{% translate "Role" %}</label>
-                                <select name="role" id="id_role_{{ membership.id }}" class="form-select" required>
-                                  <option value="viewer" {% if membership.role == 'viewer' %}selected{% endif %}>
-                                    {% translate "Viewer - Read-only access" %}
-                                  </option>
-                                  <option value="member" {% if membership.role == 'member' %}selected{% endif %}>
-                                    {% translate "Member - Participate with limited change access" %}
-                                  </option>
-                                  <option value="accountant" {% if membership.role == 'accountant' %}selected{% endif %}>
-                                    {% translate "Accountant - Handle accounting and billing" %}
-                                  </option>
-                                  <option value="admin" {% if membership.role == 'admin' %}selected{% endif %}>
-                                    {% translate "Admin - Manage society users and operations" %}
-                                  </option>
-                                  <option value="owner" {% if membership.role == 'owner' %}selected{% endif %}>
-                                    {% translate "Owner - Full control and governance" %}
-                                  </option>
-                                </select>
-                              </div>
-                              <div class="mb-3">
-                                <div class="form-check">
-                                  <input type="checkbox" name="is_active" id="id_is_active_{{ membership.id }}" class="form-check-input" {% if membership.is_active %}checked{% endif %}>
-                                  <label class="form-check-label" for="id_is_active_{{ membership.id }}">
-                                    {% translate "Active" %}
-                                  </label>
-                                </div>
-                                <small class="text-muted">
-                                  {% translate "Uncheck to deactivate the user's access." %}
-                                </small>
-                              </div>
-                            </div>
-                            <div class="modal-footer">
-                              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% translate "Cancel" %}</button>
-                              <button type="submit" class="btn btn-primary">{% translate "Save Changes" %}</button>
-                            </div>
-                          </form>
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+    {# ===================== Tab 2: Users & Roles ===================== #}
+    <div class="tab-pane fade" id="users" role="tabpanel" aria-labelledby="users-tab" tabindex="0">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fas fa-users me-2"></i>{% translate "Society Members" %}
+          </div>
         </div>
-      {% else %}
-        <div class="alert alert-info" role="alert">
-          <i class="fas fa-info-circle me-2"></i>
-          {% translate "No members found for this society." %}
+        <div class="card-body">
+          {% if memberships %}
+            <div class="table-responsive">
+              <table class="table table-hover">
+                <thead>
+                  <tr>
+                    <th>{% translate "User" %}</th>
+                    <th>{% translate "Email" %}</th>
+                    <th>{% translate "Role" %}</th>
+                    <th>{% translate "Status" %}</th>
+                    <th>{% translate "Added On" %}</th>
+                    <th>{% translate "Actions" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for membership in memberships %}
+                    <tr>
+                      <td>
+                        <strong>{{ membership.user.name|default:membership.user.email }}</strong>
+                      </td>
+                      <td>
+                        {{ membership.user.email }}
+                      </td>
+                      <td>
+                        <span class="badge bg-info">
+                          {{ membership.role_label }}
+                        </span>
+                      </td>
+                      <td>
+                        <span class="badge {{ membership.status_badge_class }}">
+                          <i class="{{ membership.status_icon }} me-1"></i>{{ membership.status_display }}
+                        </span>
+                      </td>
+                      <td>
+                        <small class="text-muted">
+                          {{ membership.joined_at|date:"SHORT_DATE_FORMAT" }}
+                        </small>
+                      </td>
+                      <td>
+                        <div class="d-flex gap-2">
+                          {% if not membership.user.email_verified and membership.is_active %}
+                            <form method="post" action="{% url 'housing:resend-verification-email' society.pk membership.user.id %}" style="display: inline;">
+                              {% csrf_token %}
+                              <button type="submit" class="btn btn-sm btn-warning" title="{% translate 'Resend verification email' %}">
+                                <i class="fas fa-redo me-1"></i>{% translate "Resend Email" %}
+                              </button>
+                            </form>
+                          {% endif %}
+                          <button type="button" class="btn btn-sm btn-info" data-bs-toggle="modal" data-bs-target="#updateMembershipModal{{ membership.id }}" title="{% translate 'Edit member' %}">
+                            <i class="fas fa-edit me-1"></i>{% translate "Edit" %}
+                          </button>
+                        </div>
+
+                        {# Update Membership Modal #}
+                        <div class="modal fade" id="updateMembershipModal{{ membership.id }}" tabindex="-1">
+                          <div class="modal-dialog">
+                            <div class="modal-content">
+                              <div class="modal-header">
+                                <h5 class="modal-title">
+                                  {% translate "Edit Member" %}: {{ membership.user.name|default:membership.user.email }}
+                                </h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                              </div>
+                              <form method="post" action="{% url 'housing:update-membership' society.pk membership.user.id %}">
+                                {% csrf_token %}
+                                <div class="modal-body">
+                                  <div class="mb-3">
+                                    <label for="id_role_{{ membership.id }}" class="form-label">{% translate "Role" %}</label>
+                                    <select name="role" id="id_role_{{ membership.id }}" class="form-select" required>
+                                      <option value="viewer" {% if membership.role == 'viewer' %}selected{% endif %}>
+                                        {% translate "Viewer - Read-only access" %}
+                                      </option>
+                                      <option value="member" {% if membership.role == 'member' %}selected{% endif %}>
+                                        {% translate "Member - Participate with limited change access" %}
+                                      </option>
+                                      <option value="accountant" {% if membership.role == 'accountant' %}selected{% endif %}>
+                                        {% translate "Accountant - Handle accounting and billing" %}
+                                      </option>
+                                      <option value="admin" {% if membership.role == 'admin' %}selected{% endif %}>
+                                        {% translate "Admin - Manage society users and operations" %}
+                                      </option>
+                                      <option value="owner" {% if membership.role == 'owner' %}selected{% endif %}>
+                                        {% translate "Owner - Full control and governance" %}
+                                      </option>
+                                    </select>
+                                  </div>
+                                  <div class="mb-3">
+                                    <div class="form-check">
+                                      <input type="checkbox" name="is_active" id="id_is_active_{{ membership.id }}" class="form-check-input" {% if membership.is_active %}checked{% endif %}>
+                                      <label class="form-check-label" for="id_is_active_{{ membership.id }}">
+                                        {% translate "Active" %}
+                                      </label>
+                                    </div>
+                                    <small class="text-muted">
+                                      {% translate "Uncheck to deactivate the user's access." %}
+                                    </small>
+                                  </div>
+                                </div>
+                                <div class="modal-footer">
+                                  <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">{% translate "Cancel" %}</button>
+                                  <button type="submit" class="btn btn-primary">{% translate "Save Changes" %}</button>
+                                </div>
+                              </form>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="alert alert-info" role="alert">
+              <i class="fas fa-info-circle me-2"></i>
+              {% translate "No members found for this society." %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="card mt-3">
+        <div class="card-header">
+          <div class="card-title">
+            <i class="fas fa-shield-alt me-2"></i>{% translate "Role Hierarchy" %}
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="row">
+            {% for role in role_summary %}
+              <div class="col-12 col-md-6 mb-3">
+                <div class="role-info-card">
+                  <div class="role-badge-large">
+                    <span class="badge bg-primary p-2">
+                      <i class="fas fa-lock-open"></i> {{ role.label }}
+                    </span>
+                  </div>
+                  <p class="small text-muted mt-2 mb-0">
+                    {{ role.description }}
+                  </p>
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      {% if current_user_role %}
+        <div class="alert alert-secondary mt-3" role="alert">
+          <i class="fas fa-user-check me-2"></i>
+          {% blocktranslate %}Your role: <strong>{{ current_user_role|title }}</strong>{% endblocktranslate %}
         </div>
       {% endif %}
     </div>
-  </div>
 
-  <div class="card mt-3">
-    <div class="card-header">
-      <div class="card-title">
-        <i class="fas fa-shield-alt me-2"></i>{% translate "Role Hierarchy" %}
-      </div>
-    </div>
-    <div class="card-body">
-      <div class="row">
-        {% for role in role_summary %}
-          <div class="col-12 col-md-6 mb-3">
-            <div class="role-info-card">
-              <div class="role-badge-large">
-                <span class="badge bg-primary p-2">
-                  <i class="fas fa-lock-open"></i> {{ role.label }}
-                </span>
-              </div>
-              <p class="small text-muted mt-2 mb-0">
-                {{ role.description }}
-              </p>
+    {# ===================== Tab 3: Society Settings ===================== #}
+    <div class="tab-pane fade" id="settings" role="tabpanel" aria-labelledby="settings-tab" tabindex="0">
+      {% if current_user_role == 'admin' or current_user_role == 'owner' %}
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fas fa-cog me-2"></i>{% translate "Society Configuration" %}
             </div>
           </div>
-        {% endfor %}
+          <div class="card-body">
+            <form method="post" action="{% url 'housing:society-settings-update' society.pk %}">
+              {% csrf_token %}
+
+              {# Share Configuration #}
+              <fieldset class="mb-4">
+                <legend class="h6 border-bottom pb-2 mb-3"><i class="fas fa-certificate me-1"></i>{% translate "Share Configuration" %}</legend>
+                <div class="row g-3">
+                  <div class="col-12 col-md-6">
+                    {{ society_config_form.share_value.label_tag }}
+                    {{ society_config_form.share_value }}
+                    {% if society_config_form.share_value.help_text %}
+                      <div class="form-text">{{ society_config_form.share_value.help_text }}</div>
+                    {% endif %}
+                    {% if society_config_form.share_value.errors %}{{ society_config_form.share_value.errors }}{% endif %}
+                  </div>
+                  <div class="col-12 col-md-6">
+                    {{ society_config_form.default_share_count.label_tag }}
+                    {{ society_config_form.default_share_count }}
+                    {% if society_config_form.default_share_count.help_text %}
+                      <div class="form-text">{{ society_config_form.default_share_count.help_text }}</div>
+                    {% endif %}
+                    {% if society_config_form.default_share_count.errors %}{{ society_config_form.default_share_count.errors }}{% endif %}
+                  </div>
+                </div>
+              </fieldset>
+
+              {# Fees #}
+              <fieldset class="mb-4">
+                <legend class="h6 border-bottom pb-2 mb-3"><i class="fas fa-money-bill-wave me-1"></i>{% translate "Fees" %}</legend>
+                <div class="row g-3">
+                  <div class="col-12 col-md-4">
+                    {{ society_config_form.entrance_fee.label_tag }}
+                    {{ society_config_form.entrance_fee }}
+                    {% if society_config_form.entrance_fee.help_text %}
+                      <div class="form-text">{{ society_config_form.entrance_fee.help_text }}</div>
+                    {% endif %}
+                    {% if society_config_form.entrance_fee.errors %}{{ society_config_form.entrance_fee.errors }}{% endif %}
+                  </div>
+                  <div class="col-12 col-md-4">
+                    {{ society_config_form.transfer_fee.label_tag }}
+                    {{ society_config_form.transfer_fee }}
+                    {% if society_config_form.transfer_fee.help_text %}
+                      <div class="form-text">{{ society_config_form.transfer_fee.help_text }}</div>
+                    {% endif %}
+                    {% if society_config_form.transfer_fee.errors %}{{ society_config_form.transfer_fee.errors }}{% endif %}
+                  </div>
+                  <div class="col-12 col-md-4">
+                    {{ society_config_form.premium_amount.label_tag }}
+                    {{ society_config_form.premium_amount }}
+                    {% if society_config_form.premium_amount.help_text %}
+                      <div class="form-text">{{ society_config_form.premium_amount.help_text }}</div>
+                    {% endif %}
+                    {% if society_config_form.premium_amount.errors %}{{ society_config_form.premium_amount.errors }}{% endif %}
+                  </div>
+                </div>
+              </fieldset>
+
+              {# Preferences #}
+              <fieldset class="mb-4">
+                <legend class="h6 border-bottom pb-2 mb-3"><i class="fas fa-sliders-h me-1"></i>{% translate "Preferences" %}</legend>
+                <div class="row g-3">
+                  <div class="col-12 col-md-4">
+                    <div class="form-check">
+                      {{ society_config_form.allow_multiple_nominees }}
+                      {{ society_config_form.allow_multiple_nominees.label_tag }}
+                    </div>
+                    {% if society_config_form.allow_multiple_nominees.help_text %}
+                      <div class="form-text">{{ society_config_form.allow_multiple_nominees.help_text }}</div>
+                    {% endif %}
+                    {% if society_config_form.allow_multiple_nominees.errors %}{{ society_config_form.allow_multiple_nominees.errors }}{% endif %}
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <div class="form-check">
+                      {{ society_config_form.require_approval }}
+                      {{ society_config_form.require_approval.label_tag }}
+                    </div>
+                    {% if society_config_form.require_approval.help_text %}
+                      <div class="form-text">{{ society_config_form.require_approval.help_text }}</div>
+                    {% endif %}
+                    {% if society_config_form.require_approval.errors %}{{ society_config_form.require_approval.errors }}{% endif %}
+                  </div>
+                  <div class="col-12 col-md-4">
+                    <div class="form-check">
+                      {{ society_config_form.auto_generate_vouchers }}
+                      {{ society_config_form.auto_generate_vouchers.label_tag }}
+                    </div>
+                    {% if society_config_form.auto_generate_vouchers.help_text %}
+                      <div class="form-text">{{ society_config_form.auto_generate_vouchers.help_text }}</div>
+                    {% endif %}
+                    {% if society_config_form.auto_generate_vouchers.errors %}{{ society_config_form.auto_generate_vouchers.errors }}{% endif %}
+                  </div>
+                </div>
+              </fieldset>
+
+              <div class="d-flex justify-content-end">
+                <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>{% translate "Save Settings" %}</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      {% else %}
+        <div class="alert alert-warning" role="alert">
+          <i class="fas fa-lock me-2"></i>
+          {% translate "You need admin or owner permissions to edit society settings." %}
+        </div>
+      {% endif %}
+    </div>
+
+    {# ===================== Tab 4: Society Profile ===================== #}
+    <div class="tab-pane fade" id="profile" role="tabpanel" aria-labelledby="profile-tab" tabindex="0">
+      {% if current_user_role == 'admin' or current_user_role == 'owner' %}
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fas fa-id-card me-2"></i>{% translate "Edit Society Profile" %}
+            </div>
+          </div>
+          <div class="card-body">
+            <form method="post" action="{% url 'housing:society-profile-update' society.pk %}">
+              {% csrf_token %}
+              <div class="row g-3">
+                <div class="col-12">
+                  {{ society_profile_form.name.label_tag }}
+                  {{ society_profile_form.name }}
+                  {% if society_profile_form.name.help_text %}
+                    <div class="form-text">{{ society_profile_form.name.help_text }}</div>
+                  {% endif %}
+                  {% if society_profile_form.name.errors %}{{ society_profile_form.name.errors }}{% endif %}
+                </div>
+                <div class="col-12">
+                  {{ society_profile_form.registration_number.label_tag }}
+                  {{ society_profile_form.registration_number }}
+                  {% if society_profile_form.registration_number.help_text %}
+                    <div class="form-text">{{ society_profile_form.registration_number.help_text }}</div>
+                  {% endif %}
+                  {% if society_profile_form.registration_number.errors %}{{ society_profile_form.registration_number.errors }}{% endif %}
+                </div>
+                <div class="col-12">
+                  {{ society_profile_form.address.label_tag }}
+                  {{ society_profile_form.address }}
+                  {% if society_profile_form.address.help_text %}
+                    <div class="form-text">{{ society_profile_form.address.help_text }}</div>
+                  {% endif %}
+                  {% if society_profile_form.address.errors %}{{ society_profile_form.address.errors }}{% endif %}
+                </div>
+                <div class="col-12 d-flex justify-content-end">
+                  <button type="submit" class="btn btn-primary"><i class="fas fa-save me-1"></i>{% translate "Update Profile" %}</button>
+                </div>
+              </div>
+            </form>
+          </div>
+        </div>
+      {% else %}
+        <div class="alert alert-warning" role="alert">
+          <i class="fas fa-lock me-2"></i>
+          {% translate "You need admin or owner permissions to edit the society profile." %}
+        </div>
+      {% endif %}
+    </div>
+
+    {# ===================== Tab 5: Onboarding ===================== #}
+    <div class="tab-pane fade" id="onboarding" role="tabpanel" aria-labelledby="onboarding-tab" tabindex="0">
+      {% if onboarding_wizard %}
+        <div class="card">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fas fa-rocket me-2"></i>{% translate "Onboarding Wizard" %}
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+              <span class="badge {% if onboarding_wizard.status == 'IN_PROGRESS' %}bg-warning{% elif onboarding_wizard.status == 'COMPLETED' %}bg-success{% elif onboarding_wizard.status == 'ABANDONED' %}bg-danger{% else %}bg-secondary{% endif %}">
+                {{ onboarding_wizard.get_status_display }}
+              </span>
+              {% if onboarding_wizard.society_type %}
+                <span class="badge bg-light text-dark">{{ onboarding_wizard.get_society_type_display }}</span>
+              {% endif %}
+            </div>
+
+            <dl class="row mb-3">
+              <dt class="col-sm-3">{% translate "Current Step" %}</dt>
+              <dd class="col-sm-9">{{ onboarding_wizard.current_step }} / 28</dd>
+
+              <dt class="col-sm-3">{% translate "Started At" %}</dt>
+              <dd class="col-sm-9">{{ onboarding_wizard.started_at|date:"SHORT_DATE_FORMAT" }}</dd>
+
+              {% if onboarding_wizard.completed_at %}
+                <dt class="col-sm-3">{% translate "Completed At" %}</dt>
+                <dd class="col-sm-9">{{ onboarding_wizard.completed_at|date:"SHORT_DATE_FORMAT" }}</dd>
+              {% endif %}
+            </dl>
+
+            <div class="progress mb-3" role="progressbar" aria-label="{% translate 'Onboarding progress' %}" aria-valuenow="{{ onboarding_progress_percent }}" aria-valuemin="0" aria-valuemax="100" style="height: 10px;">
+              <div class="progress-bar {% if onboarding_wizard.status == 'COMPLETED' %}bg-success{% elif onboarding_wizard.status == 'ABANDONED' %}bg-danger{% endif %}" style="width: {{ onboarding_progress_percent }}%"></div>
+            </div>
+
+            {% if onboarding_wizard.selected_modules %}
+              <h6 class="mt-3">{% translate "Selected Modules" %}</h6>
+              <ul class="list-group list-group-flush mb-3">
+                {% for module in onboarding_wizard.selected_modules %}
+                  <li class="list-group-item px-0">
+                    <i class="fas fa-check-circle text-success me-1"></i>{{ module }}
+                  </li>
+                {% endfor %}
+              </ul>
+            {% endif %}
+
+            <div class="d-flex gap-2">
+              {% if onboarding_wizard.status == 'IN_PROGRESS' %}
+                <a href="{% url 'onboarding:wizard-detail' onboarding_wizard.pk %}" class="btn btn-primary">
+                  <i class="fas fa-play me-1"></i>{% translate "Resume Onboarding" %}
+                </a>
+              {% elif onboarding_wizard.status == 'COMPLETED' %}
+                <a href="{% url 'onboarding:wizard-detail' onboarding_wizard.pk %}" class="btn btn-success">
+                  <i class="fas fa-check-double me-1"></i>{% translate "View Completion" %}
+                </a>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+      {% else %}
+        <div class="card">
+          <div class="card-body">
+            <div class="alert alert-info mb-0" role="alert">
+              <i class="fas fa-info-circle me-2"></i>
+              {% translate "No onboarding wizard has been started for this society." %}
+            </div>
+            <div class="mt-3">
+              <a href="{% url 'onboarding:wizard-list' %}" class="btn btn-primary">
+                <i class="fas fa-rocket me-1"></i>{% translate "Start Onboarding" %}
+              </a>
+            </div>
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    {# ===================== Tab 6: Integrations ===================== #}
+    <div class="tab-pane fade" id="integrations" role="tabpanel" aria-labelledby="integrations-tab" tabindex="0">
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <div class="card h-100">
+            <div class="card-body">
+              <div class="d-flex align-items-center mb-2">
+                <i class="fas fa-envelope fa-2x text-info me-3"></i>
+                <h5 class="card-title mb-0">{% translate "Email Settings" %}</h5>
+              </div>
+              <p class="card-text text-muted">
+                {% translate "Configure society-level SMTP credentials or inherit the platform default." %}
+              </p>
+              <a href="{% url 'housing:society-email-settings' society.pk %}" class="btn btn-outline-info">
+                <i class="fas fa-cog me-1"></i>{% translate "Configure" %}
+              </a>
+            </div>
+          </div>
+        </div>
+        <div class="col-12 col-md-6">
+          <div class="card h-100">
+            <div class="card-body">
+              <div class="d-flex align-items-center mb-2">
+                <i class="fas fa-file-invoice fa-2x text-primary me-3"></i>
+                <h5 class="card-title mb-0">{% translate "Voucher Templates" %}</h5>
+              </div>
+              <p class="card-text text-muted">
+                {% translate "Manage reusable voucher templates for this society's accounting workflows." %}
+              </p>
+              <a href="{% url 'housing:society-voucher-templates' society.pk %}" class="btn btn-outline-primary">
+                <i class="fas fa-cog me-1"></i>{% translate "Manage" %}
+              </a>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
-  </div>
 
-  {% if current_user_role %}
-    <div class="alert alert-secondary mt-3" role="alert">
-      <i class="fas fa-user-check me-2"></i>
-      {% blocktranslate %}Your role: <strong>{{ current_user_role|title }}</strong>{% endblocktranslate %}
-    </div>
-  {% endif %}
+  </div>
 {% endblock content %}
+
+{% block inline_javascript %}
+  <script>
+    (function () {
+      "use strict";
+
+      // Tab persistence: activate the tab indicated by the URL hash on load,
+      // and update the URL hash whenever the user switches tabs.
+      var VALID_TABS = ["overview", "users", "settings", "profile", "onboarding", "integrations"];
+
+      function activateTabFromHash() {
+        var hash = (window.location.hash || "").replace(/^#/, "");
+        if (!hash || VALID_TABS.indexOf(hash) === -1) {
+          return;
+        }
+        var triggerEl = document.querySelector('#' + hash + '-tab');
+        if (triggerEl && window.bootstrap && window.bootstrap.Tab) {
+          var tab = window.bootstrap.Tab.getInstance(triggerEl) || new window.bootstrap.Tab(triggerEl);
+          tab.show();
+        }
+      }
+
+      function updateHashOnTabShow(event) {
+        var targetId = event.target.getAttribute("aria-controls");
+        if (targetId && VALID_TABS.indexOf(targetId) !== -1) {
+          if (history.replaceState) {
+            history.replaceState(null, "", "#" + targetId);
+          } else {
+            window.location.hash = targetId;
+          }
+        }
+      }
+
+      document.addEventListener("DOMContentLoaded", function () {
+        var tabTriggers = document.querySelectorAll('#societyAdminTabs .nav-link');
+        tabTriggers.forEach(function (trigger) {
+          trigger.addEventListener('shown.bs.tab', updateHashOnTabShow);
+        });
+        activateTabFromHash();
+      });
+
+      // Also handle in-page hash changes (e.g. back/forward navigation).
+      window.addEventListener("hashchange", activateTabFromHash);
+    })();
+  </script>
+{% endblock inline_javascript %}

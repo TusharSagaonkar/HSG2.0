@@ -1,0 +1,115 @@
+{% extends "onboarding/base_wizard.html" %}
+{% load i18n %}
+
+{% block wizard_content %}
+  <div class="content-card">
+    <div class="content-card__body text-center py-4">
+      <i class="fas fa-check-circle fa-4x text-success mb-3"></i>
+      <h3 class="text-success mb-2">{% trans "Migration Complete!" %}</h3>
+      <p class="text-muted mb-4">
+        {% blocktrans %}
+          Your society has been set up and the accounting migration has
+          been finalized. The opening journal voucher has been created
+          and the migration is locked.
+        {% endblocktrans %}
+      </p>
+    </div>
+  </div>
+
+  {# -- Finalization summary ----------------------------------------------- #}
+  {% if finalization_summary %}
+    <div class="content-card mt-3">
+      <div class="content-card__body">
+        <h5 class="mb-3">
+          <i class="fas fa-clipboard-list me-2"></i>{% trans "Finalization Summary" %}
+        </h5>
+        <dl class="row mb-0">
+          <dt class="col-sm-4">{% trans "Wizard Status" %}</dt>
+          <dd class="col-sm-8">
+            <span class="badge bg-success">
+              {{ finalization_summary.wizard_status|default:"COMPLETED" }}
+            </span>
+          </dd>
+
+          <dt class="col-sm-4">{% trans "Finalized" %}</dt>
+          <dd class="col-sm-8">
+            {% if finalization_summary.is_finalized %}
+              <span class="badge bg-success">{% trans "Yes" %}</span>
+            {% else %}
+              <span class="badge bg-warning text-dark">{% trans "No" %}</span>
+            {% endif %}
+          </dd>
+
+          {% if finalization_summary.completed_at %}
+            <dt class="col-sm-4">{% trans "Completed At" %}</dt>
+            <dd class="col-sm-8">{{ finalization_summary.completed_at|date:"M d, Y H:i" }}</dd>
+          {% endif %}
+
+          <dt class="col-sm-4">{% trans "Staging Committed" %}</dt>
+          <dd class="col-sm-8">
+            {% if finalization_summary.staging_committed %}
+              <span class="badge bg-success">{% trans "Yes" %}</span>
+            {% else %}
+              <span class="badge bg-warning text-dark">{% trans "No" %}</span>
+            {% endif %}
+          </dd>
+
+          <dt class="col-sm-4">{% trans "Batches" %}</dt>
+          <dd class="col-sm-8">
+            {{ finalization_summary.committed_batch_count|default:"0" }} /
+            {{ finalization_summary.batch_count|default:"0" }}
+            <small class="text-muted">({% trans "committed / total" %})</small>
+          </dd>
+
+          {% if finalization_summary.opening_voucher %}
+            <dt class="col-sm-4">{% trans "Opening Voucher" %}</dt>
+            <dd class="col-sm-8">
+              <strong>{{ finalization_summary.opening_voucher.number }}</strong>
+              <small class="text-muted">
+                ({{ finalization_summary.opening_voucher.date }})
+              </small>
+            </dd>
+          {% endif %}
+        </dl>
+      </div>
+    </div>
+  {% endif %}
+
+  {# -- Society info ------------------------------------------------------- #}
+  {% if society %}
+    <div class="content-card mt-3">
+      <div class="content-card__body">
+        <h5 class="mb-3">
+          <i class="fas fa-building me-2"></i>{% trans "Society" %}
+        </h5>
+        <dl class="row mb-0">
+          <dt class="col-sm-4">{% trans "Name" %}</dt>
+          <dd class="col-sm-8">{{ society.name }}</dd>
+          <dt class="col-sm-4">{% trans "Registration Number" %}</dt>
+          <dd class="col-sm-8">{{ society.registration_number|default:"—" }}</dd>
+          <dt class="col-sm-4">{% trans "PAN" %}</dt>
+          <dd class="col-sm-8">{{ society.pan|default:"—" }}</dd>
+        </dl>
+      </div>
+    </div>
+  {% endif %}
+
+  {# -- Actions ------------------------------------------------------------ #}
+  <div class="content-card mt-3">
+    <div class="content-card__body">
+      <div class="form-actions">
+        {% if society %}
+          <a href="{% url 'housing:society-detail' society.pk %}"
+             class="btn btn-primary">
+            <i class="fas fa-tachometer-alt me-1"></i>
+            {% trans "Go to Society Dashboard" %}
+          </a>
+        {% endif %}
+        <a href="{% url 'onboarding:wizard-list' %}"
+           class="btn btn-outline-secondary">
+          <i class="fas fa-list me-1"></i>{% trans "Wizard List" %}
+        </a>
+      </div>
+    </div>
+  </div>
+{% endblock wizard_content %}

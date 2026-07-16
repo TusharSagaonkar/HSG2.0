@@ -1,0 +1,156 @@
+{% extends "onboarding/base_wizard.html" %}
+{% load i18n %}
+{% load onboarding_tags %}
+
+{% block wizard_content %}
+  <div class="content-card">
+    <div class="content-card__body">
+      <p class="text-muted mb-3">
+        {% blocktrans %}
+          Review the reconciliation dashboard below. It aggregates all
+          staged opening balances across templates and verifies that
+          totals are consistent.
+        {% endblocktrans %}
+      </p>
+
+      {% if dashboard %}
+        {# -- Trial Balance -------------------------------------------------- #}
+        {% if dashboard.trial_balance %}
+          <h6 class="text-uppercase text-muted mb-2">
+            <i class="fas fa-balance-scale me-1"></i>{% trans "Trial Balance" %}
+          </h6>
+          <div class="table-responsive mb-4">
+            <table class="table table-sm table-bordered table-hover">
+              <thead class="table-light">
+                <tr>
+                  <th>{% trans "Account Code" %}</th>
+                  <th>{% trans "Account Name" %}</th>
+                  <th class="text-end">{% trans "Debit" %}</th>
+                  <th class="text-end">{% trans "Credit" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for row in dashboard.trial_balance.rows %}
+                  <tr>
+                    <td><code>{{ row.account_code|default:"—" }}</code></td>
+                    <td>{{ row.account_name|default:"—" }}</td>
+                    <td class="text-end">{{ row.debit|default:"0.00" }}</td>
+                    <td class="text-end">{{ row.credit|default:"0.00" }}</td>
+                  </tr>
+                {% empty %}
+                  <tr><td colspan="4" class="text-center text-muted">{% trans "No trial balance data." %}</td></tr>
+                {% endfor %}
+              </tbody>
+              {% if dashboard.trial_balance.total_debit or dashboard.trial_balance.total_credit %}
+                <tfoot class="table-light">
+                  <tr>
+                    <th colspan="2">{% trans "Total" %}</th>
+                    <th class="text-end">{{ dashboard.trial_balance.total_debit|default:"0.00" }}</th>
+                    <th class="text-end">{{ dashboard.trial_balance.total_credit|default:"0.00" }}</th>
+                  </tr>
+                </tfoot>
+              {% endif %}
+            </table>
+          </div>
+        {% endif %}
+
+        {# -- Balance Sheet -------------------------------------------------- #}
+        {% if dashboard.balance_sheet %}
+          <h6 class="text-uppercase text-muted mb-2">
+            <i class="fas fa-file-invoice-dollar me-1"></i>{% trans "Balance Sheet" %}
+          </h6>
+          <div class="row g-3 mb-4">
+            {% if dashboard.balance_sheet.assets %}
+              <div class="col-12 col-md-6">
+                <div class="border rounded p-3">
+                  <h6 class="text-primary">{% trans "Assets" %}</h6>
+                  <ul class="list-unstyled mb-0">
+                    {% for item in dashboard.balance_sheet.assets %}
+                      <li class="d-flex justify-content-between">
+                        <span>{{ item.name|default:item.account_name|default:"—" }}</span>
+                        <strong>{{ item.amount|default:"0.00" }}</strong>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                  {% if dashboard.balance_sheet.total_assets %}
+                    <hr class="my-2">
+                    <div class="d-flex justify-content-between fw-bold">
+                      <span>{% trans "Total Assets" %}</span>
+                      <span>{{ dashboard.balance_sheet.total_assets }}</span>
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+            {% endif %}
+            {% if dashboard.balance_sheet.liabilities %}
+              <div class="col-12 col-md-6">
+                <div class="border rounded p-3">
+                  <h6 class="text-danger">{% trans "Liabilities" %}</h6>
+                  <ul class="list-unstyled mb-0">
+                    {% for item in dashboard.balance_sheet.liabilities %}
+                      <li class="d-flex justify-content-between">
+                        <span>{{ item.name|default:item.account_name|default:"—" }}</span>
+                        <strong>{{ item.amount|default:"0.00" }}</strong>
+                      </li>
+                    {% endfor %}
+                  </ul>
+                  {% if dashboard.balance_sheet.total_liabilities %}
+                    <hr class="my-2">
+                    <div class="d-flex justify-content-between fw-bold">
+                      <span>{% trans "Total Liabilities" %}</span>
+                      <span>{{ dashboard.balance_sheet.total_liabilities }}</span>
+                    </div>
+                  {% endif %}
+                </div>
+              </div>
+            {% endif %}
+          </div>
+        {% endif %}
+
+        {# -- Summary cards -------------------------------------------------- #}
+        <div class="row g-3">
+          {% for key, value in dashboard.items %}
+            {% if key != "trial_balance" and key != "balance_sheet" and value %}
+              <div class="col-12 col-md-6 col-lg-4">
+                <div class="border rounded p-3 h-100">
+                  <h6 class="text-uppercase text-muted small">
+                    {{ key|cut:"_"|title }}
+                  </h6>
+                  {% if value.total_amount %}
+                    <p class="fs-5 fw-bold mb-1">{{ value.total_amount }}</p>
+                  {% endif %}
+                  {% if value.row_count is not None %}
+                    <p class="text-muted small mb-0">
+                      {% blocktrans count counter=value.row_count %}
+                        {{ counter }} row
+                      {% plural %}
+                        {{ counter }} rows
+                      {% endblocktrans %}
+                    </p>
+                  {% endif %}
+                </div>
+              </div>
+            {% endif %}
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="alert alert-warning" role="alert">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          {% trans "No reconciliation data available. Please complete the staging steps first." %}
+        </div>
+      {% endif %}
+
+      <div class="form-actions mt-4">
+        <a href="{% url 'onboarding:wizard-step' wizard.id 22 %}"
+           class="btn btn-outline-secondary">
+          <i class="fas fa-arrow-left me-1"></i>{% trans "Back" %}
+        </a>
+        <a href="{% url 'onboarding:validation-checklist' wizard.id %}"
+           class="btn btn-primary">
+          {% trans "Go to Validation Checklist" %}
+          <i class="fas fa-arrow-right ms-1"></i>
+        </a>
+      </div>
+    </div>
+  </div>
+{% endblock wizard_content %}

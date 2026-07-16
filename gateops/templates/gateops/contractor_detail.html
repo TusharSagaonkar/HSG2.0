@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Contractor {{ contractor.company_name }} | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}{{ contractor.company_name }}{% endblock dashboard_title %}
+{% block dashboard_subtitle %}
+  <span class="badge {% if contractor.is_active %}bg-success{% else %}bg-secondary{% endif %}">
+    {% if contractor.is_active %}Active{% else %}Inactive{% endif %}
+  </span>
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:contractor-list' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Back to List</a>
+    <a href="{% url 'gateops:contractor-edit' contractor.pk %}" class="btn-action btn-action--primary"><i class="fas fa-edit me-1"></i>Edit</a>
+    <a href="{% url 'gateops:contract-create' %}?contractor={{ contractor.pk }}" class="btn-action btn-action--success"><i class="fas fa-file-contract me-1"></i>New Contract</a>
+    <form method="post" action="{% url 'gateops:contractor-deactivate' contractor.pk %}" class="d-inline" onsubmit="return confirm('Deactivate contractor {{ contractor.company_name|escapejs }}?');">
+      {% csrf_token %}
+      <button type="submit" class="btn-action btn-action--danger"><i class="fas fa-ban me-1"></i>Deactivate</button>
+    </form>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-7">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Contractor Details</h3>
+          <span class="badge bg-primary">{{ scope_society_name }}</span>
+        </div>
+        <div class="content-card__body">
+          <dl class="row mb-0">
+            <dt class="col-sm-4">Company Name</dt>
+            <dd class="col-sm-8 fw-semibold">{{ contractor.company_name }}</dd>
+
+            <dt class="col-sm-4">Supervisor Name</dt>
+            <dd class="col-sm-8">{{ contractor.supervisor_name|default:"&mdash;" }}</dd>
+
+            <dt class="col-sm-4">Supervisor Phone</dt>
+            <dd class="col-sm-8">{{ contractor.supervisor_phone|default:"&mdash;" }}</dd>
+
+            <dt class="col-sm-4">Contact Person</dt>
+            <dd class="col-sm-8">{{ contractor.contact_person|default:"&mdash;" }}</dd>
+
+            <dt class="col-sm-4">Contact Phone</dt>
+            <dd class="col-sm-8">{{ contractor.contact_phone|default:"&mdash;" }}</dd>
+
+            <dt class="col-sm-4">GST Number</dt>
+            <dd class="col-sm-8">{{ contractor.gst_number|default:"&mdash;" }}</dd>
+
+            <dt class="col-sm-4">PAN Number</dt>
+            <dd class="col-sm-8">{{ contractor.pan_number|default:"&mdash;" }}</dd>
+
+            <dt class="col-sm-4">Address</dt>
+            <dd class="col-sm-8">{{ contractor.address|default:"&mdash;" }}</dd>
+
+            <dt class="col-sm-4">Status</dt>
+            <dd class="col-sm-8">
+              {% if contractor.is_active %}
+                <span class="badge bg-success">Active</span>
+              {% else %}
+                <span class="badge bg-secondary">Inactive</span>
+              {% endif %}
+            </dd>
+
+            <dt class="col-sm-4">Created</dt>
+            <dd class="col-sm-8 small text-muted">{{ contractor.created_at|date:"d M Y H:i" }}</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Contracts ({{ contracts|length }})</h3>
+          <a href="{% url 'gateops:contract-create' %}?contractor={{ contractor.pk %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-plus me-1"></i>New</a>
+        </div>
+        <div class="content-card__body p-0">
+          {% if contracts %}
+            <div class="list-group list-group-flush">
+              {% for contract in contracts %}
+                <a href="{% url 'gateops:contract-detail' contract.pk %}" class="list-group-item list-group-item-action">
+                  <div class="d-flex w-100 justify-content-between">
+                    <h6 class="mb-1 fw-semibold">{{ contract.title }}</h6>
+                    <span class="badge {% if contract.status == 'active' %}bg-success{% elif contract.status == 'completed' %}bg-secondary{% else %}bg-warning text-dark{% endif %}">{{ contract.get_status_display }}</span>
+                  </div>
+                  <div class="small text-muted">
+                    {{ contract.start_date|date:"d M Y" }} &rarr; {{ contract.end_date|date:"d M Y" }}
+                    &middot; {{ contract.workers.count }}/{{ contract.max_workers }} workers
+                  </div>
+                </a>
+              {% endfor %}
+            </div>
+          {% else %}
+            <div class="p-4 text-center text-muted">
+              <i class="fas fa-file-contract fa-2x mb-2 d-block opacity-50"></i>
+              <p class="mb-2">No contracts under this contractor yet.</p>
+              <a href="{% url 'gateops:contract-create' %}?contractor={{ contractor.pk %}" class="btn btn-sm btn-outline-primary"><i class="fas fa-plus me-1"></i>Create Contract</a>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

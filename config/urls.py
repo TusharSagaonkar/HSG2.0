@@ -38,6 +38,7 @@ urlpatterns = [
     path("administration/", include("administration.urls", namespace="administration")),
     path("reconciliation/", include("reconciliation.urls", namespace="reconciliation")),
     path("gateops/", include("gateops.urls", namespace="gateops")),
+    path("onboarding/", include("onboarding.urls", namespace="onboarding")),
     # Your stuff: custom urls includes go here
     # ...
     # Media files

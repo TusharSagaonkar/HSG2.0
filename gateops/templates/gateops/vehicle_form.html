@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags i18n %}
+
+{% block title %}Register Vehicle | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}Register Vehicle{% endblock dashboard_title %}
+{% block dashboard_subtitle %}Register a visitor or non-resident vehicle for {{ scope_society_name }}{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:vehicle-list' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Back to List</a>
+  </div>
+
+  <div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="note">
+    <i class="fas fa-lightbulb mt-1"></i>
+    <div>
+      <strong>Registration:</strong> enter the vehicle registration number, select the category and the linked person, then submit. If the plate already exists for this society, the sighting is recorded as a repeat visit and <code>last_seen_at</code> is updated.
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-8">
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{{ scope_society_name }}</h3>
+        </div>
+        <div class="content-card__body">
+          {% crispy form %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Registration notes</h3>
+        </div>
+        <div class="content-card__body">
+          <ol class="small ps-3 mb-3">
+            <li><strong>Vehicle number:</strong> normalized to uppercase on save (e.g. <code>mh12 ab 1234</code> &rarr; <code>MH12 AB 1234</code>).</li>
+            <li><strong>Category:</strong> only active categories for this society are listed.</li>
+            <li><strong>Person:</strong> only active persons for this society are listed.</li>
+            <li><strong>Notes:</strong> optional context for this sighting.</li>
+          </ol>
+          <div class="alert alert-warning mb-0" role="note">
+            Watchlisting and repeat-visitor flags are managed from the vehicle detail page, not this form.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

@@ -1,0 +1,56 @@
+{% extends "onboarding/base_wizard.html" %}
+{% load i18n %}
+
+{% block wizard_content %}
+  <div class="content-card">
+    <div class="content-card__body">
+      <p class="text-muted mb-3">
+        {% blocktrans %}
+          The financial year will be created automatically based on your
+          selection in the previous step. Review the available options below
+          and confirm to proceed.
+        {% endblocktrans %}
+      </p>
+
+      {% if fy_options %}
+        <div class="alert alert-info" role="alert">
+          <i class="fas fa-info-circle me-2"></i>
+          {% blocktrans count counter=fy_options|length %}
+            {{ counter }} financial year option is available.
+          {% plural %}
+            {{ counter }} financial year options are available.
+          {% endblocktrans %}
+        </div>
+
+        <ul class="list-group mb-3">
+          {% for option in fy_options %}
+            <li class="list-group-item d-flex align-items-center">
+              <i class="fas fa-calendar-alt me-3 text-primary"></i>
+              <strong>{{ option }}</strong>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <div class="alert alert-warning" role="alert">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          {% trans "No financial year options are available. Please go back and select a financial year pattern." %}
+        </div>
+      {% endif %}
+
+      <form method="post"
+            action="{% url 'onboarding:wizard-step-save' wizard.id step_number %}">
+        {% csrf_token %}
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary"
+                  {% if not fy_options %}disabled{% endif %}>
+            <i class="fas fa-check me-1"></i>{% trans "Create Financial Year & Continue" %}
+          </button>
+          <a href="{% url 'onboarding:wizard-step' wizard.id 4 %}"
+             class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>{% trans "Back" %}
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock wizard_content %}

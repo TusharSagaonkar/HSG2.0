@@ -39,6 +39,8 @@ class RuleCondition(models.Model):
         VEHICLE_CATEGORY = "vehicle_category", _("Vehicle Category")
         IS_EMERGENCY = "is_emergency", _("Is Emergency")
         IS_VIP = "is_vip", _("Is VIP")
+        # Phase 11: AI Recommendation Engine
+        RISK_SCORE = "risk_score", _("Risk Score")
 
     class Operator(models.TextChoices):
         EQ = "eq", _("Equals")

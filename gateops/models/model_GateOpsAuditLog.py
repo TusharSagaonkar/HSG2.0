@@ -29,6 +29,14 @@ class GateOpsAuditLog(models.Model):
         STATE_TRANSITION = "state_transition", _("State Transition")
         BLACKLIST = "blacklist", _("Blacklist")
         ESCALATE = "escalate", _("Escalate")
+        # Phase 11: AI Recommendation Engine
+        ANOMALY_DETECTED = "anomaly_detected", _("Anomaly Detected")
+        PATTERN_UPDATED = "pattern_updated", _("Pattern Updated")
+        PREDICTION_GENERATED = "prediction_generated", _("Prediction Generated")
+        # Phase 12: Exit Management
+        HANDOVER_CREATED = "handover_created", _("Handover Created")
+        HANDOVER_ACKNOWLEDGED = "handover_acknowledged", _("Handover Acknowledged")
+        HANDOVER_DISPUTED = "handover_disputed", _("Handover Disputed")
 
     society = models.ForeignKey(
         "housing.Society",

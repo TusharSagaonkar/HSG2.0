@@ -1,0 +1,76 @@
+{% extends "onboarding/base_wizard.html" %}
+{% load i18n %}
+
+{% block wizard_content %}
+  <div class="content-card">
+    <div class="content-card__body">
+      <p class="text-muted mb-3">
+        {% blocktrans %}
+          The standard chart of accounts has been created for your society.
+          Review the account groups below. You will import opening balances
+          for these accounts in the staging area.
+        {% endblocktrans %}
+      </p>
+
+      {% if upload_summary %}
+        <div class="table-responsive">
+          <table class="table table-sm table-hover align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>{% trans "Template Type" %}</th>
+                <th class="text-center">{% trans "Rows" %}</th>
+                <th class="text-center">{% trans "Valid" %}</th>
+                <th class="text-center">{% trans "Invalid" %}</th>
+                <th class="text-center">{% trans "Status" %}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for template_type, info in upload_summary.items %}
+                <tr>
+                  <td>{{ template_type|cut:"_"|title }}</td>
+                  <td class="text-center">{{ info.row_count }}</td>
+                  <td class="text-center">
+                    <span class="badge bg-success">{{ info.valid_count }}</span>
+                  </td>
+                  <td class="text-center">
+                    {% if info.invalid_count %}
+                      <span class="badge bg-danger">{{ info.invalid_count }}</span>
+                    {% else %}
+                      <span class="text-muted">0</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-center">
+                    {% if info.approval_status %}
+                      <span class="badge bg-secondary">{{ info.approval_status }}</span>
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="alert alert-info" role="alert">
+          <i class="fas fa-info-circle me-2"></i>
+          {% trans "No staging data uploaded yet." %}
+        </div>
+      {% endif %}
+
+      <form method="post"
+            action="{% url 'onboarding:wizard-step-save' wizard.id step_number %}">
+        {% csrf_token %}
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-check me-1"></i>{% trans "Continue" %}
+          </button>
+          <a href="{% url 'onboarding:wizard-step' wizard.id 9 %}"
+             class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>{% trans "Back" %}
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock wizard_content %}

@@ -39,6 +39,27 @@ from .model_MaterialMovement import MaterialMovement
 # --- Phase 8: Parcel Management --------------------------------------------
 from .model_Parcel import Parcel
 
+# --- Phase 9: Contractor Management ----------------------------------------
+from .model_Contractor import Contractor
+from .model_Contract import Contract
+from .model_Worker import Worker
+from .model_WorkPermit import WorkPermit
+
+# --- Phase 10: Smart Notification Engine -----------------------------------
+from .model_NotificationBundle import NotificationBundle
+
+# --- Phase 11: AI Recommendation Engine ------------------------------------
+from .model_VisitorPattern import VisitorPattern
+from .model_AnomalyDetection import AnomalyDetection
+from .model_PeakHourPrediction import PeakHourPrediction
+
+# --- Phase 12: Exit Management ---------------------------------------------
+from .model_ShiftHandover import ShiftHandover
+from .model_ShiftHandoverItem import ShiftHandoverItem
+
+# --- Phase 13: Analytics ---------------------------------------------------
+from .model_AnalyticsSnapshot import AnalyticsSnapshot
+
 __all__ = [
     "GateOpsSocietyConfig",
     "Gate",
@@ -74,4 +95,20 @@ __all__ = [
     "MaterialMovement",
     # Phase 8: Parcel Management
     "Parcel",
+    # Phase 9: Contractor Management
+    "Contractor",
+    "Contract",
+    "Worker",
+    "WorkPermit",
+    # Phase 10: Smart Notification Engine
+    "NotificationBundle",
+    # Phase 11: AI Recommendation Engine
+    "VisitorPattern",
+    "AnomalyDetection",
+    "PeakHourPrediction",
+    # Phase 12: Exit Management
+    "ShiftHandover",
+    "ShiftHandoverItem",
+    # Phase 13: Analytics
+    "AnalyticsSnapshot",
 ]

@@ -42,6 +42,16 @@
     <a href="{% url 'accounting:account-list' %}" class="tree-link">
       <i class="fas fa-list me-1"></i>{% translate "Flat List" %}
     </a>
+    {% if can_create_account and selected_society %}
+      <button
+        type="button"
+        class="tree-link tree-link--accent"
+        data-account-form-url="{% url 'accounting:account-add' %}"
+        data-account-form-title="{% translate 'Add root account' %}"
+      >
+        <i class="fas fa-plus me-1"></i>{% translate "Add Root" %}
+      </button>
+    {% endif %}
   </div>
 
   <div class="tree-legend" aria-label="{% translate 'Tree legend' %}">
@@ -73,3 +83,25 @@
     <p class="tree-empty">{% translate "No accounts available." %}</p>
   {% endfor %}
 {% endblock content %}
+
+{% block modal %}
+  <div class="modal fade" id="accountFormModal" tabindex="-1" aria-labelledby="accountFormModalLabel" aria-hidden="true" role="dialog">
+    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+      <div class="modal-content account-form-modal">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title" id="accountFormModalLabel" data-account-form-title>{% translate "Account" %}</h5>
+            <p class="modal-subtitle mb-0" data-account-form-subtitle>{% translate "Loading account form..." %}</p>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% translate 'Close' %}"></button>
+        </div>
+        <div class="modal-body" data-account-form-body>
+          <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+            <p class="text-muted mt-3 mb-0">{% translate "Choose an account action to edit its details or grow the branch." %}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock modal %}

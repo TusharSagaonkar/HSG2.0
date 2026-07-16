@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Analytics | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}Analytics Dashboard{% endblock dashboard_title %}
+{% block dashboard_subtitle %}Gate operations analytics for {{ scope_society_name }}{% endblock dashboard_subtitle %}
+
+{% block javascript %}
+  {{ block.super }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock javascript %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:dashboard' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Dashboard</a>
+    <a href="{% url 'gateops:analytics-live-visitors' %}" class="btn-action btn-action--primary"><i class="fas fa-users me-1"></i>Live Visitors</a>
+    <a href="{% url 'gateops:analytics-peak-hours' %}" class="btn-action btn-action--info"><i class="fas fa-clock me-1"></i>Peak Hours</a>
+    <a href="{% url 'gateops:analytics-guard-performance' %}" class="btn-action btn-action--info"><i class="fas fa-user-shield me-1"></i>Guard Performance</a>
+    <a href="{% url 'gateops:analytics-custom-report' %}" class="btn-action btn-action--info"><i class="fas fa-file-alt me-1"></i>Custom Report</a>
+    <a href="{% url 'gateops:analytics-rule-violations' %}" class="btn-action btn-action--info"><i class="fas fa-exclamation-triangle me-1"></i>Rule Violations</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-users" label="Live Visitors" value=live_count color="primary" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-exclamation-triangle" label="Today's Violations" value=anomaly_open color="danger" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-bug" label="Open Anomalies" value=anomaly_open color="warning" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-hourglass-half" label="Peak Hour" value=peak_hour color="info" %}
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-xl-8">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Today's Hourly Distribution</h3>
+          <span class="badge bg-info">{{ today|date:"d M Y" }}</span>
+        </div>
+        <div class="content-card__body">
+          <canvas id="peakHoursChart" height="100"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-xl-4">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Live Visitors</h3>
+          <span class="badge bg-primary" id="live-count">{{ live_count }}</span>
+        </div>
+        <div class="content-card__body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Person</th>
+                  <th>Category</th>
+                  <th>Gate</th>
+                  <th class="text-end">Duration</th>
+                </tr>
+              </thead>
+              <tbody id="live-visitors-tbody">
+                <tr>
+                  <td colspan="4" class="text-muted text-center py-3">Loading live visitors&hellip;</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="p-2 text-center">
+            <a href="{% url 'gateops:analytics-live-visitors' %}" class="btn btn-sm btn-outline-primary">View full list</a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-sm-6 col-xl-4">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Peak Hours</h3>
+        </div>
+        <div class="content-card__body">
+          <div class="text-muted small mb-3">Hourly traffic distribution with predicted overlay.</div>
+          <a href="{% url 'gateops:analytics-peak-hours' %}" class="btn-action btn-action--primary"><i class="fas fa-chart-bar me-1"></i>View Chart</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-4">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Guard Performance</h3>
+        </div>
+        <div class="content-card__body">
+          <div class="text-muted small mb-3">Per-guard throughput metrics and processing times.</div>
+          <a href="{% url 'gateops:analytics-guard-performance' %}" class="btn-action btn-action--primary"><i class="fas fa-user-shield me-1"></i>View Table</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-4">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Custom Report</h3>
+        </div>
+        <div class="content-card__body">
+          <div class="text-muted small mb-3">Filterable gate-event report with CSV export.</div>
+          <a href="{% url 'gateops:analytics-custom-report' %}" class="btn-action btn-action--primary"><i class="fas fa-file-alt me-1"></i>Build Report</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-4">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Rule Violations</h3>
+        </div>
+        <div class="content-card__body">
+          <div class="text-muted small mb-3">Rule-evaluation action distribution and daily trend.</div>
+          <a href="{% url 'gateops:analytics-rule-violations' %}" class="btn-action btn-action--primary"><i class="fas fa-exclamation-triangle me-1"></i>View Stats</a>
+        </div>
+      </div>
+    </div>
+    <div class="col-12 col-sm-6 col-xl-4">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Live Visitors</h3>
+        </div>
+        <div class="content-card__body">
+          <div class="text-muted small mb-3">Real-time list of persons currently inside (auto-refresh 30s).</div>
+          <a href="{% url 'gateops:analytics-live-visitors' %}" class="btn-action btn-action--primary"><i class="fas fa-users me-1"></i>View Live</a>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block inline_javascript %}
+  <script>
+    (function () {
+      "use strict";
+
+      // --- Live visitors AJAX polling (30s) ---
+      var liveUrl = "{% url 'gateops:analytics-live-visitors' %}";
+
+      function escapeHtml(value) {
+        if (value === null || value === undefined) return "";
+        var div = document.createElement("div");
+        div.textContent = String(value);
+        return div.innerHTML;
+      }
+
+      function renderVisitors(data) {
+        var countEl = document.getElementById("live-count");
+        if (countEl) countEl.textContent = data.count;
+
+        var tbody = document.getElementById("live-visitors-tbody");
+        if (!tbody) return;
+
+        if (!data.visitors || data.visitors.length === 0) {
+          tbody.innerHTML =
+            '<tr><td colspan="4" class="text-muted text-center py-3">No visitors currently inside.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = data.visitors.slice(0, 10).map(function (v) {
+          return (
+            "<tr>" +
+            "<td>" + escapeHtml(v.person_name) + "</td>" +
+            "<td>" + escapeHtml(v.visitor_category || "—") + "</td>" +
+            "<td>" + escapeHtml(v.gate_name || "—") + "</td>" +
+            '<td class="text-end">' + escapeHtml(v.duration_minutes) + " min</td>" +
+            "</tr>"
+          );
+        }).join("");
+      }
+
+      function refreshLiveVisitors() {
+        fetch(liveUrl, { credentials: "same-origin" })
+          .then(function (response) {
+            if (!response.ok) return null;
+            return response.json();
+          })
+          .then(function (data) {
+            if (data) renderVisitors(data);
+          })
+          .catch(function (err) {
+            console.error("Live visitor refresh failed:", err);
+          });
+      }
+
+      document.addEventListener("DOMContentLoaded", refreshLiveVisitors);
+      setInterval(refreshLiveVisitors, 30000);
+
+      // --- Peak hours bar chart ---
+      var peakHour = {{ peak_hour|default:"0" }};
+      var peakHourCount = {{ peak_hour_count|default:"0" }};
+
+      // Build a 24-hour label set and a placeholder dataset (today's actual
+      // data is fetched on the peak-hours page; here we show the peak hour
+      // highlight only).
+      var labels = [];
+      for (var i = 0; i < 24; i++) {
+        labels.push(String(i).padStart(2, "0") + ":00");
+      }
+
+      var ctx = document.getElementById("peakHoursChart");
+      if (ctx && typeof Chart !== "undefined") {
+        new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: "Peak Hour Highlight",
+                data: labels.map(function (_, h) {
+                  return h === peakHour ? peakHourCount : 0;
+                }),
+                backgroundColor: labels.map(function (_, h) {
+                  return h === peakHour
+                    ? "rgba(255, 99, 132, 0.7)"
+                    : "rgba(54, 162, 235, 0.4)";
+                }),
+                borderColor: labels.map(function (_, h) {
+                  return h === peakHour
+                    ? "rgba(255, 99, 132, 1)"
+                    : "rgba(54, 162, 235, 1)";
+                }),
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            plugins: {
+              legend: { display: false },
+              tooltip: {
+                callbacks: {
+                  title: function (items) {
+                    return "Hour " + items[0].label;
+                  },
+                },
+              },
+            },
+            scales: {
+              y: { beginAtZero: true, title: { text: "Visitor Count", display: true } },
+              x: { title: { text: "Hour of Day", display: true } },
+            },
+          },
+        });
+      }
+    })();
+  </script>
+{% endblock inline_javascript %}

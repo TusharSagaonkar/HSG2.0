@@ -43,9 +43,14 @@ from gateops.models import (
     GateEventApproval,
     GateOpsAuditLog,
     GateOpsSocietyConfig,
+    GateVehicle,
+    NotificationPreference,
     Rule,
     RuleAction,
+    WorkPermit,
 )
+from gateops.services.ai_recommendation_service import AIRecommendationService
+from gateops.services.notification_engine import NotificationEngineService
 from gateops.services.rule_engine import RuleEngineService
 
 logger = logging.getLogger(__name__)
@@ -113,15 +118,26 @@ class GateEventLifecycleService:
         gate=None,
         purpose="",
         direction="inbound",
+        gate_vehicle=None,
     ):
         """Create a GateEvent with status=invited, event_type=invitation.
 
         ``gate`` is required by the ``GateEvent`` model (non-nullable FK); it is
         accepted as a keyword for ergonomic call sites but a ``None`` gate
         raises ``ValidationError`` rather than failing later at the DB layer.
+
+        ``gate_vehicle`` optionally links a visitor/non-resident vehicle
+        (:class:`GateVehicle`) to the event. It may be passed as a
+        ``GateVehicle`` instance or its primary key; it is validated to belong
+        to the same society as the event. This is distinct from the resident
+        ``vehicle`` FK (``parking.Vehicle``), which is left untouched.
         """
         if gate is None:
             raise ValidationError({"gate": "gate is required to create an invitation."})
+
+        gate_vehicle = GateEventLifecycleService._resolve_gate_vehicle(
+            gate_vehicle, society
+        )
 
         event = GateEvent(
             society=society,
@@ -134,6 +150,7 @@ class GateEventLifecycleService:
             purpose=purpose or "",
             expected_arrival_at=expected_arrival_at,
             created_by=created_by,
+            gate_vehicle=gate_vehicle,
         )
         event.save()
 
@@ -148,13 +165,19 @@ class GateEventLifecycleService:
         return event
 
     @staticmethod
-    def record_arrival(event, gate, guard=None, photo_url=""):
+    def record_arrival(event, gate, guard=None, photo_url="", gate_vehicle=None):
         """Transition: invited → arrived.
 
         Sets ``arrived_at``, ``gate``, ``guard``, ``photo_url`` and then runs
         :meth:`evaluate_rules` to drive the next state based on configured
         rules. Walk-in arrivals (``event is None``) are not supported by this
         signature — create an invitation (or an arrived event) first.
+
+        ``gate_vehicle`` optionally links a visitor/non-resident vehicle
+        (:class:`GateVehicle`) to the event at arrival time. It may be passed
+        as a ``GateVehicle`` instance or its primary key; it is validated to
+        belong to the same society as the event. This is distinct from the
+        resident ``vehicle`` FK (``parking.Vehicle``), which is left untouched.
         """
         if event is None:
             raise ValidationError(
@@ -165,10 +188,16 @@ class GateEventLifecycleService:
         before = GateEventLifecycleService._serialize(event)
         GateEventLifecycleService._validate_transition(event, GateEvent.Status.ARRIVED)
 
+        gate_vehicle = GateEventLifecycleService._resolve_gate_vehicle(
+            gate_vehicle, event.society
+        )
+
         now = timezone.now()
         event.status = GateEvent.Status.ARRIVED
         event.arrived_at = now
         event.gate = gate
+        if gate_vehicle is not None:
+            event.gate_vehicle = gate_vehicle
         if guard is not None:
             event.guard = guard
         if photo_url:
@@ -186,6 +215,13 @@ class GateEventLifecycleService:
 
         # Drive the next state from the rule engine.
         GateEventLifecycleService.evaluate_rules(event)
+
+        # Phase 10: notify the host that a visitor has arrived. Fired after
+        # rule evaluation so the event's final status (auto-approved, pending
+        # approval, etc.) is reflected in template selection. Non-blocking.
+        GateEventLifecycleService._notify(
+            event, NotificationPreference.Trigger.ARRIVAL, actor=guard
+        )
         return event
 
     @staticmethod
@@ -275,7 +311,30 @@ class GateEventLifecycleService:
 
         else:
             # NOTIFY_SECURITY, FLAG_FOR_REVIEW, SEND_NOTIFICATION, ESCALATE:
-            # surface to a human approver (safe middle ground).
+            # Dispatch notifications for rule-action types, then surface to a
+            # human approver (safe middle ground). The approval request is
+            # still created so the existing "safe default" behaviour is
+            # preserved; notifications are an additional side-effect.
+            for action in result.actions:
+                if action.action in (
+                    RuleAction.ActionType.SEND_NOTIFICATION,
+                    RuleAction.ActionType.NOTIFY_SECURITY,
+                    RuleAction.ActionType.ESCALATE,
+                ):
+                    try:
+                        NotificationEngineService.dispatch_for_rule_action(
+                            event=event,
+                            action=action.action,
+                            parameters=action.parameters,
+                            actor=None,
+                        )
+                    except Exception:  # noqa: BLE001 — never block gate ops.
+                        logger.exception(
+                            "Rule action notification failed for event %s, "
+                            "action %s",
+                            event.pk,
+                            action.action,
+                        )
             GateEventLifecycleService._create_approval_request(event)
             event.save()
 
@@ -313,6 +372,13 @@ class GateEventLifecycleService:
             before,
             after,
             actor=approved_by,
+        )
+
+        # Phase 10: notify the host of the approval (part of the arrival
+        # flow). Template selection distinguishes approval_request from
+        # visitor_arrival based on the event's current state. Non-blocking.
+        GateEventLifecycleService._notify(
+            event, NotificationPreference.Trigger.ARRIVAL, actor=approved_by
         )
         return event
 
@@ -379,6 +445,25 @@ class GateEventLifecycleService:
             after,
             actor=None,
         )
+
+        # Phase 10: notify the host that the visitor has entered. Non-blocking.
+        GateEventLifecycleService._notify(
+            event, NotificationPreference.Trigger.ENTRY, actor=guard
+        )
+
+        # Phase 11: real-time anomaly check. Fired AFTER the transition is
+        # committed, audited, and notified so that an AI failure never blocks
+        # or rolls back the entry. The check itself is non-blocking: any
+        # exception is logged and swallowed. Anomalies detected here are
+        # persisted by AIRecommendationService and dispatched via the ANOMALY
+        # notification trigger.
+        try:
+            AIRecommendationService._check_entry_anomalies(event=event)
+        except Exception:  # noqa: BLE001 — AI must never block gate ops.
+            logger.warning(
+                "AI anomaly check failed for GateEvent %s; entry not blocked.",
+                event.pk,
+            )
         return event
 
     @staticmethod
@@ -401,6 +486,11 @@ class GateEventLifecycleService:
             before,
             after,
             actor=None,
+        )
+
+        # Phase 10: notify the host that the visitor has exited. Non-blocking.
+        GateEventLifecycleService._notify(
+            event, NotificationPreference.Trigger.EXIT, actor=guard
         )
         return event
 
@@ -434,6 +524,13 @@ class GateEventLifecycleService:
             before,
             after,
             actor=None,
+        )
+
+        # Phase 10: notify the host of the auto-close (an exit-like event).
+        # Uses the EXIT trigger; the engine selects the auto_close template
+        # based on the event's AUTO_CLOSED status. Non-blocking.
+        GateEventLifecycleService._notify(
+            event, NotificationPreference.Trigger.EXIT, actor=None
         )
         return event
 
@@ -562,6 +659,36 @@ class GateEventLifecycleService:
             )
 
     @staticmethod
+    def _notify(event, trigger, actor=None):
+        """Dispatch a notification for a gate event transition.
+
+        Wrapped in try/except so notification failures NEVER block gate
+        operations (mirrors the :meth:`_log_audit` robustness pattern). The
+        underlying :meth:`NotificationEngineService.dispatch_for_event` is
+        itself wrapped, but this guard ensures that even import-time or
+        signature errors cannot propagate into the lifecycle.
+
+        ``actor`` may be a ``User`` or a ``SecurityGuard``. When a guard is
+        passed, its linked ``user`` (if any) is used as the audit-log actor
+        because :class:`GateOpsAuditLog.actor` is a FK to ``User``.
+        """
+        try:
+            audit_actor = actor
+            # SecurityGuard is not a User subclass; resolve the linked user
+            # so GateOpsAuditLog.actor (FK to User) doesn't reject the value.
+            if actor is not None and not hasattr(actor, "is_authenticated"):
+                audit_actor = getattr(actor, "user", None)
+            NotificationEngineService.dispatch_for_event(
+                event=event, trigger=trigger, actor=audit_actor
+            )
+        except Exception:  # noqa: BLE001 — notifications must not break gates.
+            logger.exception(
+                "Notification dispatch failed for event %s, trigger %s",
+                event.pk,
+                trigger,
+            )
+
+    @staticmethod
     def _create_approval_request(event, notes=""):
         """Create a pending GateEventApproval row for the event."""
         return GateEventApproval.objects.create(
@@ -641,11 +768,49 @@ class GateEventLifecycleService:
         return config.auto_close_after_hours
 
     @staticmethod
+    def _resolve_gate_vehicle(gate_vehicle, society):
+        """Resolve and validate a ``gate_vehicle`` argument.
+
+        Accepts either a :class:`GateVehicle` instance or its primary key. When
+        ``None`` is passed (the default), ``None`` is returned unchanged so
+        callers that omit the argument are unaffected.
+
+        The resolved vehicle is validated to belong to ``society``; a mismatch
+        raises ``ValueError`` so cross-society linkage is impossible. A
+        non-existent ID raises ``ValueError`` as well (rather than a raw
+        ``DoesNotExist``) for a clean, predictable caller contract.
+        """
+        if gate_vehicle is None:
+            return None
+
+        if isinstance(gate_vehicle, GateVehicle):
+            gv = gate_vehicle
+        else:
+            try:
+                gv = GateVehicle.objects.get(pk=gate_vehicle)
+            except GateVehicle.DoesNotExist as exc:
+                raise ValueError(
+                    f"GateVehicle with id={gate_vehicle} does not exist."
+                ) from exc
+
+        if gv.society_id != society.pk:
+            raise ValueError(
+                "GateVehicle society mismatch: gate_vehicle belongs to "
+                f"society_id={gv.society_id} but the event belongs to "
+                f"society_id={society.pk}."
+            )
+        return gv
+
+    @staticmethod
     def _build_rule_context(event):
         """Build the context dict consumed by ``RuleEngineService.evaluate``."""
         person = event.person
         visitor_category = event.visitor_category
-        return {
+        gv = event.gate_vehicle
+        # Guard the cached vehicle_category relation: if the FK is null or the
+        # related row is missing, fall back to None instead of raising.
+        gv_category = getattr(gv, "vehicle_category", None) if gv else None
+        context = {
             "society": event.society,
             "society_id": event.society_id,
             "direction": event.direction,
@@ -672,4 +837,109 @@ class GateEventLifecycleService:
             "created_by": event.created_by,
             "actor": event.created_by,
             "gate_event_id": event.pk,
+            # Phase 6: visitor/non-resident vehicle context. All keys safely
+            # default to None/False when no gate_vehicle is linked so existing
+            # rules that ignore these keys are unaffected.
+            "gate_vehicle": gv,
+            "gate_vehicle_id": gv.pk if gv else None,
+            "gate_vehicle_number": gv.vehicle_number if gv else None,
+            "gate_vehicle_category": gv.vehicle_category_id if gv else None,
+            "gate_vehicle_category_name": gv_category.name if gv_category else None,
+            "gate_vehicle_is_watchlisted": bool(gv.is_watchlisted) if gv else False,
+            "gate_vehicle_is_repeat": bool(gv.is_repeat) if gv else False,
+        }
+
+        # Phase 9: Contractor expiry context. Populated when the event's
+        # visitor category is a contractor category OR a contractor/contract FK
+        # is directly linked. The rule engine maps CONTRACTOR_EXPIRY conditions
+        # to this key; when no contractor context exists the value is None so
+        # IS_FALSE conditions match (no expiry concern) and IS_TRUE do not.
+        context["contractor_expiry"] = (
+            GateEventLifecycleService._build_contractor_expiry_context(event)
+        )
+
+        # Phase 11: cached risk score for RISK_SCORE condition evaluation.
+        # Uses the lightweight VisitorPattern.risk_score read (no recomputation)
+        # so rule evaluation stays fast. Defaults to 0.0 on any failure so
+        # risk-based rules degrade to the safest (lowest-risk) outcome.
+        try:
+            context["risk_score"] = AIRecommendationService._get_cached_risk_score(
+                society=event.society, person=person
+            )
+        except Exception:  # noqa: BLE001 — rule context must always build.
+            context["risk_score"] = 0.0
+        return context
+
+    @staticmethod
+    def _build_contractor_expiry_context(event):
+        """Build the ``contractor_expiry`` context value for the rule engine.
+
+        Returns ``None`` when the event has no contractor context (neither a
+        contractor-category visitor nor a linked contractor/contract FK).
+        Otherwise returns a dict describing the contract and work-permit expiry
+        state:
+
+        - ``contract_expired``: ``contract.end_date < today``
+        - ``permit_expired``: ``work_permit.expires_at < now``
+        - ``days_until_contract_expiry``: integer days (negative if expired)
+        - ``days_until_permit_expiry``: integer days (negative if expired)
+        - ``has_active_permit``: whether an ACTIVE work permit is linked/found
+        """
+        visitor_category = event.visitor_category
+        is_contractor_category = bool(
+            visitor_category
+            and getattr(visitor_category, "is_contractor", False)
+        )
+        contractor = event.contractor
+        contract = event.contract
+
+        # No contractor context at all → None. The rule engine treats a None
+        # value as "field absent": IS_FALSE conditions match (no expiry
+        # concern), IS_TRUE conditions do not.
+        if not is_contractor_category and contractor is None and contract is None:
+            return None
+
+        now = timezone.now()
+        today = now.date()
+
+        # Resolve the contract: prefer the event's direct FK. When only the
+        # visitor category flags contractor but no contract is linked, we still
+        # return a context dict (with contract fields as None) so rules can
+        # distinguish "contractor but no contract" from "not a contractor".
+        contract_expired = False
+        days_until_contract_expiry = None
+        if contract is not None and contract.end_date is not None:
+            contract_expired = contract.end_date < today
+            days_until_contract_expiry = (contract.end_date - today).days
+
+        # Resolve the most recent active work permit for the contract. Prefer
+        # the event's direct work_permit FK; fall back to a lookup on the
+        # contract's active permits (most-recently-expiring first).
+        work_permit = event.work_permit
+        if work_permit is None and contract is not None:
+            work_permit = (
+                WorkPermit.objects.filter(
+                    society=event.society,
+                    contract=contract,
+                    status=WorkPermit.Status.ACTIVE,
+                    is_active=True,
+                )
+                .order_by("-expires_at")
+                .first()
+            )
+
+        permit_expired = False
+        days_until_permit_expiry = None
+        has_active_permit = False
+        if work_permit is not None and work_permit.expires_at is not None:
+            has_active_permit = work_permit.status == WorkPermit.Status.ACTIVE
+            permit_expired = work_permit.expires_at < now
+            days_until_permit_expiry = (work_permit.expires_at - now).days
+
+        return {
+            "contract_expired": contract_expired,
+            "permit_expired": permit_expired,
+            "days_until_contract_expiry": days_until_contract_expiry,
+            "days_until_permit_expiry": days_until_permit_expiry,
+            "has_active_permit": has_active_permit,
         }

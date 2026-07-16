@@ -1,0 +1,208 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Live Visitors | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}Live Visitors{% endblock dashboard_title %}
+{% block dashboard_subtitle %}Persons currently inside {{ scope_society_name }} (auto-refresh 30s){% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:analytics-dashboard' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Analytics Dashboard</a>
+    <span class="badge bg-success ms-2" id="refresh-indicator">
+      <i class="fas fa-sync-alt me-1"></i>Auto-refreshing every 30s
+    </span>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-users" label="Total Inside" value=0 color="primary" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-door-open" label="Gates Active" value=0 color="info" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-tags" label="Categories" value=0 color="warning" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-clock" label="Last Updated" value="—" color="secondary" %}
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-lg-6">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Breakdown by Category</h3>
+        </div>
+        <div class="content-card__body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Visitor Category</th>
+                  <th class="text-end">Count</th>
+                </tr>
+              </thead>
+              <tbody id="by-category-tbody">
+                <tr><td colspan="2" class="text-muted text-center py-3">Loading&hellip;</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Breakdown by Gate</h3>
+        </div>
+        <div class="content-card__body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm table-hover align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Gate</th>
+                  <th class="text-end">Count</th>
+                </tr>
+              </thead>
+              <tbody id="by-gate-tbody">
+                <tr><td colspan="2" class="text-muted text-center py-3">Loading&hellip;</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="content-card__header">
+      <h3 class="content-card__title">Currently Inside Visitors</h3>
+      <span class="badge bg-primary" id="live-count">0</span>
+    </div>
+    <div class="content-card__body p-0">
+      <div class="table-responsive">
+        <table class="table table-striped table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Name</th>
+              <th>Category</th>
+              <th>Gate</th>
+              <th>Entered At</th>
+              <th>Host Unit</th>
+              <th class="text-end">Duration</th>
+            </tr>
+          </thead>
+          <tbody id="live-visitors-tbody">
+            <tr>
+              <td colspan="6" class="text-muted text-center py-4">Loading live visitors&hellip;</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block inline_javascript %}
+  <script>
+    (function () {
+      "use strict";
+
+      var liveUrl = "{% url 'gateops:analytics-live-visitors' %}";
+
+      function escapeHtml(value) {
+        if (value === null || value === undefined) return "";
+        var div = document.createElement("div");
+        div.textContent = String(value);
+        return div.innerHTML;
+      }
+
+      function formatTimestamp(iso) {
+        if (!iso) return "—";
+        try {
+          var dt = new Date(iso);
+          return dt.toLocaleString();
+        } catch (e) {
+          return escapeHtml(iso);
+        }
+      }
+
+      function renderBreakdown(elementId, breakdown) {
+        var tbody = document.getElementById(elementId);
+        if (!tbody) return;
+        var keys = Object.keys(breakdown || {});
+        if (keys.length === 0) {
+          tbody.innerHTML =
+            '<tr><td colspan="2" class="text-muted text-center py-3">No data.</td></tr>';
+          return;
+        }
+        tbody.innerHTML = keys.map(function (key) {
+          return (
+            "<tr><td>" + escapeHtml(key) + "</td>" +
+            '<td class="text-end">' + escapeHtml(breakdown[key]) + "</td></tr>"
+          );
+        }).join("");
+      }
+
+      function renderVisitors(data) {
+        var countEl = document.getElementById("live-count");
+        if (countEl) countEl.textContent = data.count;
+
+        // Update stat cards.
+        var statCards = document.querySelectorAll(".stat-card, .content-card");
+        var totalStat = document.querySelector('[data-stat="total-inside"]');
+        if (totalStat) totalStat.textContent = data.count;
+
+        renderBreakdown("by-category-tbody", data.by_category);
+        renderBreakdown("by-gate-tbody", data.by_gate);
+
+        var tbody = document.getElementById("live-visitors-tbody");
+        if (!tbody) return;
+
+        if (!data.visitors || data.visitors.length === 0) {
+          tbody.innerHTML =
+            '<tr><td colspan="6" class="text-muted text-center py-4">No visitors currently inside.</td></tr>';
+          return;
+        }
+
+        tbody.innerHTML = data.visitors.map(function (v) {
+          return (
+            "<tr>" +
+            "<td class=\"fw-semibold\">" + escapeHtml(v.person_name) + "</td>" +
+            "<td>" + escapeHtml(v.visitor_category || "—") + "</td>" +
+            "<td>" + escapeHtml(v.gate_name || "—") + "</td>" +
+            "<td class=\"small\">" + formatTimestamp(v.entered_at) + "</td>" +
+            "<td>" + escapeHtml(v.host_unit || "—") + "</td>" +
+            '<td class="text-end">' + escapeHtml(v.duration_minutes) + " min</td>" +
+            "</tr>"
+          );
+        }).join("");
+
+        // Update last-updated indicator.
+        var lastUpdated = document.getElementById("last-updated");
+        if (lastUpdated) lastUpdated.textContent = new Date().toLocaleTimeString();
+      }
+
+      function refreshLiveVisitors() {
+        fetch(liveUrl, { credentials: "same-origin" })
+          .then(function (response) {
+            if (!response.ok) return null;
+            return response.json();
+          })
+          .then(function (data) {
+            if (data && !data.error) renderVisitors(data);
+          })
+          .catch(function (err) {
+            console.error("Live visitor refresh failed:", err);
+          });
+      }
+
+      document.addEventListener("DOMContentLoaded", refreshLiveVisitors);
+      setInterval(refreshLiveVisitors, 30000);
+    })();
+  </script>
+{% endblock inline_javascript %}

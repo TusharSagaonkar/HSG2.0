@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Vehicles | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}Vehicles{% endblock dashboard_title %}
+{% block dashboard_subtitle %}Visitor & non-resident vehicles for {{ scope_society_name }}{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:dashboard' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Dashboard</a>
+    <a href="{% url 'gateops:vehicle-register' %}" class="btn-action btn-action--primary"><i class="fas fa-plus me-1"></i>Register Vehicle</a>
+  </div>
+
+  <div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="note">
+    <i class="fas fa-flag mt-1"></i>
+    <div>
+      <strong>{{ watchlisted_count }}</strong> vehicle{{ watchlisted_count|pluralize }} currently watchlisted for {{ scope_society_name }}.
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="content-card__header">
+      <h3 class="content-card__title">Recent Vehicles</h3>
+      <span class="badge bg-primary">{{ scope_society_name }}</span>
+    </div>
+    <div class="content-card__body p-0">
+      {% if vehicles %}
+        <div class="table-responsive">
+          <table class="table table-striped table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Vehicle Number</th>
+                <th>Category</th>
+                <th>Person</th>
+                <th>Watchlisted</th>
+                <th>Repeat</th>
+                <th>Last Seen</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for vehicle in vehicles %}
+                <tr>
+                  <td class="fw-semibold">{{ vehicle.vehicle_number }}</td>
+                  <td>{{ vehicle.vehicle_category.name }}</td>
+                  <td>
+                    {% if vehicle.person %}
+                      {{ vehicle.person.name }}
+                    {% else %}
+                      <span class="text-muted">&mdash;</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if vehicle.is_watchlisted %}
+                      <span class="badge bg-danger">Yes</span>
+                    {% else %}
+                      <span class="badge bg-secondary">No</span>
+                    {% endif %}
+                  </td>
+                  <td>
+                    {% if vehicle.is_repeat %}
+                      <span class="badge bg-warning text-dark">Repeat</span>
+                    {% else %}
+                      <span class="badge bg-secondary">First</span>
+                    {% endif %}
+                  </td>
+                  <td class="small">{{ vehicle.last_seen_at|date:"d M Y H:i"|default:"never" }}</td>
+                  <td class="text-end">
+                    <a href="{% url 'gateops:vehicle-detail' vehicle.pk %}" class="btn btn-sm btn-outline-primary">Details</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-5 text-center text-muted">
+          <i class="fas fa-car fa-2x mb-3 d-block opacity-50"></i>
+          <p>No vehicles recorded for {{ scope_society_name }} yet.</p>
+          <a href="{% url 'gateops:vehicle-register' %}" class="btn-action btn-action--primary"><i class="fas fa-plus me-1"></i>Register the first vehicle</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="content-card mt-3">
+    <div class="content-card__header">
+      <h3 class="content-card__title">Search Vehicles</h3>
+    </div>
+    <div class="content-card__body">
+      <form method="get" action="{% url 'gateops:vehicle-search' %}" class="row g-2 align-items-end">
+        <div class="col-12 col-md-8">
+          <label class="form-label" for="vehicle-search-q">Search by plate, person name, or phone</label>
+          <input type="text" class="form-control" id="vehicle-search-q" name="q" value="{{ search_query|default:'' }}" placeholder="e.g. MH12 AB 1234 or John">
+        </div>
+        <div class="col-12 col-md-4">
+          <button type="submit" class="btn-action btn-action--primary w-100"><i class="fas fa-search me-1"></i>Search</button>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock content %}

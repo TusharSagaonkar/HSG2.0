@@ -23,6 +23,8 @@ class NotificationPreference(models.Model):
         ENTRY = "entry", _("On Entry")
         EXIT = "exit", _("On Exit")
         NEVER = "never", _("Never")
+        # Phase 11: AI Recommendation Engine
+        ANOMALY = "anomaly", _("On Anomaly")
 
     society = models.ForeignKey(
         "housing.Society",

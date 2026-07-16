@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags i18n %}
+
+{% block title %}{% if work_permit %}Edit Work Permit{% else %}Issue Work Permit{% endif %} | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}{% if work_permit %}Edit Work Permit{% else %}Issue Work Permit{% endif %}{% endblock dashboard_title %}
+{% block dashboard_subtitle %}{% if work_permit %}{{ work_permit.permit_number }}{% else %}Authorize work for a contract at {{ scope_society_name }}{% endif %}{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:work-permit-list' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Back to List</a>
+  </div>
+
+  <div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="note">
+    <i class="fas fa-lightbulb mt-1"></i>
+    <div>
+      <strong>Work Permit:</strong> a time-bound authorization for work on a contract. Safety documents must be verified and a safety briefing given before work commences.
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-8">
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{{ scope_society_name }}</h3>
+        </div>
+        <div class="content-card__body">
+          {% crispy form %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Field notes</h3>
+        </div>
+        <div class="content-card__body">
+          <ol class="small ps-3 mb-3">
+            <li><strong>Contract:</strong> only active contracts for this society are listed.</li>
+            <li><strong>Permit number:</strong> required and must be unique among active permits for this society.</li>
+            <li><strong>Issued/Expires:</strong> the validity window. <em>expires_at</em> must be after <em>issued_at</em>.</li>
+            <li><strong>Safety docs:</strong> confirm that safety documents (insurance, PPE checklist) were verified.</li>
+            <li><strong>Safety briefing:</strong> confirm that a safety briefing was given to the workers.</li>
+            <li><strong>Hazard level:</strong> low / medium / high — drives filtering and alerting.</li>
+          </ol>
+          <div class="alert alert-warning mb-0" role="note">
+            Expired permits (past their <em>expires_at</em>) are auto-marked as <em>expired</em> by the expiry sweep.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

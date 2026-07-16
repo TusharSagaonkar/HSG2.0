@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Vehicle {{ vehicle.vehicle_number }} | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}Vehicle {{ vehicle.vehicle_number }}{% endblock dashboard_title %}
+{% block dashboard_subtitle %}
+  <span class="badge {% if vehicle.is_watchlisted %}bg-danger{% else %}bg-secondary{% endif %}">
+    {% if vehicle.is_watchlisted %}Watchlisted{% else %}Not watchlisted{% endif %}
+  </span>
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:vehicle-list' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Back to List</a>
+    {% if not vehicle.is_watchlisted %}
+      <form method="post" action="{% url 'gateops:vehicle-watchlist' vehicle.pk %}" class="d-inline">
+        {% csrf_token %}
+        <input type="hidden" name="reason" value="Flagged from vehicle detail">
+        <button type="submit" class="btn-action btn-action--danger"><i class="fas fa-flag me-1"></i>Add to Watchlist</button>
+      </form>
+    {% else %}
+      <form method="post" action="{% url 'gateops:vehicle-unwatchlist' vehicle.pk %}" class="d-inline">
+        {% csrf_token %}
+        <button type="submit" class="btn-action btn-action--success"><i class="fas fa-flag-checkered me-1"></i>Remove from Watchlist</button>
+      </form>
+    {% endif %}
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-7">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Vehicle Details</h3>
+          <span class="badge bg-primary">{{ vehicle.vehicle_category.code }}</span>
+        </div>
+        <div class="content-card__body">
+          <dl class="row mb-0">
+            <dt class="col-sm-4">Vehicle Number</dt>
+            <dd class="col-sm-8 fw-semibold">{{ vehicle.vehicle_number }}</dd>
+
+            <dt class="col-sm-4">Category</dt>
+            <dd class="col-sm-8">{{ vehicle.vehicle_category.name }} ({{ vehicle.vehicle_category.code }})</dd>
+
+            <dt class="col-sm-4">Person</dt>
+            <dd class="col-sm-8">
+              {% if vehicle.person %}
+                {{ vehicle.person.name }}
+                <div class="small text-muted">{{ vehicle.person.phone }}</div>
+              {% else %}
+                <span class="text-muted">&mdash;</span>
+              {% endif %}
+            </dd>
+
+            <dt class="col-sm-4">Watchlisted</dt>
+            <dd class="col-sm-8">
+              {% if vehicle.is_watchlisted %}
+                <span class="badge bg-danger">Yes</span>
+                {% if vehicle.watchlist_reason %}
+                  <div class="small text-muted mt-1">{{ vehicle.watchlist_reason }}</div>
+                {% endif %}
+              {% else %}
+                <span class="badge bg-secondary">No</span>
+              {% endif %}
+            </dd>
+
+            <dt class="col-sm-4">Repeat Visitor</dt>
+            <dd class="col-sm-8">
+              {% if vehicle.is_repeat %}
+                <span class="badge bg-warning text-dark">Repeat</span>
+              {% else %}
+                <span class="badge bg-secondary">First visit</span>
+              {% endif %}
+            </dd>
+
+            <dt class="col-sm-4">First Seen</dt>
+            <dd class="col-sm-8">{{ vehicle.first_seen_at|date:"d M Y H:i"|default:"unknown" }}</dd>
+
+            <dt class="col-sm-4">Last Seen</dt>
+            <dd class="col-sm-8">{{ vehicle.last_seen_at|date:"d M Y H:i"|default:"never" }}</dd>
+
+            <dt class="col-sm-4">Notes</dt>
+            <dd class="col-sm-8">{{ vehicle.notes|default:"&mdash;" }}</dd>
+
+            <dt class="col-sm-4">Active</dt>
+            <dd class="col-sm-8">
+              {% if vehicle.is_active %}
+                <span class="badge bg-success">Yes</span>
+              {% else %}
+                <span class="badge bg-secondary">No</span>
+              {% endif %}
+            </dd>
+
+            <dt class="col-sm-4">Created</dt>
+            <dd class="col-sm-8 small text-muted">{{ vehicle.created_at|date:"d M Y H:i" }}</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Watchlist Management</h3>
+        </div>
+        <div class="content-card__body">
+          {% if vehicle.is_watchlisted %}
+            <div class="alert alert-warning mb-3" role="note">
+              <i class="fas fa-flag me-1"></i>
+              This vehicle is currently watchlisted.
+            </div>
+            {% if vehicle.watchlist_reason %}
+              <dl class="row mb-3">
+                <dt class="col-sm-4">Reason</dt>
+                <dd class="col-sm-8">{{ vehicle.watchlist_reason }}</dd>
+              </dl>
+            {% endif %}
+            <form method="post" action="{% url 'gateops:vehicle-unwatchlist' vehicle.pk %}">
+              {% csrf_token %}
+              <div class="mb-3">
+                <label class="form-label" for="unwatchlist-reason">Removal reason (optional)</label>
+                <textarea class="form-control" id="unwatchlist-reason" name="reason" rows="2" placeholder="Why is this being removed from the watchlist?"></textarea>
+              </div>
+              <button type="submit" class="btn-action btn-action--success w-100"><i class="fas fa-flag-checkered me-1"></i>Remove from Watchlist</button>
+            </form>
+          {% else %}
+            <div class="alert alert-info mb-3" role="note">
+              <i class="fas fa-info-circle me-1"></i>
+              This vehicle is not currently watchlisted.
+            </div>
+            <form method="post" action="{% url 'gateops:vehicle-watchlist' vehicle.pk %}">
+              {% csrf_token %}
+              <div class="mb-3">
+                <label class="form-label" for="watchlist-reason">Reason <span class="text-danger">*</span></label>
+                <textarea class="form-control" id="watchlist-reason" name="reason" rows="2" placeholder="Why is this vehicle being watchlisted?" required></textarea>
+                <div class="form-text">A reason is required to add a vehicle to the watchlist.</div>
+              </div>
+              <button type="submit" class="btn-action btn-action--danger w-100"><i class="fas fa-flag me-1"></i>Add to Watchlist</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

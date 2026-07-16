@@ -1,0 +1,180 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags i18n %}
+
+{% block title %}Handover Detail | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}Handover Detail{% endblock dashboard_title %}
+{% block dashboard_subtitle %}{{ handover.handover_uuid }}{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:handover-list' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Back to List</a>
+  </div>
+
+  <div class="row g-3">
+    {# --- Handover summary --- #}
+    <div class="col-12 col-lg-7">
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Handover Summary</h3>
+          {% if handover.status == "pending" %}
+            <span class="badge bg-warning text-dark">Pending</span>
+          {% elif handover.status == "acknowledged" %}
+            <span class="badge bg-success">Acknowledged</span>
+          {% elif handover.status == "disputed" %}
+            <span class="badge bg-danger">Disputed</span>
+          {% endif %}
+        </div>
+        <div class="content-card__body">
+          <dl class="row mb-0">
+            <dt class="col-sm-4">UUID</dt>
+            <dd class="col-sm-8 font-monospace small">{{ handover.handover_uuid }}</dd>
+
+            <dt class="col-sm-4">Outgoing Guard</dt>
+            <dd class="col-sm-8">{{ handover.outgoing_guard.name|default:handover.outgoing_guard }}</dd>
+
+            <dt class="col-sm-4">Incoming Guard</dt>
+            <dd class="col-sm-8">{{ handover.incoming_guard.name|default:handover.incoming_guard }}</dd>
+
+            <dt class="col-sm-4">Gate</dt>
+            <dd class="col-sm-8">{{ handover.gate.code|default:handover.gate }} — {{ handover.gate.name|default:"" }}</dd>
+
+            {% if handover.shift %}
+              <dt class="col-sm-4">Shift</dt>
+              <dd class="col-sm-8">{{ handover.shift.name|default:handover.shift }}</dd>
+            {% endif %}
+
+            <dt class="col-sm-4">Inside Count</dt>
+            <dd class="col-sm-8">{{ handover.inside_count }}</dd>
+
+            <dt class="col-sm-4">Pending Items</dt>
+            <dd class="col-sm-8">{{ handover.pending_items_count }}</dd>
+
+            <dt class="col-sm-4">Handed Over At</dt>
+            <dd class="col-sm-8">{{ handover.handed_over_at|date:"d M Y H:i" }}</dd>
+
+            {% if handover.acknowledged_at %}
+              <dt class="col-sm-4">Acknowledged At</dt>
+              <dd class="col-sm-8">{{ handover.acknowledged_at|date:"d M Y H:i" }}</dd>
+            {% endif %}
+
+            {% if handover.disputed_at %}
+              <dt class="col-sm-4">Disputed At</dt>
+              <dd class="col-sm-8">{{ handover.disputed_at|date:"d M Y H:i" }}</dd>
+            {% endif %}
+
+            {% if handover.outgoing_notes %}
+              <dt class="col-sm-4">Outgoing Notes</dt>
+              <dd class="col-sm-8">{{ handover.outgoing_notes }}</dd>
+            {% endif %}
+
+            {% if handover.incoming_notes %}
+              <dt class="col-sm-4">Incoming Notes</dt>
+              <dd class="col-sm-8">{{ handover.incoming_notes }}</dd>
+            {% endif %}
+
+            {% if handover.dispute_reason %}
+              <dt class="col-sm-4">Dispute Reason</dt>
+              <dd class="col-sm-8 text-danger">{{ handover.dispute_reason }}</dd>
+            {% endif %}
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    {# --- Actions (acknowledge / dispute) --- #}
+    <div class="col-12 col-lg-5">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Actions</h3>
+        </div>
+        <div class="content-card__body">
+          {% if handover.status == "pending" or handover.status == "disputed" %}
+            <h6 class="mb-2">Acknowledge</h6>
+            <p class="small text-muted">The incoming guard confirms receipt of the handover.</p>
+            <form method="post" action="{% url 'gateops:handover-acknowledge' handover.handover_uuid %}">
+              {% csrf_token %}
+              {{ acknowledge_form.notes }}
+              <button type="submit" class="btn-action btn-action--primary mt-2 w-100">
+                <i class="fas fa-check me-1"></i>Acknowledge Handover
+              </button>
+            </form>
+
+            {% if handover.status == "pending" %}
+              <hr>
+              <h6 class="mb-2">Dispute</h6>
+              <p class="small text-muted">Raise a dispute with a mandatory reason. The outgoing guard will be notified.</p>
+              <form method="post" action="{% url 'gateops:handover-dispute' handover.handover_uuid %}">
+                {% csrf_token %}
+                {{ dispute_form.reason }}
+                <button type="submit" class="btn btn-outline-danger mt-2 w-100">
+                  <i class="fas fa-exclamation-triangle me-1"></i>Submit Dispute
+                </button>
+              </form>
+            {% endif %}
+          {% else %}
+            <div class="text-center text-muted py-4">
+              <i class="fas fa-check-circle fa-2x mb-2 d-block opacity-50"></i>
+              <p class="mb-0">This handover has been acknowledged. No further action is required.</p>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# --- Snapshot items --- #}
+  <div class="content-card mt-3">
+    <div class="content-card__header">
+      <h3 class="content-card__title">Inside Visitors at Handover ({{ items|length }})</h3>
+    </div>
+    <div class="content-card__body p-0">
+      {% if items %}
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Person</th>
+                <th>Visitor Category</th>
+                <th>Gate</th>
+                <th>Entered</th>
+                <th>Duration (min)</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in items %}
+                <tr>
+                  <td>
+                    {% if item.person %}
+                      {{ item.person.name }}
+                    {% else %}
+                      <span class="text-muted">Unknown</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ item.visitor_category.code|default:item.visitor_category|default:"—" }}</td>
+                  <td>{{ item.gate.code|default:item.gate|default:"—" }}</td>
+                  <td class="small">{{ item.entered_at|date:"d M Y H:i" }}</td>
+                  <td>{{ item.duration_minutes_at_handover }}</td>
+                  <td>
+                    {% if item.is_overstay %}
+                      <span class="badge bg-danger">Overstay</span>
+                    {% else %}
+                      <span class="badge bg-success">Inside</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-4 text-center text-muted">
+          <i class="fas fa-door-open fa-2x mb-2 d-block opacity-50"></i>
+          <p class="mb-0">No visitors were inside at the time of handover.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}

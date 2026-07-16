@@ -867,6 +867,24 @@
   height: 100%;
 }
 
+/* Society admin — role hierarchy cards */
+.role-info-card {
+  background: #fff;
+  border: 1px solid #ebedf2;
+  border-radius: 10px;
+  padding: 1rem 1.1rem;
+  height: 100%;
+}
+
+.role-badge-large {
+  margin-bottom: 0.35rem;
+}
+
+.role-badge-large .badge {
+  font-size: 0.85rem;
+  letter-spacing: 0.02em;
+}
+
 .account-tree {
   display: flex;
   flex-direction: column;
@@ -1975,10 +1993,25 @@ body.ka-body {
   background: #fff;
 }
 
+button.tree-link {
+  appearance: none;
+  cursor: pointer;
+}
+
 .tree-link:hover {
   color: var(--color-primary);
   border-color: rgba(26, 86, 219, 0.18);
   background: #fff;
+}
+
+.tree-link--accent {
+  border-color: rgba(37, 99, 235, 0.22);
+  color: #1d4ed8;
+  background: linear-gradient(180deg, #eff6ff 0%, #ffffff 100%);
+}
+
+.tree-link--accent:hover {
+  background: linear-gradient(180deg, #dbeafe 0%, #ffffff 100%);
 }
 
 .tree-legend {
@@ -2112,12 +2145,19 @@ body.ka-body {
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  flex-wrap: wrap;
   min-height: 3.1rem;
   padding: 0.55rem 0.7rem;
   border: 1px solid #dce4ef;
   border-radius: 8px;
   background: #fff;
   box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+}
+
+.tree-summary:hover {
+  border-color: rgba(37, 99, 235, 0.22);
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
 }
 
 .tree-toggle {
@@ -2216,6 +2256,9 @@ body.ka-body {
 }
 
 .tree-node-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
   margin-left: auto;
   opacity: 1;
   transition: opacity 0.15s ease;
@@ -2227,14 +2270,28 @@ body.ka-body {
   color: var(--color-primary);
   text-decoration: none;
   white-space: nowrap;
-  border: 1px solid rgba(26, 86, 219, 0.18);
-  border-radius: 5px;
-  background: #fff;
+  border-radius: 999px;
+  min-height: 2rem;
+}
+
+.tree-action-link.btn {
+  box-shadow: none;
+}
+
+.tree-action-link.btn-outline-secondary {
+  border-color: rgba(100, 116, 139, 0.25);
+}
+
+.tree-action-link.btn-outline-success {
+  border-color: rgba(16, 185, 129, 0.26);
+}
+
+.tree-action-link.btn-outline-primary {
+  border-color: rgba(37, 99, 235, 0.22);
 }
 
 .tree-action-link:hover {
   text-decoration: none;
-  background: #edf3ff;
 }
 
 .tree-children {
@@ -2265,6 +2322,145 @@ body.ka-body {
   color: var(--color-text-muted);
   margin: 0;
   padding: 0.85rem 0 0.35rem;
+}
+
+.account-form-modal {
+  border: 1px solid rgba(37, 99, 235, 0.12);
+  overflow: hidden;
+}
+
+.modal-subtitle {
+  font-size: 0.88rem;
+  color: var(--color-text-secondary);
+}
+
+.account-form-intro {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+  padding: 1rem;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.09), rgba(15, 118, 110, 0.07));
+  border: 1px solid rgba(37, 99, 235, 0.12);
+}
+
+.account-form-kicker {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-text-muted);
+  margin-bottom: 0.3rem;
+}
+
+.account-form-title {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--color-text-primary);
+}
+
+.account-form-subtitle {
+  margin: 0.35rem 0 0;
+  color: var(--color-text-secondary);
+  max-width: 42rem;
+}
+
+.account-form-intro-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: flex-end;
+}
+
+.account-form-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.4rem 0.7rem;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.75);
+  color: var(--color-text-primary);
+  border: 1px solid rgba(37, 99, 235, 0.14);
+  font-size: 0.82rem;
+}
+
+.account-form-chip--muted {
+  color: var(--color-text-secondary);
+}
+
+.account-form-section {
+  padding: 1rem;
+  border-radius: 16px;
+  border: 1px solid var(--color-border-subtle);
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.03);
+}
+
+.account-form-section--stacked {
+  height: 100%;
+}
+
+.account-form-section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.75rem;
+  margin-bottom: 0.9rem;
+  padding-bottom: 0.7rem;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.account-form-section-header h6 {
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+
+.account-form-section-header span {
+  font-size: 0.78rem;
+  color: var(--color-text-muted);
+}
+
+.account-form-toggle-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+
+.account-form-toggle {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 0.8rem;
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+}
+
+.account-form-toggle input[type="checkbox"] {
+  margin-top: 0.2rem;
+}
+
+.account-form-toggle strong {
+  display: block;
+  font-size: 0.9rem;
+  color: var(--color-text-primary);
+}
+
+.account-form-toggle small {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 0.76rem;
+  line-height: 1.35;
+}
+
+.account-form-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
 }
 
 @media (max-width: 767.98px) {
@@ -2298,6 +2494,19 @@ body.ka-body {
   .tree-node-actions {
     margin-left: 0;
     width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .account-form-intro {
+    flex-direction: column;
+  }
+
+  .account-form-intro-meta {
+    align-items: flex-start;
+  }
+
+  .account-form-footer {
+    flex-direction: column-reverse;
   }
 }
 

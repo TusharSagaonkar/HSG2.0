@@ -14,5 +14,10 @@ class SocietyMiddleware:
             society, _ = get_selected_scope(request, persist=True)
             request.current_society = society
             request.current_membership = get_user_membership(request.user, society)
+            # Set the tenant context variable for TenantManager auto-filtering
+            if society is not None:
+                from societies.managers import _current_tenant
+
+                _current_tenant.set(society)
 
         return self.get_response(request)

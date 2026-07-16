@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags i18n %}
+
+{% block title %}New Shift Handover | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}New Shift Handover{% endblock dashboard_title %}
+{% block dashboard_subtitle %}Record a guard-to-guard handover for {{ scope_society_name }}{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:handover-list' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Back to List</a>
+  </div>
+
+  <div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="note">
+    <i class="fas fa-lightbulb mt-1"></i>
+    <div>
+      <strong>Shift Handover:</strong> records the transfer of gate responsibility from an outgoing guard to an incoming guard. The system snapshots all currently-inside visitors into immutable line items so the incoming guard knows exactly who they are taking responsibility for.
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-8">
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{{ scope_society_name }}</h3>
+        </div>
+        <div class="content-card__body">
+          {% crispy form %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Field notes</h3>
+        </div>
+        <div class="content-card__body">
+          <ol class="small ps-3 mb-3">
+            <li><strong>Outgoing guard:</strong> the guard ending their shift.</li>
+            <li><strong>Incoming guard:</strong> the guard taking over. Must differ from the outgoing guard.</li>
+            <li><strong>Gate:</strong> the gate where the handover occurs.</li>
+            <li><strong>Shift:</strong> optional shift definition for reporting.</li>
+            <li><strong>Notes:</strong> any handover notes from the outgoing guard.</li>
+          </ol>
+          <div class="alert alert-warning mb-0" role="note">
+            On creation, the system snapshots all currently-inside visitors. The incoming guard must acknowledge or dispute the handover.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

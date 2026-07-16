@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags i18n %}
+
+{% block title %}QR Exit Scan | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}QR Exit Scan{% endblock dashboard_title %}
+{% block dashboard_subtitle %}Scan or enter a QR code to process exit{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:currently-inside' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Currently Inside</a>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-7">
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Scan QR Code</h3>
+        </div>
+        <div class="content-card__body">
+          <p class="text-muted">
+            Enter the QR code printed on the visitor's pass or scan the event UUID.
+            The system will resolve the code to a currently-inside visitor and
+            process the exit.
+          </p>
+          {% crispy form %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-5">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">How it works</h3>
+        </div>
+        <div class="content-card__body">
+          <ol class="small ps-3 mb-3">
+            <li>The QR code can be a <strong>Pass code</strong> (printed on the visitor pass) or a <strong>GateEvent UUID</strong>.</li>
+            <li>The system resolves the code to exactly one <code>ENTERED</code> event in {{ scope_society_name }}.</li>
+            <li>The exit transition is delegated to <code>GateEventLifecycleService.record_exit()</code> — the same state machine used by the manual exit button.</li>
+            <li>The host is notified of the exit automatically (non-blocking).</li>
+          </ol>
+          <div class="alert alert-info mb-0" role="note">
+            <i class="fas fa-info-circle me-1"></i>
+            If the code is invalid or the visitor is not currently inside, an error message will be displayed.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

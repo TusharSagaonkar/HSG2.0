@@ -18,6 +18,7 @@ from gateops.models import (
     GuardShift,
     MasterSettings,
     MaterialCategory,
+    NotificationPreference,
     PassType,
     VehicleCategory,
     VisitorCategory,
@@ -74,6 +75,30 @@ DEFAULT_APPROVAL_TYPES = (
     ("RESIDENT", "Resident Approval", ApprovalType.Approver.RESIDENT),
     ("SECURITY", "Security Approval", ApprovalType.Approver.SECURITY),
 )
+
+# Per-visitor-category default notification preferences (Phase 10). Keys are
+# visitor-category codes (matching DEFAULT_VISITOR_CATEGORIES). Values are
+# dicts of NotificationPreference field overrides; any field not listed falls
+# back to the global default (channel=PUSH, trigger=ARRIVAL, is_silent=False,
+# bundle_window_minutes=0).
+_DEFAULT_NOTIFICATION_PREFERENCES = {
+    # Deliveries are high-frequency and low-urgency: bundle them so a resident
+    # gets one digest instead of a push per parcel.
+    "DELIVERY": {
+        "bundle_window_minutes": 30,
+    },
+    # Emergencies are urgent: use SMS (higher open rate than push) and never
+    # silence them.
+    "EMERGENCY": {
+        "channel": NotificationPreference.Channel.SMS,
+        "is_silent": False,
+    },
+    # Contractors enter to perform work: notify the host on entry (not just
+    # arrival) so the host knows work has actually started.
+    "CONTRACTOR": {
+        "trigger": NotificationPreference.Trigger.ENTRY,
+    },
+}
 
 # Per-role default permission sets. Keys mirror GateOpsRole.KNOWN_PERMISSION_KEYS.
 # GATE_ADMIN gets everything; VIEWER gets nothing; others get a sensible subset.
@@ -192,6 +217,22 @@ def bootstrap_gateops_defaults(sender, instance, created, **kwargs):
                 "name": name,
                 "sort_order": sort_order,
                 **flags,
+            },
+        )
+
+    # 3b. Default notification preferences per visitor category (Phase 10).
+    # One preference row per category using the global default, overridden by
+    # any category-specific tuning in _DEFAULT_NOTIFICATION_PREFERENCES.
+    for code, _name, _flags in DEFAULT_VISITOR_CATEGORIES:
+        overrides = _DEFAULT_NOTIFICATION_PREFERENCES.get(code, {})
+        NotificationPreference.objects.get_or_create(
+            society=society,
+            visitor_category=VisitorCategory.objects.get(society=society, code=code),
+            channel=overrides.get("channel", NotificationPreference.Channel.PUSH),
+            defaults={
+                "trigger": overrides.get("trigger", NotificationPreference.Trigger.ARRIVAL),
+                "is_silent": overrides.get("is_silent", False),
+                "bundle_window_minutes": overrides.get("bundle_window_minutes", 0),
             },
         )
 

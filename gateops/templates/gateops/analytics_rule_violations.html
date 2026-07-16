@@ -1,0 +1,244 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags i18n %}
+
+{% block title %}Rule Violations | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}Rule Violations & Anomalies{% endblock dashboard_title %}
+{% block dashboard_subtitle %}Rule-evaluation statistics for {{ scope_society_name }}{% endblock dashboard_subtitle %}
+
+{% block javascript %}
+  {{ block.super }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock javascript %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:analytics-dashboard' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Analytics Dashboard</a>
+    <form method="post" action="{% url 'gateops:analytics-export' %}" class="d-inline">
+      {% csrf_token %}
+      <input type="hidden" name="export_type" value="rule_violations" />
+      <input type="hidden" name="start_date" value="{{ form.date_from.value|default:'' }}" />
+      <input type="hidden" name="end_date" value="{{ form.date_to.value|default:'' }}" />
+      <button type="submit" class="btn-action btn-action--success"><i class="fas fa-download me-1"></i>Export CSV</button>
+    </form>
+  </div>
+
+  <div class="content-card mb-4">
+    <div class="content-card__header">
+      <h3 class="content-card__title">Date Range Filter</h3>
+    </div>
+    <div class="content-card__body">
+      {% crispy form %}
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-gavel" label="Total Violations" value=data.total_evaluations color="primary" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-bug" label="Critical Anomalies" value=anomaly_data.critical_open color="danger" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-check-double" label="Resolution Rate" value=anomaly_data.resolution_rate color="success" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-exclamation-circle" label="Errors" value=data.error_count color="warning" %}
+    </div>
+  </div>
+
+  <div class="content-card mb-4">
+    <div class="content-card__header">
+      <h3 class="content-card__title">Daily Trend</h3>
+    </div>
+    <div class="content-card__body">
+      <canvas id="dailyTrendChart" height="100"></canvas>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-lg-6">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Violations by Action</h3>
+        </div>
+        <div class="content-card__body p-0">
+          {% if data.by_action %}
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Action</th>
+                    <th class="text-end">Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for action, count in data.by_action.items %}
+                    <tr>
+                      <td>
+                        <span class="badge {% if action == 'REJECT' %}bg-danger{% elif action == 'ERROR' %}bg-warning text-dark{% elif action == 'AUTO_APPROVE' %}bg-success{% elif action == 'NO_MATCH' %}bg-secondary{% else %}bg-info{% endif %}">{{ action }}</span>
+                      </td>
+                      <td class="text-end">{{ count }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="p-4 text-center text-muted">No rule evaluations in the selected range.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Top Violated Rules</h3>
+        </div>
+        <div class="content-card__body p-0">
+          {% if data.top_violated_rules %}
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Rule Name</th>
+                    <th class="text-end">Violations</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for rule in data.top_violated_rules %}
+                    <tr>
+                      <td class="fw-semibold">
+                        <a href="{% url 'gateops:rule-detail' rule.rule_id %}">{{ rule.rule_name }}</a>
+                      </td>
+                      <td class="text-end">
+                        <span class="badge bg-warning text-dark">{{ rule.violation_count }}</span>
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="p-4 text-center text-muted">No violated rules in the selected range.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-6">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Anomaly Stats by Type</h3>
+        </div>
+        <div class="content-card__body p-0">
+          {% if anomaly_data.by_type %}
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Type</th>
+                    <th class="text-end">Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for atype, count in anomaly_data.by_type.items %}
+                    <tr>
+                      <td>{{ atype }}</td>
+                      <td class="text-end">{{ count }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="p-4 text-center text-muted">No anomalies detected in the selected range.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-6">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Anomaly Stats by Severity</h3>
+        </div>
+        <div class="content-card__body p-0">
+          {% if anomaly_data.by_severity %}
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr>
+                    <th>Severity</th>
+                    <th class="text-end">Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for severity, count in anomaly_data.by_severity.items %}
+                    <tr>
+                      <td>
+                        <span class="badge {% if severity == 'CRITICAL' %}bg-danger{% elif severity == 'HIGH' %}bg-warning text-dark{% elif severity == 'MEDIUM' %}bg-info{% else %}bg-secondary{% endif %}">{{ severity }}</span>
+                      </td>
+                      <td class="text-end">{{ count }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          {% else %}
+            <div class="p-4 text-center text-muted">No anomaly severity data.</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block inline_javascript %}
+  {{ data|json_script:"rule-violations-data" }}
+  <script>
+    (function () {
+      "use strict";
+
+      var rawData = JSON.parse(document.getElementById("rule-violations-data").textContent);
+      var dailyTrend = rawData.daily_trend || {};
+      var trendLabels = Object.keys(dailyTrend);
+      var trendValues = trendLabels.map(function (k) { return dailyTrend[k]; });
+
+      var ctx = document.getElementById("dailyTrendChart");
+      if (ctx && typeof Chart !== "undefined" && trendLabels.length > 0) {
+        new Chart(ctx, {
+          type: "line",
+          data: {
+            labels: trendLabels,
+            datasets: [
+              {
+                label: "Rule Evaluations",
+                data: trendValues,
+                borderColor: "rgba(255, 99, 132, 1)",
+                backgroundColor: "rgba(255, 99, 132, 0.2)",
+                fill: true,
+                tension: 0.3,
+                borderWidth: 2,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: { beginAtZero: true, title: { text: "Evaluation Count", display: true } },
+              x: { title: { text: "Date", display: true } },
+            },
+          },
+        });
+      } else if (ctx) {
+        ctx.parentElement.innerHTML =
+          '<div class="text-muted text-center py-4">No daily trend data for the selected range.</div>';
+      }
+    })();
+  </script>
+{% endblock inline_javascript %}

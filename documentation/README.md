@@ -16,6 +16,8 @@ Use this as the first stop before planning or implementing major changes.
 | `FINANCIAL_REPORTING_PHASE_PLAN.md` | Phased rollout plan for financial reports and Test Society validation dataset. | Any reporting scope, prioritization, or report-validation change. |
 | `VOUCHER_ENTRY_PERFORMANCE.md` | Voucher entry page performance root cause, measurements, and mitigation notes. | Any voucher-entry latency investigation or optimization change. |
 | `RENDER_DEPLOY.md` | Render deployment workflow, required env vars, and first-deploy verification steps. | Any Render topology or deployment-process update. |
+| `PHASE_11_AI_RECOMMENDATION_ENGINE.md` | Design specification for the AI Recommendation Engine — models, service layer, anomaly detectors, risk scoring, and peak-hour prediction. | Any change to AI engine models, detectors, risk weights, or integration hooks. |
+| `PHASE_12_EXIT_MANAGEMENT.md` | Design specification for Exit Management — one-tap/QR exit, "Currently Inside" screen, shift handover with immutable snapshots. | Any change to exit management models, services, handover state machine, or integration hooks. |
 | `templates/` | Standard templates for consistent documentation updates. | Use whenever adding a new entry. |
 
 ## Documentation Standards

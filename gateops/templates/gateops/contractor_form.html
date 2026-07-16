@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags i18n %}
+
+{% block title %}{% if contractor %}Edit Contractor{% else %}New Contractor{% endif %} | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}{% if contractor %}Edit Contractor{% else %}New Contractor{% endif %}{% endblock dashboard_title %}
+{% block dashboard_subtitle %}{% if contractor %}{{ contractor.company_name }}{% else %}Register a contracting company for {{ scope_society_name }}{% endif %}{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:contractor-list' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Back to List</a>
+  </div>
+
+  <div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="note">
+    <i class="fas fa-lightbulb mt-1"></i>
+    <div>
+      <strong>Contractor:</strong> a contracting company engaged by the society. Contracts, workers, and work permits hang off this master record.
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <div class="col-12 col-lg-8">
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">{{ scope_society_name }}</h3>
+        </div>
+        <div class="content-card__body">
+          {% crispy form %}
+        </div>
+      </div>
+    </div>
+
+    <div class="col-12 col-lg-4">
+      <div class="content-card h-100">
+        <div class="content-card__header">
+          <h3 class="content-card__title">Field notes</h3>
+        </div>
+        <div class="content-card__body">
+          <ol class="small ps-3 mb-3">
+            <li><strong>Company name:</strong> required and must be unique among active contractors for this society.</li>
+            <li><strong>Supervisor:</strong> the on-site supervisor name and phone.</li>
+            <li><strong>Contact:</strong> the primary point of contact (may differ from the supervisor).</li>
+            <li><strong>GST/PAN:</strong> optional tax identifiers for invoicing and audit.</li>
+            <li><strong>Address:</strong> the company's registered address.</li>
+          </ol>
+          <div class="alert alert-warning mb-0" role="note">
+            Deactivating a contractor soft-deletes the record; the company name can be reused afterwards.
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock content %}

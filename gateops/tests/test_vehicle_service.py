@@ -793,3 +793,183 @@ class VehicleViewTest(TestCase):
         payload = json.loads(response.content)
         self.assertIn("found", payload)
         self.assertTrue(payload["found"])
+
+
+class VehicleViewTemplateTest(TestCase):
+    """HTML template rendering tests for the Phase 6 vehicle views.
+
+    These tests assert that the views render the dedicated HTML templates
+    (``vehicle_list.html``, ``vehicle_detail.html``, ``vehicle_form.html``)
+    rather than the previous plain-text responses, and that redirects point
+    to the detail URL.
+
+    Societies are created once per class in ``setUpTestData``; ``setUp`` logs
+    in and selects the society so every view resolves the correct tenant.
+    """
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        cls.user = UserFactory(password="password")
+        # create_society grants the user an active OWNER membership, which the
+        # society-selection middleware requires to resolve the active society.
+        cls.society = create_society(user=cls.user, name="Vehicle Template Society")
+        cls.visitor_cat = VehicleCategory.objects.get(
+            society=cls.society, code="VISITOR"
+        )
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.user)
+        self._select_society(self.society)
+        self.person = Person.objects.create(
+            society=self.society, name="Template Driver", phone="+918888888888"
+        )
+        self.vehicle = GateVehicle.objects.create(
+            society=self.society,
+            person=self.person,
+            vehicle_number="TMPL123",
+            vehicle_category=self.visitor_cat,
+            last_seen_at=timezone.now(),
+        )
+
+    # --- helpers ---------------------------------------------------------
+
+    def _select_society(self, society):
+        session = self.client.session
+        session[SESSION_SELECTED_SOCIETY_ID] = society.id
+        session.save()
+
+    # --- list view: template + content -----------------------------------
+
+    def test_vehicle_list_view_uses_list_template(self):
+        """The list view renders ``vehicle_list.html``."""
+        response = self.client.get(reverse("gateops:vehicle-list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "gateops/vehicle_list.html")
+
+    def test_vehicle_list_view_contains_vehicle_number(self):
+        """The list HTML response contains the vehicle's number."""
+        response = self.client.get(reverse("gateops:vehicle-list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "TMPL123")
+
+    # --- detail view: template -------------------------------------------
+
+    def test_vehicle_detail_view_uses_detail_template(self):
+        """The detail view renders ``vehicle_detail.html``."""
+        response = self.client.get(
+            reverse("gateops:vehicle-detail", kwargs={"pk": self.vehicle.pk})
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "gateops/vehicle_detail.html")
+
+    # --- register view: GET template -------------------------------------
+
+    def test_vehicle_register_view_get_uses_form_template(self):
+        """The register GET renders ``vehicle_form.html``."""
+        response = self.client.get(reverse("gateops:vehicle-register"))
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "gateops/vehicle_form.html")
+
+    # --- register view: POST valid ---------------------------------------
+
+    def test_vehicle_register_view_post_valid_creates_and_redirects(self):
+        """A valid POST creates a vehicle and redirects (302) to the detail URL."""
+        response = self.client.post(
+            reverse("gateops:vehicle-register"),
+            data={
+                "vehicle_number": "POST456",
+                "person": self.person.pk,
+                "vehicle_category": self.visitor_cat.pk,
+                "notes": "Registered via template test",
+            },
+        )
+        self.assertEqual(response.status_code, 302)
+        vehicle = GateVehicle.objects.get(
+            society=self.society, vehicle_number="POST456"
+        )
+        self.assertEqual(vehicle.person, self.person)
+        self.assertEqual(vehicle.vehicle_category, self.visitor_cat)
+        self.assertEqual(vehicle.notes, "Registered via template test")
+        self.assertEqual(
+            response.url,
+            reverse("gateops:vehicle-detail", kwargs={"pk": vehicle.pk}),
+        )
+
+    # --- register view: POST invalid -------------------------------------
+
+    def test_vehicle_register_view_post_invalid_rerenders_form(self):
+        """An invalid POST (empty vehicle_number) re-renders the form (200).
+
+        No vehicle must be created.
+        """
+        before_count = GateVehicle.objects.count()
+        response = self.client.post(
+            reverse("gateops:vehicle-register"),
+            data={
+                "vehicle_number": "",
+                "person": self.person.pk,
+                "vehicle_category": self.visitor_cat.pk,
+            },
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "gateops/vehicle_form.html")
+        self.assertEqual(GateVehicle.objects.count(), before_count)
+
+    # --- watchlist view: redirect ----------------------------------------
+
+    def test_vehicle_watchlist_view_redirects_to_detail(self):
+        """The watchlist POST redirects (302) to the detail URL."""
+        response = self.client.post(
+            reverse("gateops:vehicle-watchlist", kwargs={"pk": self.vehicle.pk}),
+            data={"reason": "Suspicious activity"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            reverse("gateops:vehicle-detail", kwargs={"pk": self.vehicle.pk}),
+        )
+
+    # --- unwatchlist view: redirect --------------------------------------
+
+    def test_vehicle_unwatchlist_view_redirects_to_detail(self):
+        """The unwatchlist POST redirects (302) to the detail URL.
+
+        The vehicle must be watchlisted first so the service call succeeds.
+        """
+        VehicleService.add_to_watchlist(
+            gate_vehicle=self.vehicle, reason="Temporary", actor=self.user
+        )
+        response = self.client.post(
+            reverse("gateops:vehicle-unwatchlist", kwargs={"pk": self.vehicle.pk}),
+            data={"reason": "Cleared"},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(
+            response.url,
+            reverse("gateops:vehicle-detail", kwargs={"pk": self.vehicle.pk}),
+        )
+
+    # --- search view: template -------------------------------------------
+
+    def test_vehicle_search_view_uses_list_template(self):
+        """The search view renders ``vehicle_list.html`` with results."""
+        response = self.client.get(
+            reverse("gateops:vehicle-search"), data={"q": "TMPL"}
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "gateops/vehicle_list.html")
+
+    # --- anpr lookup view: JSON ------------------------------------------
+
+    def test_vehicle_anpr_lookup_view_returns_json_content_type(self):
+        """The ANPR lookup view still returns JSON (content-type check)."""
+        response = self.client.post(
+            reverse("gateops:vehicle-anpr-lookup"),
+            data={"plate_text": "TMPL123"},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("application/json", response["Content-Type"])
+        payload = json.loads(response.content)
+        self.assertTrue(payload["found"])

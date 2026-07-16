@@ -3,7 +3,7 @@
 
 {% block title %}Currently Inside | Housing Accounting System{% endblock title %}
 {% block dashboard_title %}Currently Inside{% endblock dashboard_title %}
-{% block dashboard_subtitle %}Visitors currently inside {{ scope_society_name }}{% endblock dashboard_subtitle %}
+{% block dashboard_subtitle %}Visitors currently inside {{ scope_society_name }} ({{ inside_count }} total){% endblock dashboard_subtitle %}
 
 {% block content %}
   {% include "gateops/_messages.html" %}
@@ -11,16 +11,71 @@
   <div class="action-bar action-bar--responsive">
     <a href="{% url 'gateops:dashboard' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Dashboard</a>
     <a href="{% url 'gateops:event-create' %}" class="btn-action btn-action--primary"><i class="fas fa-plus me-1"></i>New Event</a>
-    <a href="{% url 'gateops:event-list' %}" class="btn-action btn-action--outline-primary"><i class="fas fa-list me-1"></i>All Events</a>
+    <a href="{% url 'gateops:qr-exit-scan' %}" class="btn-action btn-action--outline-primary"><i class="fas fa-qrcode me-1"></i>QR Exit</a>
+    <a href="{% url 'gateops:handover-list' %}" class="btn-action btn-action--outline-primary"><i class="fas fa-people-arrows me-1"></i>Shift Handovers</a>
   </div>
 
+  {# --- Filter form --- #}
+  <div class="content-card mb-3">
+    <div class="content-card__header">
+      <h3 class="content-card__title">Filters</h3>
+    </div>
+    <div class="content-card__body">
+      <form method="get" action="{% url 'gateops:currently-inside' %}">
+        <div class="row g-2 align-items-end">
+          <div class="col-12 col-md-3">
+            <label class="form-label small">Gate</label>
+            <select name="gate" class="form-select">
+              <option value="">— All gates —</option>
+              {% for g in gates %}
+                <option value="{{ g.pk }}" {% if filters.gate_id == g.pk|stringformat:"s" %}selected{% endif %}>{{ g.code }} — {{ g.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12 col-md-3">
+            <label class="form-label small">Visitor Category</label>
+            <select name="visitor_category" class="form-select">
+              <option value="">— All categories —</option>
+              {% for vc in visitor_categories %}
+                <option value="{{ vc.pk }}" {% if filters.visitor_category_id == vc.pk|stringformat:"s" %}selected{% endif %}>{{ vc.code }} — {{ vc.name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label small">Min duration (min)</label>
+            <input type="number" name="min_duration" class="form-control" min="0" value="{% if filters.min_duration_minutes %}{{ filters.min_duration_minutes }}{% endif %}" placeholder="0">
+          </div>
+          <div class="col-6 col-md-2">
+            <label class="form-label small">Max duration (min)</label>
+            <input type="number" name="max_duration" class="form-control" min="0" value="{% if filters.max_duration_minutes %}{{ filters.max_duration_minutes }}{% endif %}" placeholder="—">
+          </div>
+          <div class="col-12 col-md-2 d-flex align-items-center gap-2">
+            <div class="form-check">
+              <input type="checkbox" class="form-check-input" name="is_overstay" value="1" id="id_is_overstay" {% if filters.is_overstay %}checked{% endif %}>
+              <label class="form-check-label small" for="id_is_overstay">Overstay only</label>
+            </div>
+          </div>
+          <div class="col-12">
+            <label class="form-label small">Search (name / phone)</label>
+            <input type="text" name="search" class="form-control" value="{% if filters.search %}{{ filters.search }}{% endif %}" placeholder="Search by name or phone">
+          </div>
+          <div class="col-12 d-flex gap-2">
+            <button type="submit" class="btn-action btn-action--primary"><i class="fas fa-filter me-1"></i>Apply Filters</button>
+            <a href="{% url 'gateops:currently-inside' %}" class="btn-action btn-action--secondary"><i class="fas fa-times me-1"></i>Clear</a>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# --- Results table --- #}
   <div class="content-card">
     <div class="content-card__header">
-      <h3 class="content-card__title">Visitors Inside</h3>
+      <h3 class="content-card__title">Visitors Inside ({{ total }})</h3>
       <span class="badge bg-success">{{ scope_society_name }}</span>
     </div>
     <div class="content-card__body p-0">
-      {% if events %}
+      {% if results %}
         <div class="table-responsive">
           <table class="table table-hover align-middle mb-0">
             <thead class="table-light">
@@ -29,31 +84,36 @@
                 <th>Visitor Category</th>
                 <th>Gate</th>
                 <th>Entered</th>
-                <th>Auto Close At</th>
+                <th>Duration</th>
+                <th>Status</th>
                 <th class="text-end">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {% for event in events %}
+              {% for event in results %}
                 <tr>
                   <td>
-                    {% if event.person %}
-                      <div class="fw-semibold">{{ event.person.name }}</div>
-                      <div class="small text-muted">{{ event.person.phone }}</div>
+                    <div class="fw-semibold">{{ event.person_name }}</div>
+                    <div class="small text-muted">{{ event.person_phone }}</div>
+                  </td>
+                  <td>{{ event.visitor_category_code|default:event.visitor_category|default:"—" }}</td>
+                  <td>{{ event.gate_code|default:event.gate|default:"—" }}</td>
+                  <td class="small">{{ event.entered_at|date:"d M Y H:i" }}</td>
+                  <td class="small">{{ event.duration_minutes }} min</td>
+                  <td>
+                    {% if event.is_overstay %}
+                      <span class="badge bg-danger">Overstay</span>
                     {% else %}
-                      <span class="text-muted">Unknown visitor</span>
+                      <span class="badge bg-success">Inside</span>
                     {% endif %}
                   </td>
-                  <td>{{ event.visitor_category.code }}</td>
-                  <td>{{ event.gate.code }}</td>
-                  <td class="small">{{ event.entered_at|date:"d M Y H:i" }}</td>
-                  <td class="small">{{ event.auto_close_at|date:"d M Y H:i"|default:"Disabled" }}</td>
                   <td class="text-end">
                     <a href="{% url 'gateops:event-detail' event.event_uuid %}" class="btn btn-sm btn-outline-primary me-1">Detail</a>
-                    <form method="post" action="{% url 'gateops:event-exit' event.event_uuid %}" class="d-inline">
+                    <form method="post" action="{% url 'gateops:quick-exit' %}" class="d-inline">
                       {% csrf_token %}
+                      <input type="hidden" name="gate_event_id" value="{{ event.event_uuid }}">
                       <button type="submit" class="btn btn-sm btn-outline-warning">
-                        <i class="fas fa-door-closed me-1"></i>Record Exit
+                        <i class="fas fa-door-closed me-1"></i>Quick Exit
                       </button>
                     </form>
                   </td>
@@ -62,6 +122,30 @@
             </tbody>
           </table>
         </div>
+
+        {# --- Pagination --- #}
+        {% if total_pages > 1 %}
+          <nav class="d-flex justify-content-between align-items-center p-3" aria-label="Inside pagination">
+            <span class="small text-muted">Page {{ page }} of {{ total_pages }}</span>
+            <ul class="pagination pagination-sm mb-0">
+              {% if page > 1 %}
+                <li class="page-item">
+                  <a class="page-link" href="?{% for k, v in filters.items %}{{ k }}={{ v }}&{% endfor %}page={{ page|add:'-1' %}">&laquo; Prev</a>
+                </li>
+              {% endif %}
+              {% for p in page_range %}
+                <li class="page-item {% if p == page %}active{% endif %}">
+                  <a class="page-link" href="?{% for k, v in filters.items %}{{ k }}={{ v }}&{% endfor %}page={{ p }}">{{ p }}</a>
+                </li>
+              {% endfor %}
+              {% if page < total_pages %}
+                <li class="page-item">
+                  <a class="page-link" href="?{% for k, v in filters.items %}{{ k }}={{ v }}&{% endfor %}page={{ page|add:'1' %}">Next &raquo;</a>
+                </li>
+              {% endif %}
+            </ul>
+          </nav>
+        {% endif %}
       {% else %}
         <div class="p-5 text-center text-muted">
           <i class="fas fa-door-open fa-2x mb-3 d-block opacity-50"></i>

@@ -105,6 +105,7 @@ _FIELD_CONTEXT_KEYS: dict[str, tuple] = {
     RuleCondition.ConditionField.CONTRACTOR_EXPIRY: ("contractor_expiry",),
     RuleCondition.ConditionField.IS_EMERGENCY: ("is_emergency",),
     RuleCondition.ConditionField.IS_VIP: ("is_vip",),
+    RuleCondition.ConditionField.RISK_SCORE: ("risk_score",),
     # BLACKLIST / PASS_VALID / HOLIDAY are resolved specially below.
 }
 

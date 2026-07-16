@@ -1,0 +1,132 @@
+{% load i18n %}
+{% comment %}
+  Step progress bar — renders a horizontal indicator of all 28 steps.
+  Completed steps show a green checkmark, the current step is highlighted,
+  and future steps are greyed out. For NEW societies, steps 10–27 are
+  shown as skipped (branch indicator).
+{% endcomment %}
+
+<div class="wizard-progress mb-4">
+  <div class="d-flex align-items-center flex-wrap gap-1">
+    {% for i in step_names|default_if_none:""|keys %}
+      {% if forloop.first %}{% endif %}
+    {% endfor %}
+
+    {# Render steps 1–9 (common path) #}
+    {% for i in "123456789"|make_list %}
+      {% with step_num=i|add:"0" %}
+        <a href="{% url 'onboarding:wizard-step' wizard.id step_num %}"
+           class="wizard-step-badge
+                  {% if step_num < step_number %}wizard-step-badge--completed{% endif %}
+                  {% if step_num == step_number %}wizard-step-badge--current{% endif %}
+                  {% if step_num > step_number %}wizard-step-badge--future{% endif %}"
+           title="{{ step_names|get_item:step_num }}">
+          {% if step_num < step_number %}
+            <i class="fas fa-check"></i>
+          {% else %}
+            {{ step_num }}
+          {% endif %}
+        </a>
+        {% if step_num < 9 %}
+          <span class="wizard-step-connector"></span>
+        {% endif %}
+      {% endwith %}
+    {% endfor %}
+
+    {# Branch indicator #}
+    {% if wizard.society_type == "NEW" %}
+      <span class="wizard-step-badge wizard-step-badge--skipped" title="{% trans 'Skipped for new societies' %}">
+        <i class="fas fa-forward"></i>
+      </span>
+      <span class="wizard-step-connector"></span>
+      <a href="{% url 'onboarding:wizard-step' wizard.id 28 %}"
+         class="wizard-step-badge
+                {% if 28 < step_number %}wizard-step-badge--completed{% endif %}
+                {% if 28 == step_number %}wizard-step-badge--current{% endif %}
+                {% if 28 > step_number %}wizard-step-badge--future{% endif %}"
+         title="{% trans 'Society Ready' %}">
+        28
+      </a>
+    {% else %}
+      {# EXISTING society — show steps 10–28 #}
+      <span class="wizard-step-connector"></span>
+      {% for step_num in "10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28"|split:"," %}
+        <a href="{% url 'onboarding:wizard-step' wizard.id step_num|add:'0' %}"
+           class="wizard-step-badge
+                  {% if step_num|add:'0' < step_number %}wizard-step-badge--completed{% endif %}
+                  {% if step_num|add:'0' == step_number %}wizard-step-badge--current{% endif %}
+                  {% if step_num|add:'0' > step_number %}wizard-step-badge--future{% endif %}"
+           title="{{ step_names|get_item:step_num|add:'0' }}">
+          {% if step_num|add:'0' < step_number %}
+            <i class="fas fa-check"></i>
+          {% else %}
+            {{ step_num }}
+          {% endif %}
+        </a>
+        {% if not forloop.last %}
+          <span class="wizard-step-connector"></span>
+        {% endif %}
+      {% endfor %}
+    {% endif %}
+  </div>
+
+  <div class="wizard-progress-label mt-2 text-muted small">
+    {% if wizard.society_type == "NEW" %}
+      <i class="fas fa-info-circle"></i>
+      {% trans "New society — accounting migration steps are skipped." %}
+    {% elif wizard.society_type == "EXISTING" %}
+      <i class="fas fa-info-circle"></i>
+      {% trans "Existing society — full accounting migration is required." %}
+    {% endif %}
+  </div>
+</div>
+
+<style>
+  .wizard-step-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-decoration: none;
+    border: 2px solid #dee2e6;
+    background: #f8f9fa;
+    color: #6c757d;
+    transition: all 0.2s ease;
+  }
+  .wizard-step-badge--completed {
+    background: #28a745;
+    border-color: #28a745;
+    color: #fff;
+  }
+  .wizard-step-badge--current {
+    background: #007bff;
+    border-color: #007bff;
+    color: #fff;
+    box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.25);
+  }
+  .wizard-step-badge--future {
+    background: #f8f9fa;
+    border-color: #dee2e6;
+    color: #adb5bd;
+    cursor: not-allowed;
+  }
+  .wizard-step-badge--skipped {
+    background: #e9ecef;
+    border-color: #ced4da;
+    color: #6c757d;
+  }
+  .wizard-step-connector {
+    display: inline-block;
+    width: 16px;
+    height: 2px;
+    background: #dee2e6;
+  }
+  @media (max-width: 768px) {
+    .wizard-step-badge { width: 26px; height: 26px; font-size: 0.65rem; }
+    .wizard-step-connector { width: 8px; }
+  }
+</style>

@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags i18n %}
+
+{% block title %}Guard Performance | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}Guard Performance{% endblock dashboard_title %}
+{% block dashboard_subtitle %}Per-guard throughput metrics for {{ scope_society_name }}{% endblock dashboard_subtitle %}
+
+{% block javascript %}
+  {{ block.super }}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock javascript %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:analytics-dashboard' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Analytics Dashboard</a>
+    <form method="post" action="{% url 'gateops:analytics-export' %}" class="d-inline" id="export-form">
+      {% csrf_token %}
+      <input type="hidden" name="export_type" value="guard_performance" />
+      <input type="hidden" name="start_date" value="{{ form.date_from.value|default:'' }}" id="export-start" />
+      <input type="hidden" name="end_date" value="{{ form.date_to.value|default:'' }}" id="export-end" />
+      <button type="submit" class="btn-action btn-action--success"><i class="fas fa-download me-1"></i>Export CSV</button>
+    </form>
+  </div>
+
+  <div class="content-card mb-4">
+    <div class="content-card__header">
+      <h3 class="content-card__title">Date Range Filter</h3>
+    </div>
+    <div class="content-card__body">
+      {% crispy form %}
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-user-shield" label="Total Guards" value=data.guards|length color="primary" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-door-enter" label="Total Events" value=data.totals.entries_processed color="info" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-check-circle" label="Total Approvals" value=data.totals.approvals_given color="success" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-stopwatch" label="Avg Processing (ms)" value="—" color="warning" %}
+    </div>
+  </div>
+
+  <div class="content-card mb-4">
+    <div class="content-card__header">
+      <h3 class="content-card__title">Guard Comparison Chart</h3>
+    </div>
+    <div class="content-card__body">
+      <canvas id="guardChart" height="120"></canvas>
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="content-card__header">
+      <h3 class="content-card__title">Guard Metrics</h3>
+      <span class="badge bg-primary">{{ scope_society_name }}</span>
+    </div>
+    <div class="content-card__body p-0">
+      {% if data.guards %}
+        <div class="table-responsive">
+          <table class="table table-striped table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Guard Name</th>
+                <th class="text-end">Events Processed</th>
+                <th class="text-end">Approvals</th>
+                <th class="text-end">Rejections</th>
+                <th class="text-end">Avg Processing (ms)</th>
+                <th class="text-end">Auto-Closed</th>
+                <th class="text-end">Rule Violations</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for guard in data.guards %}
+                <tr>
+                  <td class="fw-semibold">{{ guard.guard_name }}</td>
+                  <td class="text-end">{{ guard.entries_processed }}</td>
+                  <td class="text-end">
+                    <span class="badge bg-success">{{ guard.approvals_given }}</span>
+                  </td>
+                  <td class="text-end">
+                    <span class="badge bg-danger">{{ guard.rejections_given }}</span>
+                  </td>
+                  <td class="text-end">
+                    {% if guard.avg_processing_time_ms is not None %}
+                      {{ guard.avg_processing_time_ms }}
+                    {% else %}
+                      <span class="text-muted">&mdash;</span>
+                    {% endif %}
+                  </td>
+                  <td class="text-end">{{ guard.exits_processed }}</td>
+                  <td class="text-end">
+                    {% if guard.rule_violations_triggered %}
+                      <span class="badge bg-warning text-dark">{{ guard.rule_violations_triggered }}</span>
+                    {% else %}
+                      0
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+            <tfoot class="table-light">
+              <tr class="fw-bold">
+                <td>Totals</td>
+                <td class="text-end">{{ data.totals.entries_processed }}</td>
+                <td class="text-end">{{ data.totals.approvals_given }}</td>
+                <td class="text-end">{{ data.totals.rejections_given }}</td>
+                <td class="text-end">&mdash;</td>
+                <td class="text-end">{{ data.totals.exits_processed }}</td>
+                <td class="text-end">{{ data.totals.rule_violations_triggered }}</td>
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-5 text-center text-muted">
+          <i class="fas fa-user-shield fa-2x mb-3 d-block opacity-50"></i>
+          <p>No guard performance data for the selected range.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}
+
+{% block inline_javascript %}
+  {{ data|json_script:"guard-performance-data" }}
+  <script>
+    (function () {
+      "use strict";
+
+      var rawData = JSON.parse(document.getElementById("guard-performance-data").textContent);
+      var guards = rawData.guards || [];
+
+      // Compute average processing time across all guards.
+      var processingTimes = guards
+        .map(function (g) { return g.avg_processing_time_ms; })
+        .filter(function (v) { return v !== null && v !== undefined; });
+      var avgProcessing = processingTimes.length > 0
+        ? Math.round(processingTimes.reduce(function (a, b) { return a + b; }, 0) / processingTimes.length)
+        : "—";
+
+      // Update the avg-processing stat card (4th card).
+      var statCards = document.querySelectorAll(".content-card .display-6, .stat-card .display-6");
+      if (statCards.length >= 4) {
+        statCards[3].textContent = avgProcessing;
+      }
+
+      // --- Guard comparison grouped bar chart ---
+      var labels = guards.map(function (g) { return g.guard_name; });
+      var ctx = document.getElementById("guardChart");
+      if (ctx && typeof Chart !== "undefined" && guards.length > 0) {
+        new Chart(ctx, {
+          type: "bar",
+          data: {
+            labels: labels,
+            datasets: [
+              {
+                label: "Entries Processed",
+                data: guards.map(function (g) { return g.entries_processed; }),
+                backgroundColor: "rgba(54, 162, 235, 0.6)",
+                borderColor: "rgba(54, 162, 235, 1)",
+                borderWidth: 1,
+              },
+              {
+                label: "Approvals",
+                data: guards.map(function (g) { return g.approvals_given; }),
+                backgroundColor: "rgba(75, 192, 192, 0.6)",
+                borderColor: "rgba(75, 192, 192, 1)",
+                borderWidth: 1,
+              },
+              {
+                label: "Rejections",
+                data: guards.map(function (g) { return g.rejections_given; }),
+                backgroundColor: "rgba(255, 99, 132, 0.6)",
+                borderColor: "rgba(255, 99, 132, 1)",
+                borderWidth: 1,
+              },
+              {
+                label: "Rule Violations",
+                data: guards.map(function (g) { return g.rule_violations_triggered; }),
+                backgroundColor: "rgba(255, 205, 86, 0.6)",
+                borderColor: "rgba(255, 205, 86, 1)",
+                borderWidth: 1,
+              },
+            ],
+          },
+          options: {
+            responsive: true,
+            scales: {
+              y: { beginAtZero: true, title: { text: "Count", display: true } },
+            },
+          },
+        });
+      }
+    })();
+  </script>
+{% endblock inline_javascript %}

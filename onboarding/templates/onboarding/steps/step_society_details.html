@@ -1,0 +1,273 @@
+{% extends "onboarding/base_wizard.html" %}
+{% load i18n %}
+
+{% block wizard_content %}
+  <div class="content-card">
+    <div class="content-card__body">
+      <p class="text-muted mb-3">
+        {% blocktrans %}
+          Enter the legal identity and locale configuration for your society.
+          This information is used to create the society record and configure
+          financial year settings.
+        {% endblocktrans %}
+      </p>
+
+      <form method="post"
+            action="{% url 'onboarding:wizard-step-save' wizard.id step_number %}">
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger" role="alert">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
+
+        <div class="row g-3">
+          <div class="col-12">
+            <div class="form-group">
+              <label for="{{ form.name.id_for_label }}" class="form-label">
+                {{ form.name.label }}
+                <span class="text-danger">*</span>
+              </label>
+              {{ form.name }}
+              {% if form.name.help_text %}
+                <small class="form-text text-muted">{{ form.name.help_text }}</small>
+              {% endif %}
+              {% for error in form.name.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <div class="form-group">
+              <label for="{{ form.registration_number.id_for_label }}" class="form-label">
+                {{ form.registration_number.label }}
+                <span class="text-danger">*</span>
+              </label>
+              {{ form.registration_number }}
+              {% for error in form.registration_number.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <div class="form-group">
+              <label for="{{ form.registration_date.id_for_label }}" class="form-label">
+                {{ form.registration_date.label }}
+                <span class="text-danger">*</span>
+              </label>
+              {{ form.registration_date }}
+              {% for error in form.registration_date.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <div class="form-group">
+              <label for="{{ form.society_type.id_for_label }}" class="form-label">
+                {{ form.society_type.label }}
+                <span class="text-danger">*</span>
+              </label>
+              {{ form.society_type }}
+              {% for error in form.society_type.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="col-12">
+            <div class="form-group">
+              <label for="{{ form.address.id_for_label }}" class="form-label">
+                {{ form.address.label }}
+                <span class="text-danger">*</span>
+              </label>
+              {{ form.address }}
+              {% for error in form.address.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <div class="form-group">
+              <label for="{{ form.city.id_for_label }}" class="form-label">
+                {{ form.city.label }}
+                <span class="text-danger">*</span>
+              </label>
+              {{ form.city }}
+              {% for error in form.city.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <div class="form-group">
+              <label for="{{ form.state.id_for_label }}" class="form-label">
+                {{ form.state.label }}
+                <span class="text-danger">*</span>
+              </label>
+              {{ form.state }}
+              {% for error in form.state.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <div class="form-group">
+              <label for="{{ form.pin_code.id_for_label }}" class="form-label">
+                {{ form.pin_code.label }}
+                <span class="text-danger">*</span>
+              </label>
+              {{ form.pin_code }}
+              {% for error in form.pin_code.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <div class="form-group">
+              <label for="{{ form.country.id_for_label }}" class="form-label">
+                {{ form.country.label }}
+                <span class="text-danger">*</span>
+              </label>
+              {{ form.country }}
+              {% for error in form.country.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <div class="form-group">
+              <label for="{{ form.pan.id_for_label }}" class="form-label">
+                {{ form.pan.label }}
+                <span class="text-danger">*</span>
+              </label>
+              {{ form.pan }}
+              {% if form.pan.help_text %}
+                <small class="form-text text-muted">{{ form.pan.help_text }}</small>
+              {% endif %}
+              {% for error in form.pan.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <div class="form-group">
+              <label for="{{ form.gst_number.id_for_label }}" class="form-label">
+                {{ form.gst_number.label }}
+              </label>
+              {{ form.gst_number }}
+              {% if form.gst_number.help_text %}
+                <small class="form-text text-muted">{{ form.gst_number.help_text }}</small>
+              {% endif %}
+              {% for error in form.gst_number.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <div class="form-group">
+              <label for="{{ form.tan.id_for_label }}" class="form-label">
+                {{ form.tan.label }}
+              </label>
+              {{ form.tan }}
+              {% if form.tan.help_text %}
+                <small class="form-text text-muted">{{ form.tan.help_text }}</small>
+              {% endif %}
+              {% for error in form.tan.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <div class="form-group">
+              <label for="{{ form.email.id_for_label }}" class="form-label">
+                {{ form.email.label }}
+                <span class="text-danger">*</span>
+              </label>
+              {{ form.email }}
+              {% for error in form.email.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="col-12 col-md-6">
+            <div class="form-group">
+              <label for="{{ form.phone.id_for_label }}" class="form-label">
+                {{ form.phone.label }}
+                <span class="text-danger">*</span>
+              </label>
+              {{ form.phone }}
+              {% for error in form.phone.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <div class="form-group">
+              <label for="{{ form.time_zone.id_for_label }}" class="form-label">
+                {{ form.time_zone.label }}
+                <span class="text-danger">*</span>
+              </label>
+              {{ form.time_zone }}
+              {% for error in form.time_zone.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <div class="form-group">
+              <label for="{{ form.currency.id_for_label }}" class="form-label">
+                {{ form.currency.label }}
+                <span class="text-danger">*</span>
+              </label>
+              {{ form.currency }}
+              {% for error in form.currency.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <div class="form-group">
+              <label for="{{ form.financial_year_pattern.id_for_label }}" class="form-label">
+                {{ form.financial_year_pattern.label }}
+                <span class="text-danger">*</span>
+              </label>
+              {{ form.financial_year_pattern }}
+              {% if form.financial_year_pattern.help_text %}
+                <small class="form-text text-muted">{{ form.financial_year_pattern.help_text }}</small>
+              {% endif %}
+              {% for error in form.financial_year_pattern.errors %}
+                <div class="invalid-feedback d-block">{{ error }}</div>
+              {% endfor %}
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions mt-4">
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-check me-1"></i>{% trans "Save & Continue" %}
+          </button>
+          <a href="{% url 'onboarding:wizard-list' %}"
+             class="btn btn-outline-secondary">
+            {% trans "Cancel" %}
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock wizard_content %}

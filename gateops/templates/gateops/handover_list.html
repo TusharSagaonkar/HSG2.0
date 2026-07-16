@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Shift Handovers | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}Shift Handovers{% endblock dashboard_title %}
+{% block dashboard_subtitle %}Guard shift handover records for {{ scope_society_name }}{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:dashboard' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Dashboard</a>
+    <a href="{% url 'gateops:handover-create' %}" class="btn-action btn-action--primary"><i class="fas fa-plus me-1"></i>New Handover</a>
+    <a href="{% url 'gateops:currently-inside' %}" class="btn-action btn-action--outline-primary"><i class="fas fa-door-open me-1"></i>Currently Inside</a>
+  </div>
+
+  {# --- Filter bar --- #}
+  <div class="content-card mb-3">
+    <div class="content-card__body">
+      <form method="get" action="{% url 'gateops:handover-list' %}" class="d-flex gap-2 align-items-end flex-wrap">
+        <div>
+          <label class="form-label small">Status</label>
+          <select name="status" class="form-select">
+            <option value="">— All —</option>
+            {% for value, label in status_choices %}
+              <option value="{{ value }}" {% if status_filter == value %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div>
+          <label class="form-label small">Gate</label>
+          <select name="gate" class="form-select">
+            <option value="">— All gates —</option>
+            {% for g in gates %}
+              <option value="{{ g.pk }}" {% if gate_filter == g.pk|stringformat:"s" %}selected{% endif %}>{{ g.code }} — {{ g.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <button type="submit" class="btn-action btn-action--primary"><i class="fas fa-filter me-1"></i>Filter</button>
+        <a href="{% url 'gateops:handover-list' %}" class="btn-action btn-action--secondary"><i class="fas fa-times me-1"></i>Clear</a>
+      </form>
+    </div>
+  </div>
+
+  <div class="content-card">
+    <div class="content-card__header">
+      <h3 class="content-card__title">Handovers</h3>
+      <span class="badge bg-success">{{ scope_society_name }}</span>
+    </div>
+    <div class="content-card__body p-0">
+      {% if handovers %}
+        <div class="table-responsive">
+          <table class="table table-striped table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>UUID</th>
+                <th>Outgoing Guard</th>
+                <th>Incoming Guard</th>
+                <th>Gate</th>
+                <th>Inside Count</th>
+                <th>Status</th>
+                <th>Handed Over</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for h in handovers %}
+                <tr>
+                  <td class="small font-monospace">{{ h.handover_uuid|truncatechars:13 }}</td>
+                  <td>{{ h.outgoing_guard.name|default:h.outgoing_guard }}</td>
+                  <td>{{ h.incoming_guard.name|default:h.incoming_guard }}</td>
+                  <td>{{ h.gate.code|default:h.gate }}</td>
+                  <td>{{ h.inside_count }}</td>
+                  <td>
+                    {% if h.status == "pending" %}
+                      <span class="badge bg-warning text-dark">Pending</span>
+                    {% elif h.status == "acknowledged" %}
+                      <span class="badge bg-success">Acknowledged</span>
+                    {% elif h.status == "disputed" %}
+                      <span class="badge bg-danger">Disputed</span>
+                    {% endif %}
+                  </td>
+                  <td class="small">{{ h.handed_over_at|date:"d M Y H:i" }}</td>
+                  <td class="text-end">
+                    <a href="{% url 'gateops:handover-detail' h.handover_uuid %}" class="btn btn-sm btn-outline-primary">Detail</a>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-5 text-center text-muted">
+          <i class="fas fa-people-arrows fa-2x mb-3 d-block opacity-50"></i>
+          <p>No shift handovers recorded for {{ scope_society_name }}.</p>
+          <a href="{% url 'gateops:handover-create' %}" class="btn-action btn-action--primary"><i class="fas fa-plus me-1"></i>Create a handover</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}

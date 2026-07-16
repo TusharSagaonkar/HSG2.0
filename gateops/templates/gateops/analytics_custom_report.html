@@ -1,0 +1,213 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags i18n %}
+
+{% block title %}Custom Report | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}Custom Report{% endblock dashboard_title %}
+{% block dashboard_subtitle %}Filterable gate-event report for {{ scope_society_name }}{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:analytics-dashboard' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Analytics Dashboard</a>
+    <form method="post" action="{% url 'gateops:analytics-export' %}" class="d-inline" id="export-form">
+      {% csrf_token %}
+      <input type="hidden" name="export_type" value="events" />
+      <input type="hidden" name="start_date" value="{{ form.date_from.value|default:'' }}" id="export-start" />
+      <input type="hidden" name="end_date" value="{{ form.date_to.value|default:'' }}" id="export-end" />
+      <button type="submit" class="btn-action btn-action--success"><i class="fas fa-download me-1"></i>Export CSV</button>
+    </form>
+  </div>
+
+  <div class="content-card mb-4">
+    <div class="content-card__header">
+      <h3 class="content-card__title">Report Filters</h3>
+    </div>
+    <div class="content-card__body">
+      {% crispy form %}
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-list" label="Total Events" value=data.metrics.total_events color="primary" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-filter" label="Grouped By" value=data.group_by|default:"None" color="info" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-calendar" label="From" value=data.filters.date_from color="warning" %}
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+      {% include "components/stat_card.html" with icon="fas fa-calendar-check" label="To" value=data.filters.date_to color="success" %}
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    {% if data.metrics.by_status %}
+      <div class="col-12 col-lg-4">
+        <div class="content-card h-100">
+          <div class="content-card__header">
+            <h3 class="content-card__title">By Status</h3>
+          </div>
+          <div class="content-card__body p-0">
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr><th>Status</th><th class="text-end">Count</th></tr>
+                </thead>
+                <tbody>
+                  {% for status, count in data.metrics.by_status.items %}
+                    <tr>
+                      <td><span class="badge bg-secondary">{{ status }}</span></td>
+                      <td class="text-end">{{ count }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if data.metrics.by_visitor_category %}
+      <div class="col-12 col-lg-4">
+        <div class="content-card h-100">
+          <div class="content-card__header">
+            <h3 class="content-card__title">By Visitor Category</h3>
+          </div>
+          <div class="content-card__body p-0">
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr><th>Category</th><th class="text-end">Count</th></tr>
+                </thead>
+                <tbody>
+                  {% for category, count in data.metrics.by_visitor_category.items %}
+                    <tr>
+                      <td>{{ category }}</td>
+                      <td class="text-end">{{ count }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if data.metrics.by_gate %}
+      <div class="col-12 col-lg-4">
+        <div class="content-card h-100">
+          <div class="content-card__header">
+            <h3 class="content-card__title">By Gate</h3>
+          </div>
+          <div class="content-card__body p-0">
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0">
+                <thead class="table-light">
+                  <tr><th>Gate</th><th class="text-end">Count</th></tr>
+                </thead>
+                <tbody>
+                  {% for gate, count in data.metrics.by_gate.items %}
+                    <tr>
+                      <td>{{ gate }}</td>
+                      <td class="text-end">{{ count }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  {% if data.grouped %}
+    <div class="content-card mb-4">
+      <div class="content-card__header">
+        <h3 class="content-card__title">Grouped Results ({{ data.group_by }})</h3>
+      </div>
+      <div class="content-card__body p-0">
+        <div class="table-responsive">
+          <table class="table table-striped table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>{{ data.group_by|capfirst }}</th>
+                <th class="text-end">Count</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in data.grouped %}
+                <tr>
+                  {% for key, value in row.items %}
+                    {% if key == 'count' %}
+                      <td class="text-end">{{ value }}</td>
+                    {% else %}
+                      <td class="fw-semibold">{{ value|default:"&mdash;" }}</td>
+                    {% endif %}
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="content-card">
+    <div class="content-card__header">
+      <h3 class="content-card__title">Event Details ({{ data.items|length }})</h3>
+      <span class="badge bg-primary">{{ scope_society_name }}</span>
+    </div>
+    <div class="content-card__body p-0">
+      {% if data.items %}
+        <div class="table-responsive">
+          <table class="table table-striped table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Person</th>
+                <th>Category</th>
+                <th>Gate</th>
+                <th>Event Type</th>
+                <th>Status</th>
+                <th>Entered At</th>
+                <th class="text-end">Duration</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for item in data.items %}
+                <tr>
+                  <td class="fw-semibold">{{ item.person_name }}</td>
+                  <td>{{ item.visitor_category|default:"&mdash;" }}</td>
+                  <td>{{ item.gate_name|default:"&mdash;" }}</td>
+                  <td><span class="badge bg-info">{{ item.event_type }}</span></td>
+                  <td>
+                    <span class="badge {% if item.status == 'ENTERED' %}bg-success{% elif item.status == 'EXITED' %}bg-secondary{% elif item.status == 'REJECTED' %}bg-danger{% elif item.status == 'AUTO_CLOSED' %}bg-warning text-dark{% else %}bg-light text-dark{% endif %}">{{ item.status }}</span>
+                  </td>
+                  <td class="small">{{ item.entered_at|default:"&mdash;" }}</td>
+                  <td class="text-end">
+                    {% if item.duration_minutes %}
+                      {{ item.duration_minutes }} min
+                    {% else %}
+                      <span class="text-muted">&mdash;</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-5 text-center text-muted">
+          <i class="fas fa-file-alt fa-2x mb-3 d-block opacity-50"></i>
+          <p>No events match the selected filters.</p>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}

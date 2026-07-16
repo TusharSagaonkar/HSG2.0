@@ -1,0 +1,41 @@
+{% extends "onboarding/base_wizard.html" %}
+{% load i18n %}
+
+{% block wizard_content %}
+  <div class="content-card">
+    <div class="content-card__body">
+      <div class="alert alert-success" role="alert">
+        <i class="fas fa-check-circle me-2"></i>
+        <strong>{% trans "Society Ready!" %}</strong>
+        {% blocktrans %}
+          Your society has been set up and the accounting migration is
+          complete. You can now start using the system.
+        {% endblocktrans %}
+      </div>
+
+      {% if society %}
+        <dl class="row mb-3">
+          <dt class="col-sm-4">{% trans "Society Name" %}</dt>
+          <dd class="col-sm-8">{{ society.name }}</dd>
+          <dt class="col-sm-4">{% trans "Registration Number" %}</dt>
+          <dd class="col-sm-8">{{ society.registration_number|default:"—" }}</dd>
+          <dt class="col-sm-4">{% trans "PAN" %}</dt>
+          <dd class="col-sm-8">{{ society.pan|default:"—" }}</dd>
+        </dl>
+      {% endif %}
+
+      <div class="form-actions">
+        {% if society %}
+          <a href="{% url 'housing:society-detail' society.pk %}"
+             class="btn btn-primary">
+            <i class="fas fa-tachometer-alt me-1"></i>{% trans "Go to Society Dashboard" %}
+          </a>
+        {% endif %}
+        <a href="{% url 'onboarding:wizard-list' %}"
+           class="btn btn-outline-secondary">
+          <i class="fas fa-list me-1"></i>{% trans "Wizard List" %}
+        </a>
+      </div>
+    </div>
+  </div>
+{% endblock wizard_content %}

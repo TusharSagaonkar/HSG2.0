@@ -9,13 +9,20 @@ from django.core.exceptions import ValidationError
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from crispy_forms.helper import FormHelper
+from crispy_forms.layout import Submit
+
 from gateops.models import (
     ApprovalType,
+    Contract,
+    Contractor,
     Gate,
     GateEvent,
     GateEventApproval,
     GateOpsRole,
     GateOpsSocietyConfig,
+    GateVehicle,
+    GuardShift,
     HolidayCalendar,
     MasterSettings,
     MaterialCategory,
@@ -25,8 +32,12 @@ from gateops.models import (
     Rule,
     RuleAction,
     RuleCondition,
+    SecurityGuard,
+    ShiftHandover,
     VehicleCategory,
     VisitorCategory,
+    WorkPermit,
+    Worker,
 )
 
 
@@ -693,3 +704,620 @@ class GateEventApprovalForm(SocietyScopedModelForm):
             "decision_method": forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
             "notes": forms.Textarea(attrs={"class": _FORM_CONTROL_CLASS, "rows": 2}),
         }
+
+
+class VehicleRegisterForm(forms.ModelForm):
+    """Register a visitor/non-resident vehicle for the active society.
+
+    Society-scoped querysets for ``vehicle_category`` and ``person`` are
+    narrowed in ``__init__`` from an optional ``society`` kwarg supplied by
+    the view. Watchlist, repeat, and timestamp fields are intentionally
+    excluded — they are owned by the vehicle service layer, not this form.
+    """
+
+    class Meta:
+        model = GateVehicle
+        fields = ("vehicle_number", "vehicle_category", "person", "notes")
+        widgets = {
+            "vehicle_number": forms.TextInput(
+                attrs={"class": _FORM_CONTROL_CLASS, "placeholder": "e.g. MH12 AB 1234"}
+            ),
+            "vehicle_category": forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+            "person": forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+            "notes": forms.Textarea(attrs={"class": _FORM_CONTROL_CLASS, "rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        society = kwargs.pop("society", None)
+        super().__init__(*args, **kwargs)
+        if society is not None:
+            self.fields["vehicle_category"].queryset = VehicleCategory.objects.filter(
+                society=society, is_active=True
+            )
+            self.fields["person"].queryset = Person.objects.filter(
+                society=society, is_active=True
+            )
+        self.fields["vehicle_number"].help_text = _("Vehicle registration number")
+        self.helper = FormHelper()
+        self.helper.form_method = "post"
+        self.helper.add_input(Submit("submit", _("Register Vehicle")))
+
+    def clean_vehicle_number(self):
+        """Normalize to uppercase and strip whitespace (matches model.clean)."""
+        return self.cleaned_data["vehicle_number"].upper().strip()
+
+
+# ---------------------------------------------------------------------------
+# Phase 9: Contractor Management
+# ---------------------------------------------------------------------------
+
+
+class ContractorForm(SocietyScopedModelForm):
+    """Create/edit a Contractor (contracting company master record).
+
+    Society scoping is handled by :class:`SocietyScopedModelForm` — the
+    ``society`` kwarg is supplied by the view and stamped onto the instance
+    in :meth:`save`.
+    """
+
+    class Meta:
+        model = Contractor
+        fields = (
+            "company_name",
+            "supervisor_name",
+            "supervisor_phone",
+            "contact_person",
+            "contact_phone",
+            "gst_number",
+            "pan_number",
+            "address",
+        )
+        widgets = {
+            "company_name": forms.TextInput(attrs={"class": _FORM_CONTROL_CLASS}),
+            "supervisor_name": forms.TextInput(attrs={"class": _FORM_CONTROL_CLASS}),
+            "supervisor_phone": forms.TextInput(attrs={"class": _FORM_CONTROL_CLASS}),
+            "contact_person": forms.TextInput(attrs={"class": _FORM_CONTROL_CLASS}),
+            "contact_phone": forms.TextInput(attrs={"class": _FORM_CONTROL_CLASS}),
+            "gst_number": forms.TextInput(attrs={"class": _FORM_CONTROL_CLASS}),
+            "pan_number": forms.TextInput(attrs={"class": _FORM_CONTROL_CLASS}),
+            "address": forms.Textarea(attrs={"class": _FORM_CONTROL_CLASS, "rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = "post"
+        self.helper.add_input(Submit("submit", _("Save Contractor")))
+
+    def clean_company_name(self):
+        return str(self.cleaned_data["company_name"]).strip()
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.society is not None:
+            instance.society = self.society
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
+
+
+class ContractForm(SocietyScopedModelForm):
+    """Create/edit a Contract (work engagement under a contractor).
+
+    The ``contractor`` queryset is narrowed to the current society's active
+    contractors in ``__init__`` so a cross-tenant contractor can never be
+    selected from the dropdown.
+    """
+
+    class Meta:
+        model = Contract
+        fields = (
+            "contractor",
+            "title",
+            "description",
+            "start_date",
+            "end_date",
+            "max_workers",
+            "status",
+        )
+        widgets = {
+            "contractor": forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+            "title": forms.TextInput(attrs={"class": _FORM_CONTROL_CLASS}),
+            "description": forms.Textarea(attrs={"class": _FORM_CONTROL_CLASS, "rows": 3}),
+            "start_date": forms.DateInput(attrs={"class": _FORM_CONTROL_CLASS, "type": "date"}),
+            "end_date": forms.DateInput(attrs={"class": _FORM_CONTROL_CLASS, "type": "date"}),
+            "max_workers": forms.NumberInput(attrs={"class": _FORM_CONTROL_CLASS}),
+            "status": forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.society is not None:
+            self.fields["contractor"].queryset = Contractor.objects.filter(
+                society=self.society, is_active=True
+            )
+        self.helper = FormHelper()
+        self.helper.form_method = "post"
+        self.helper.add_input(Submit("submit", _("Save Contract")))
+
+    def clean_title(self):
+        return str(self.cleaned_data["title"]).strip()
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.society is not None:
+            instance.society = self.society
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
+
+
+class WorkerForm(SocietyScopedModelForm):
+    """Register/edit a Worker (Person ↔ Contract link).
+
+    The ``contract`` and ``person`` querysets are narrowed to the current
+    society's active rows in ``__init__`` so cross-tenant data cannot leak
+    through the dropdowns.
+    """
+
+    class Meta:
+        model = Worker
+        fields = ("contract", "person", "designation", "id_type", "id_number")
+        widgets = {
+            "contract": forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+            "person": forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+            "designation": forms.TextInput(attrs={"class": _FORM_CONTROL_CLASS}),
+            "id_type": forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+            "id_number": forms.TextInput(attrs={"class": _FORM_CONTROL_CLASS}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.society is not None:
+            self.fields["contract"].queryset = Contract.objects.filter(
+                society=self.society, is_active=True
+            )
+            self.fields["person"].queryset = Person.objects.filter(
+                society=self.society, is_active=True
+            )
+        self.helper = FormHelper()
+        self.helper.form_method = "post"
+        self.helper.add_input(Submit("submit", _("Save Worker")))
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.society is not None:
+            instance.society = self.society
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
+
+
+class WorkPermitForm(SocietyScopedModelForm):
+    """Issue/edit a WorkPermit (time-bound work authorization).
+
+    The ``contract`` queryset is narrowed to the current society's active
+    contracts in ``__init__`` so a cross-tenant contract can never be
+    selected from the dropdown.
+    """
+
+    class Meta:
+        model = WorkPermit
+        fields = (
+            "contract",
+            "permit_number",
+            "issued_at",
+            "expires_at",
+            "safety_docs_verified",
+            "safety_briefing_given",
+            "work_area",
+            "hazard_level",
+            "notes",
+        )
+        widgets = {
+            "contract": forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+            "permit_number": forms.TextInput(attrs={"class": _FORM_CONTROL_CLASS}),
+            "issued_at": forms.DateTimeInput(attrs={"class": _FORM_CONTROL_CLASS, "type": "datetime-local"}),
+            "expires_at": forms.DateTimeInput(attrs={"class": _FORM_CONTROL_CLASS, "type": "datetime-local"}),
+            "safety_docs_verified": forms.CheckboxInput(attrs={"class": _FORM_CHECK_CLASS}),
+            "safety_briefing_given": forms.CheckboxInput(attrs={"class": _FORM_CHECK_CLASS}),
+            "work_area": forms.TextInput(attrs={"class": _FORM_CONTROL_CLASS}),
+            "hazard_level": forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+            "notes": forms.Textarea(attrs={"class": _FORM_CONTROL_CLASS, "rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.society is not None:
+            self.fields["contract"].queryset = Contract.objects.filter(
+                society=self.society, is_active=True
+            )
+        self.helper = FormHelper()
+        self.helper.form_method = "post"
+        self.helper.add_input(Submit("submit", _("Save Work Permit")))
+
+    def clean_permit_number(self):
+        return str(self.cleaned_data["permit_number"]).strip()
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.society is not None:
+            instance.society = self.society
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
+
+
+# ---------------------------------------------------------------------------
+# Phase 12 — Exit Management forms
+# ---------------------------------------------------------------------------
+
+
+class QuickExitForm(forms.Form):
+    """Single-field form for one-tap exit by GateEvent UUID or PK."""
+
+    gate_event_id = forms.CharField(
+        label=_("Gate Event ID or UUID"),
+        max_length=64,
+        widget=forms.TextInput(attrs={"class": _FORM_CONTROL_CLASS, "placeholder": _("UUID or numeric ID")}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = "post"
+        self.helper.add_input(Submit("submit", _("Process Quick Exit")))
+
+    def clean_gate_event_id(self):
+        return str(self.cleaned_data["gate_event_id"]).strip()
+
+
+class QrExitForm(forms.Form):
+    """Single-field form for QR-code-based exit (Pass code or GateEvent UUID)."""
+
+    qr_code = forms.CharField(
+        label=_("QR Code"),
+        max_length=128,
+        widget=forms.TextInput(
+            attrs={"class": _FORM_CONTROL_CLASS, "placeholder": _("Scan or enter QR code"), "autocomplete": "off"}
+        ),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = "post"
+        self.helper.add_input(Submit("submit", _("Process QR Exit")))
+
+    def clean_qr_code(self):
+        return str(self.cleaned_data["qr_code"]).strip()
+
+
+class ShiftHandoverForm(SocietyScopedModelForm):
+    """Create a ShiftHandover (outgoing guard hands over to incoming guard).
+
+    Society-scoped querysets for ``outgoing_guard``, ``incoming_guard``,
+    ``gate`` and ``shift`` are narrowed in ``__init__`` so cross-tenant
+    selections are impossible from the dropdown.
+    """
+
+    class Meta:
+        model = ShiftHandover
+        fields = (
+            "outgoing_guard",
+            "incoming_guard",
+            "gate",
+            "shift",
+            "outgoing_notes",
+        )
+        widgets = {
+            "outgoing_guard": forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+            "incoming_guard": forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+            "gate": forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+            "shift": forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+            "outgoing_notes": forms.Textarea(attrs={"class": _FORM_CONTROL_CLASS, "rows": 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.society is not None:
+            guard_qs = SecurityGuard.objects.filter(society=self.society, is_active=True)
+            self.fields["outgoing_guard"].queryset = guard_qs
+            self.fields["incoming_guard"].queryset = guard_qs
+            self.fields["shift"].queryset = GuardShift.objects.filter(society=self.society, is_active=True)
+        self.helper = FormHelper()
+        self.helper.form_method = "post"
+        self.helper.add_input(Submit("submit", _("Create Handover")))
+
+    def clean_outgoing_notes(self):
+        return str(self.cleaned_data.get("outgoing_notes", "")).strip()
+
+    def clean(self):
+        # Set society on the instance BEFORE _post_clean() invokes
+        # instance.full_clean(), so the model's cross-society checks
+        # (e.g. outgoing_guard.society_id != self.society_id) see a non-null
+        # society. Without this, validation always fails because society is
+        # only stamped in save() — which runs after full_clean().
+        if self.society is not None and hasattr(self.instance, "society_id"):
+            self.instance.society = self.society
+        cleaned = super().clean()
+        outgoing = cleaned.get("outgoing_guard")
+        incoming = cleaned.get("incoming_guard")
+        if outgoing is not None and incoming is not None and outgoing.pk == incoming.pk:
+            raise ValidationError({"incoming_guard": _("Incoming guard must differ from outgoing guard.")})
+        return cleaned
+
+    def save(self, commit=True):
+        instance = super().save(commit=False)
+        if self.society is not None:
+            instance.society = self.society
+        if commit:
+            instance.save()
+            self.save_m2m()
+        return instance
+
+
+class HandoverAcknowledgeForm(forms.Form):
+    """Acknowledge a pending/disputed handover with optional notes."""
+
+    notes = forms.CharField(
+        label=_("Acknowledgement Notes"),
+        required=False,
+        widget=forms.Textarea(attrs={"class": _FORM_CONTROL_CLASS, "rows": 3}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = "post"
+        self.helper.add_input(Submit("submit", _("Acknowledge Handover")))
+
+    def clean_notes(self):
+        return str(self.cleaned_data.get("notes", "")).strip()
+
+
+class HandoverDisputeForm(forms.Form):
+    """Dispute a pending handover with a mandatory reason."""
+
+    reason = forms.CharField(
+        label=_("Dispute Reason"),
+        required=True,
+        widget=forms.Textarea(attrs={"class": _FORM_CONTROL_CLASS, "rows": 3}),
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = "post"
+        self.helper.add_input(Submit("submit", _("Submit Dispute")))
+
+    def clean_reason(self):
+        reason = str(self.cleaned_data.get("reason", "")).strip()
+        if not reason:
+            raise ValidationError(_("A dispute reason is required."))
+        return reason
+
+
+class CurrentlyInsideFilterForm(forms.Form):
+    """GET-bound filter form for the 'Currently Inside' screen.
+
+    Not a crispy save form — used purely to validate and apply filters to the
+    inside-events queryset. All fields are optional.
+    """
+
+    gate = forms.IntegerField(required=False, widget=forms.HiddenInput())
+    visitor_category = forms.IntegerField(required=False, widget=forms.HiddenInput())
+    min_duration = forms.IntegerField(
+        required=False, min_value=0, widget=forms.NumberInput(attrs={"class": _FORM_CONTROL_CLASS, "placeholder": _("min minutes")})
+    )
+    max_duration = forms.IntegerField(
+        required=False, min_value=0, widget=forms.NumberInput(attrs={"class": _FORM_CONTROL_CLASS, "placeholder": _("max minutes")})
+    )
+    is_overstay = forms.BooleanField(required=False, widget=forms.CheckboxInput(attrs={"class": _FORM_CHECK_CLASS}))
+    search = forms.CharField(
+        required=False, widget=forms.TextInput(attrs={"class": _FORM_CONTROL_CLASS, "placeholder": _("search name / phone / vehicle")})
+    )
+
+    def clean_search(self):
+        return str(self.cleaned_data.get("search", "")).strip()
+
+
+# --- Phase 13: Analytics -------------------------------------------------
+
+
+class AnalyticsDateRangeForm(forms.Form):
+    """GET-bound date-range selector for analytics views.
+
+    Used by peak-hours, guard-performance, and rule-violations views.
+    All fields are optional — views default to the last 7 days when
+    nothing is supplied.
+    """
+
+    GRANULARITY_CHOICES = [
+        ("daily", _("Daily")),
+        ("weekly", _("Weekly")),
+        ("monthly", _("Monthly")),
+    ]
+
+    date_from = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"class": _FORM_CONTROL_CLASS, "type": "date"}),
+        label=_("From"),
+    )
+    date_to = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"class": _FORM_CONTROL_CLASS, "type": "date"}),
+        label=_("To"),
+    )
+    granularity = forms.ChoiceField(
+        choices=GRANULARITY_CHOICES,
+        initial="daily",
+        required=False,
+        widget=forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+        label=_("Granularity"),
+    )
+
+    def __init__(self, *args, society=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = "get"
+        self.helper.add_input(Submit("submit", _("Apply")))
+
+    def clean(self):
+        cleaned = super().clean()
+        start = cleaned.get("date_from")
+        end = cleaned.get("date_to")
+        if start and end and start > end:
+            raise ValidationError(_("'From' date must be before or equal to 'To' date."))
+        return cleaned
+
+
+class AnalyticsCustomReportForm(forms.Form):
+    """Filter form for the custom analytics report.
+
+    Provides dimension filters (gate, visitor category, event type,
+    status) plus metric selection and grouping.  ``society`` is accepted
+    to scope the gate / visitor-category querysets.
+    """
+
+    METRIC_CHOICES = [
+        ("total_events", _("Total Events")),
+        ("by_status", _("By Status")),
+        ("by_visitor_category", _("By Visitor Category")),
+        ("by_gate", _("By Gate")),
+        ("by_event_type", _("By Event Type")),
+        ("by_guard", _("By Guard")),
+        ("by_hour", _("By Hour")),
+        ("by_day", _("By Day")),
+    ]
+
+    GROUP_BY_CHOICES = [
+        ("", _("None")),
+        ("gate", _("Gate")),
+        ("category", _("Visitor Category")),
+        ("guard", _("Guard")),
+        ("hour", _("Hour")),
+        ("day", _("Day")),
+        ("status", _("Status")),
+    ]
+
+    date_from = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"class": _FORM_CONTROL_CLASS, "type": "date"}),
+        label=_("From"),
+    )
+    date_to = forms.DateField(
+        required=False,
+        widget=forms.DateInput(attrs={"class": _FORM_CONTROL_CLASS, "type": "date"}),
+        label=_("To"),
+    )
+    metrics = forms.MultipleChoiceField(
+        choices=METRIC_CHOICES,
+        required=False,
+        widget=forms.SelectMultiple(attrs={"class": _FORM_SELECT_CLASS, "size": "8"}),
+        label=_("Metrics"),
+    )
+    group_by = forms.ChoiceField(
+        choices=GROUP_BY_CHOICES,
+        required=False,
+        widget=forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+        label=_("Group By"),
+    )
+    gate = forms.ModelChoiceField(
+        queryset=None,
+        required=False,
+        widget=forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+        label=_("Gate"),
+    )
+    visitor_category = forms.ModelChoiceField(
+        queryset=None,
+        required=False,
+        widget=forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+        label=_("Visitor Category"),
+    )
+    event_type = forms.ChoiceField(
+        choices=[("", _("--- All ---"))] + GateEvent.EventType.choices,
+        required=False,
+        widget=forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+        label=_("Event Type"),
+    )
+    status = forms.ChoiceField(
+        choices=[("", _("--- All ---"))] + GateEvent.Status.choices,
+        required=False,
+        widget=forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+        label=_("Status"),
+    )
+
+    def __init__(self, *args, society=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if society:
+            self.fields["gate"].queryset = Gate.objects.filter(
+                society=society, is_active=True
+            )
+            self.fields["visitor_category"].queryset = VisitorCategory.objects.filter(
+                society=society, is_active=True
+            )
+        self.helper = FormHelper()
+        self.helper.form_method = "get"
+        self.helper.add_input(Submit("submit", _("Generate Report")))
+
+    def clean(self):
+        cleaned = super().clean()
+        start = cleaned.get("date_from")
+        end = cleaned.get("date_to")
+        if start and end and start > end:
+            raise ValidationError(_("'From' date must be before or equal to 'To' date."))
+        return cleaned
+
+
+class AnalyticsExportForm(forms.Form):
+    """POST form for CSV export of analytics data."""
+
+    EXPORT_CHOICES = [
+        ("events", _("Gate Events")),
+        ("guard_performance", _("Guard Performance")),
+        ("rule_violations", _("Rule Violations")),
+        ("anomalies", _("Anomalies")),
+    ]
+
+    FORMAT_CHOICES = [
+        ("csv", _("CSV")),
+    ]
+
+    date_from = forms.DateField(
+        widget=forms.DateInput(attrs={"class": _FORM_CONTROL_CLASS, "type": "date"}),
+        label=_("From"),
+    )
+    date_to = forms.DateField(
+        widget=forms.DateInput(attrs={"class": _FORM_CONTROL_CLASS, "type": "date"}),
+        label=_("To"),
+    )
+    export_type = forms.ChoiceField(
+        choices=EXPORT_CHOICES,
+        initial="events",
+        widget=forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+        label=_("Export Type"),
+    )
+    format = forms.ChoiceField(
+        choices=FORMAT_CHOICES,
+        initial="csv",
+        widget=forms.Select(attrs={"class": _FORM_SELECT_CLASS}),
+        label=_("Format"),
+    )
+
+    def __init__(self, *args, society=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = "post"
+
+    def clean(self):
+        cleaned = super().clean()
+        start = cleaned.get("date_from")
+        end = cleaned.get("date_to")
+        if start and end and start > end:
+            raise ValidationError(_("'From' date must be before or equal to 'To' date."))
+        return cleaned

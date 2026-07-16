@@ -9,6 +9,7 @@ from django.db.models import Q
 from django.utils.translation import gettext_lazy as _
 
 from societies.models import Society
+from societies.models import SocietyConfig
 from members.models import Member
 from members.models import Structure
 from members.models import Unit
@@ -846,3 +847,66 @@ class UpdateMembershipForm(BootstrapForm):
         self.society = society
         self.current_user = current_user
         self.membership = membership
+
+
+class SocietyConfigForm(BootstrapModelForm):
+    """ModelForm for editing a society's share/fee/preference configuration."""
+
+    class Meta:
+        model = SocietyConfig
+        fields = [
+            "share_value",
+            "default_share_count",
+            "entrance_fee",
+            "transfer_fee",
+            "premium_amount",
+            "allow_multiple_nominees",
+            "require_approval",
+            "auto_generate_vouchers",
+        ]
+        widgets = {
+            "share_value": forms.NumberInput(attrs={"min": 0, "step": "0.01"}),
+            "default_share_count": forms.NumberInput(attrs={"min": 0}),
+            "entrance_fee": forms.NumberInput(attrs={"min": 0, "step": "0.01"}),
+            "transfer_fee": forms.NumberInput(attrs={"min": 0, "step": "0.01"}),
+            "premium_amount": forms.NumberInput(attrs={"min": 0, "step": "0.01"}),
+            "allow_multiple_nominees": forms.CheckboxInput(),
+            "require_approval": forms.CheckboxInput(),
+            "auto_generate_vouchers": forms.CheckboxInput(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Enforce non-negative bounds at the form layer as a defense-in-depth
+        # measure (the model also validates this in clean()).
+        self.fields["share_value"].min_value = Decimal("0")
+        self.fields["entrance_fee"].min_value = Decimal("0")
+        self.fields["transfer_fee"].min_value = Decimal("0")
+        self.fields["premium_amount"].min_value = Decimal("0")
+        self.fields["default_share_count"].min_value = 0
+
+
+class SocietyProfileForm(BootstrapForm):
+    """Plain (non-model) form for editing society profile fields.
+
+    Uses a regular Form rather than a ModelForm so that only the explicitly
+    whitelisted fields can ever be written back to the Society instance.
+    """
+
+    name = forms.CharField(
+        max_length=200,
+        label=_("Society Name"),
+        help_text=_("Official name of the housing society."),
+    )
+    registration_number = forms.CharField(
+        required=False,
+        max_length=100,
+        label=_("Registration Number"),
+        help_text=_("Official society registration number, if available."),
+    )
+    address = forms.CharField(
+        required=False,
+        widget=forms.Textarea(attrs={"rows": 3}),
+        label=_("Address"),
+        help_text=_("Postal address of the society."),
+    )

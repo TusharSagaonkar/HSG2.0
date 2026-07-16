@@ -1,0 +1,46 @@
+{% extends "onboarding/base_wizard.html" %}
+{% load i18n %}
+
+{% block wizard_content %}
+  <div class="content-card">
+    <div class="content-card__body">
+      <div class="alert alert-warning" role="alert">
+        <i class="fas fa-lock me-2"></i>
+        <strong>{% trans "Migration Lock" %}</strong>
+        {% blocktrans %}
+          Once the migration is locked, all staging data is committed and
+          the wizard is marked as completed. No further changes to opening
+          balances can be made.
+        {% endblocktrans %}
+      </div>
+
+      <p class="text-muted">
+        {% blocktrans %}
+          The lock operation performs the following:
+        {% endblocktrans %}
+      </p>
+
+      <ol class="list-group list-group-numbered mb-3">
+        <li class="list-group-item">
+          {% trans "Commits all approved staging batches to live accounting tables." %}
+        </li>
+        <li class="list-group-item">
+          {% trans "Marks the wizard as finalized (is_finalized = True)." %}
+        </li>
+        <li class="list-group-item">
+          {% trans "Sets the wizard status to COMPLETED." %}
+        </li>
+        <li class="list-group-item">
+          {% trans "Creates an audit log entry for the finalization." %}
+        </li>
+      </ol>
+
+      <div class="form-actions">
+        <a href="{% url 'onboarding:wizard-complete' wizard.id %}"
+           class="btn btn-primary">
+          <i class="fas fa-check me-1"></i>{% trans "Continue" %}
+        </a>
+      </div>
+    </div>
+  </div>
+{% endblock wizard_content %}

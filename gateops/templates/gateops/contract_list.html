@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}Contracts | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}Contracts{% endblock dashboard_title %}
+{% block dashboard_subtitle %}
+  {% if filter_contractor %}Contracts for {{ filter_contractor.company_name }}{% else %}Work engagements for {{ scope_society_name }}{% endif %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  {% include "gateops/_messages.html" %}
+
+  <div class="action-bar action-bar--responsive">
+    <a href="{% url 'gateops:contractor-dashboard' %}" class="btn-action btn-action--secondary"><i class="fas fa-arrow-left me-1"></i>Dashboard</a>
+    <a href="{% url 'gateops:contract-create' %}" class="btn-action btn-action--primary"><i class="fas fa-plus me-1"></i>New Contract</a>
+  </div>
+
+  {% if filter_contractor %}
+    <div class="alert alert-info d-flex align-items-start gap-2 mb-3" role="note">
+      <i class="fas fa-filter mt-1"></i>
+      <div>
+        Filtered by contractor: <strong>{{ filter_contractor.company_name }}</strong>.
+        <a href="{% url 'gateops:contract-list' %}" class="alert-link">Clear filter</a>
+      </div>
+    </div>
+  {% endif %}
+
+  <div class="content-card">
+    <div class="content-card__header">
+      <h3 class="content-card__title">Contracts</h3>
+      <span class="badge bg-primary">{{ scope_society_name }}</span>
+    </div>
+    <div class="content-card__body p-0">
+      {% if contracts %}
+        <div class="table-responsive">
+          <table class="table table-striped table-hover align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Title</th>
+                <th>Contractor</th>
+                <th>Date Range</th>
+                <th>Max Workers</th>
+                <th>Current Workers</th>
+                <th>Status</th>
+                <th class="text-end">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for contract in contracts %}
+                <tr>
+                  <td class="fw-semibold">
+                    <a href="{% url 'gateops:contract-detail' contract.pk %}">{{ contract.title }}</a>
+                  </td>
+                  <td>
+                    <a href="{% url 'gateops:contractor-detail' contract.contractor.pk %}">{{ contract.contractor.company_name }}</a>
+                  </td>
+                  <td class="small">{{ contract.start_date|date:"d M Y" }} &rarr; {{ contract.end_date|date:"d M Y" }}</td>
+                  <td>{{ contract.max_workers }}</td>
+                  <td>{{ contract.workers.count }}</td>
+                  <td>
+                    <span class="badge {% if contract.status == 'active' %}bg-success{% elif contract.status == 'completed' %}bg-secondary{% else %}bg-warning text-dark{% endif %}">{{ contract.get_status_display }}</span>
+                  </td>
+                  <td class="text-end">
+                    <a href="{% url 'gateops:contract-detail' contract.pk %}" class="btn btn-sm btn-outline-primary">Details</a>
+                    <a href="{% url 'gateops:contract-edit' contract.pk %}" class="btn btn-sm btn-outline-secondary">Edit</a>
+                    <form method="post" action="{% url 'gateops:contract-deactivate' contract.pk %}" class="d-inline" onsubmit="return confirm('Deactivate contract {{ contract.title|escapejs }}?');">
+                      {% csrf_token %}
+                      <button type="submit" class="btn btn-sm btn-outline-danger">Deactivate</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      {% else %}
+        <div class="p-5 text-center text-muted">
+          <i class="fas fa-file-contract fa-2x mb-3 d-block opacity-50"></i>
+          <p>No contracts recorded for {{ scope_society_name }} yet.</p>
+          <a href="{% url 'gateops:contract-create' %}" class="btn-action btn-action--primary"><i class="fas fa-plus me-1"></i>Create the first contract</a>
+        </div>
+      {% endif %}
+    </div>
+  </div>
+{% endblock content %}

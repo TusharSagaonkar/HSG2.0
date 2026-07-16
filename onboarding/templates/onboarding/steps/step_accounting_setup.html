@@ -1,0 +1,54 @@
+{% extends "onboarding/base_wizard.html" %}
+{% load i18n %}
+
+{% block wizard_content %}
+  <div class="content-card">
+    <div class="content-card__body">
+      <p class="text-muted mb-3">
+        {% blocktrans %}
+          Standard chart of accounts and account mappings will be created
+          automatically for your society. This sets up the accounting
+          foundation before the migration steps.
+        {% endblocktrans %}
+      </p>
+
+      {% if society %}
+        <div class="alert alert-success" role="alert">
+          <i class="fas fa-check-circle me-2"></i>
+          {% blocktrans with name=society.name %}
+            Society <strong>{{ name }}</strong> has been created successfully.
+          {% endblocktrans %}
+        </div>
+
+        <dl class="row mb-3">
+          <dt class="col-sm-4">{% trans "Society Name" %}</dt>
+          <dd class="col-sm-8">{{ society.name }}</dd>
+          <dt class="col-sm-4">{% trans "Registration Number" %}</dt>
+          <dd class="col-sm-8">{{ society.registration_number|default:"-" }}</dd>
+          <dt class="col-sm-4">{% trans "PAN" %}</dt>
+          <dd class="col-sm-8">{{ society.pan|default:"-" }}</dd>
+        </dl>
+      {% else %}
+        <div class="alert alert-warning" role="alert">
+          <i class="fas fa-exclamation-triangle me-2"></i>
+          {% trans "Society has not been created yet. Please complete the earlier steps first." %}
+        </div>
+      {% endif %}
+
+      <form method="post"
+            action="{% url 'onboarding:wizard-step-save' wizard.id step_number %}">
+        {% csrf_token %}
+        <div class="form-actions">
+          <button type="submit" class="btn btn-primary"
+                  {% if not society %}disabled{% endif %}>
+            <i class="fas fa-cogs me-1"></i>{% trans "Set Up Accounting & Continue" %}
+          </button>
+          <a href="{% url 'onboarding:wizard-step' wizard.id 8 %}"
+             class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left me-1"></i>{% trans "Back" %}
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock wizard_content %}

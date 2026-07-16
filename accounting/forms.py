@@ -6,6 +6,7 @@ from django.forms import BaseFormSet
 from django.utils import timezone
 
 from accounting.models import Account
+from accounting.models import AccountCategory
 from accounting.models import Voucher
 from accounting.models import VoucherTemplate
 from accounting.models import VoucherTemplateRow
@@ -16,6 +17,111 @@ class UnitChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj):
         # Avoid Unit.__str__() relation traversal to keep voucher entry rendering fast.
         return f"{obj.identifier} ({obj.get_unit_type_display()})"
+
+
+class AccountForm(forms.ModelForm):
+    class Meta:
+        model = Account
+        fields = [
+            "name",
+            "code",
+            "category",
+            "account_type",
+            "sub_type",
+            "is_active",
+            "is_gst",
+            "gst_type",
+            "is_bank",
+            "is_member_related",
+            "is_vendor_related",
+            "is_contra",
+            "is_clearing",
+        ]
+        widgets = {
+            "name": forms.TextInput(attrs={"placeholder": "e.g. Bank Account"}),
+            "code": forms.TextInput(attrs={"placeholder": "e.g. 1.2.3"}),
+            "sub_type": forms.Select(),
+            "gst_type": forms.Select(),
+        }
+
+    def __init__(self, *args, **kwargs):
+        society = kwargs.pop("society", None)
+        parent = kwargs.pop("parent", None)
+        super().__init__(*args, **kwargs)
+
+        self.society = society or getattr(self.instance, "society", None)
+        self.parent = parent or getattr(self.instance, "parent", None)
+        if self.parent and not self.society:
+            self.society = self.parent.society
+
+        for field in self.fields.values():
+            if isinstance(field.widget, forms.CheckboxInput):
+                css = "form-check-input"
+            elif isinstance(field.widget, forms.Select):
+                css = "form-select"
+            else:
+                css = "form-control"
+            field.widget.attrs["class"] = css
+
+        self.fields["category"].queryset = self._category_queryset()
+        self.fields["category"].empty_label = "Choose a category"
+
+        if self.parent and not self.is_bound:
+            self.initial.setdefault("account_type", self.parent.account_type)
+            if self.parent.category_id:
+                self.initial.setdefault("category", self.parent.category_id)
+
+        if self.is_bound:
+            self._apply_bound_filters()
+        else:
+            self._apply_initial_filters()
+
+    def _category_queryset(self):
+        queryset = AccountCategory.objects.select_related("society").order_by("account_type", "name")
+        if self.society:
+            queryset = queryset.filter(society=self.society)
+        return queryset
+
+    def _current_account_type(self):
+        if self.is_bound:
+            return self.data.get(self.add_prefix("account_type")) or None
+        if self.initial.get("account_type"):
+            return self.initial.get("account_type")
+        if self.instance and self.instance.pk:
+            return self.instance.account_type
+        if self.parent:
+            return self.parent.account_type
+        return None
+
+    def _apply_initial_filters(self):
+        account_type = self._current_account_type()
+        if account_type:
+            self.fields["category"].queryset = self.fields["category"].queryset.filter(account_type=account_type)
+
+    def _apply_bound_filters(self):
+        account_type = self._current_account_type()
+        if account_type:
+            self.fields["category"].queryset = self.fields["category"].queryset.filter(account_type=account_type)
+
+    def clean(self):
+        cleaned = super().clean()
+
+        category = cleaned.get("category")
+        account_type = cleaned.get("account_type")
+
+        if self.society and category and category.society_id != self.society.id:
+            raise forms.ValidationError("Selected category must belong to the active society.")
+
+        if category and account_type and category.account_type != account_type:
+            raise forms.ValidationError("Account type must match the selected category.")
+
+        if self.parent and cleaned.get("code") and self.parent.code:
+            if not cleaned["code"].startswith(f"{self.parent.code}."):
+                raise forms.ValidationError(
+                    {"code": f"Child code must start with the parent code {self.parent.code}."}
+                )
+
+        return cleaned
 
 
 class VoucherForm(forms.ModelForm):

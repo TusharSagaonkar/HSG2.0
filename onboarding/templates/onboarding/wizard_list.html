@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}
+  {% trans "Migration Wizards" %} | {% trans "Housing Accounting System" %}
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% trans "Society Creation & Accounting Migration" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% trans "Start a new wizard or resume an existing one." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="action-bar mb-3">
+    <form method="post" action="{% url 'onboarding:wizard-start' %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-primary">
+        <i class="fas fa-plus-circle me-1"></i>{% trans "Start New Wizard" %}
+      </button>
+    </form>
+  </div>
+
+  {% if wizards %}
+    <div class="row g-3">
+      {% for wizard in wizards %}
+        <div class="col-12 col-xl-6">
+          <div class="content-card h-100">
+            <div class="content-card__body">
+              <div class="d-flex justify-content-between align-items-start mb-2">
+                <div>
+                  <h5 class="mb-0">
+                    <a href="{% url 'onboarding:wizard-detail' wizard.pk %}"
+                       class="text-decoration-none">
+                      {% if wizard.society %}
+                        {{ wizard.society.name }}
+                      {% else %}
+                        {% blocktrans %}Wizard #{{ wizard.pk }}{% endblocktrans %}
+                      {% endif %}
+                    </a>
+                  </h5>
+                  <p class="text-muted small mb-0">
+                    {% trans "Started" %} {{ wizard.started_at|date:"M d, Y H:i" }}
+                  </p>
+                </div>
+                <div class="text-end">
+                  {% if wizard.status == "COMPLETED" %}
+                    <span class="badge bg-success">{{ wizard.get_status_display }}</span>
+                  {% elif wizard.status == "ABANDONED" %}
+                    <span class="badge bg-secondary">{{ wizard.get_status_display }}</span>
+                  {% else %}
+                    <span class="badge bg-info">{{ wizard.get_status_display }}</span>
+                  {% endif %}
+                  {% if wizard.society_type %}
+                    <span class="badge bg-light text-dark mt-1 d-block">
+                      {{ wizard.get_society_type_display|default:"" }}
+                    </span>
+                  {% endif %}
+                </div>
+              </div>
+
+              <div class="d-flex justify-content-between align-items-center mt-3">
+                <div>
+                  <small class="text-muted">{% trans "Current Step" %}</small>
+                  <strong>{{ wizard.current_step }} / 28</strong>
+                  {% if wizard.society %}
+                    <small class="text-muted d-block">
+                      {{ wizard.society.name }}
+                    </small>
+                  {% endif %}
+                </div>
+                <a href="{% url 'onboarding:wizard-detail' wizard.pk %}"
+                   class="btn btn-sm btn-outline-primary">
+                  {% if wizard.status == "COMPLETED" %}
+                    {% trans "View Summary" %}
+                  {% else %}
+                    {% trans "Resume" %}
+                  {% endif %}
+                  <i class="fas fa-arrow-right ms-1"></i>
+                </a>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="content-card">
+      <div class="content-card__body text-center py-5">
+        <i class="fas fa-rocket fa-3x text-muted mb-3"></i>
+        <h5>{% trans "No Wizards Yet" %}</h5>
+        <p class="text-muted">
+          {% trans "Start a new wizard to set up your society and migrate accounting data." %}
+        </p>
+      </div>
+    </div>
+  {% endif %}
+{% endblock content %}

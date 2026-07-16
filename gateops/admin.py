@@ -9,7 +9,10 @@ to ``list_filter``; for models with ``is_active``, ``is_active`` is added too.
 from django.contrib import admin
 
 from gateops.models import (
+    AnalyticsSnapshot,
     ApprovalType,
+    Contract,
+    Contractor,
     Gate,
     GateOpsAuditLog,
     GateOpsRole,
@@ -21,6 +24,7 @@ from gateops.models import (
     MasterSettings,
     MaterialCategory,
     MaterialMovement,
+    NotificationBundle,
     NotificationPreference,
     Parcel,
     Pass,
@@ -32,6 +36,8 @@ from gateops.models import (
     SecurityGuard,
     VehicleCategory,
     VisitorCategory,
+    Worker,
+    WorkPermit,
 )
 
 
@@ -250,6 +256,63 @@ class ParcelAdmin(admin.ModelAdmin):
     ordering = ("-created_at",)
 
 
+# --- Phase 9: Contractor Management ----------------------------------------
+@admin.register(Contractor)
+class ContractorAdmin(admin.ModelAdmin):
+    list_display = ("society", "company_name", "supervisor_name",
+                    "supervisor_phone", "contact_person", "contact_phone",
+                    "gst_number", "is_active", "created_at")
+    list_filter = ("society", "is_active")
+    search_fields = ("company_name", "supervisor_name", "contact_person",
+                     "supervisor_phone", "contact_phone", "gst_number",
+                     "pan_number", "society__name")
+    readonly_fields = ("created_at", "updated_at")
+    date_hierarchy = "created_at"
+    ordering = ("-created_at",)
+
+
+@admin.register(Contract)
+class ContractAdmin(admin.ModelAdmin):
+    list_display = ("society", "contractor", "title", "start_date",
+                    "end_date", "max_workers", "status", "is_active",
+                    "created_at")
+    list_filter = ("society", "is_active", "status")
+    search_fields = ("title", "description", "contractor__company_name",
+                     "society__name")
+    readonly_fields = ("created_at", "updated_at")
+    date_hierarchy = "created_at"
+    ordering = ("-created_at",)
+
+
+@admin.register(Worker)
+class WorkerAdmin(admin.ModelAdmin):
+    list_display = ("society", "contract", "person", "designation",
+                    "id_type", "id_number", "is_active", "created_at")
+    list_filter = ("society", "is_active", "id_type")
+    search_fields = ("designation", "id_number", "person__name",
+                     "person__phone", "contract__title",
+                     "contract__contractor__company_name", "society__name")
+    readonly_fields = ("created_at", "updated_at")
+    date_hierarchy = "created_at"
+    ordering = ("-created_at",)
+
+
+@admin.register(WorkPermit)
+class WorkPermitAdmin(admin.ModelAdmin):
+    list_display = ("society", "contract", "permit_number", "issued_at",
+                    "expires_at", "hazard_level", "status",
+                    "safety_docs_verified", "safety_briefing_given",
+                    "work_area", "is_active", "created_at")
+    list_filter = ("society", "is_active", "status", "hazard_level",
+                   "safety_docs_verified", "safety_briefing_given")
+    search_fields = ("permit_number", "work_area", "notes",
+                     "contract__title", "contract__contractor__company_name",
+                     "society__name")
+    readonly_fields = ("created_at", "updated_at")
+    date_hierarchy = "issued_at"
+    ordering = ("-created_at",)
+
+
 @admin.register(ApprovalType)
 class ApprovalTypeAdmin(admin.ModelAdmin):
     list_display = (
@@ -279,6 +342,26 @@ class NotificationPreferenceAdmin(admin.ModelAdmin):
     list_filter = ("society", "is_active", "channel", "trigger", "is_silent")
     search_fields = ("society__name", "visitor_category__name")
     readonly_fields = ("created_at", "updated_at")
+
+
+# --- Phase 10: Smart Notification Engine ------------------------------------
+@admin.register(NotificationBundle)
+class NotificationBundleAdmin(admin.ModelAdmin):
+    list_display = (
+        "society",
+        "visitor_category",
+        "host_unit",
+        "trigger",
+        "channel",
+        "status",
+        "recipient_email",
+        "dispatched_at",
+        "is_active",
+    )
+    list_filter = ("society", "is_active", "status", "channel", "trigger")
+    search_fields = ("society__name", "recipient_email", "visitor_category__name")
+    readonly_fields = ("created_at", "updated_at", "dispatched_at")
+    ordering = ("-created_at",)
 
 
 @admin.register(GateOpsRole)
@@ -453,3 +536,24 @@ class RuleEvaluationAdmin(admin.ModelAdmin):
 
     def has_delete_permission(self, request, obj=None):
         return False
+
+
+# ---------------------------------------------------------------------------
+# Phase 13: Analytics
+# ---------------------------------------------------------------------------
+
+
+@admin.register(AnalyticsSnapshot)
+class AnalyticsSnapshotAdmin(admin.ModelAdmin):
+    list_display = (
+        "society",
+        "date",
+        "snapshot_type",
+        "generated_at",
+        "is_active",
+    )
+    list_filter = ("snapshot_type", "is_active", "date", "generated_at")
+    search_fields = ("society__name",)
+    readonly_fields = ("metrics", "generated_at")
+    date_hierarchy = "date"
+    ordering = ("-date", "-generated_at")

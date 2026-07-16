@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import csv
 import json
 from dataclasses import asdict, is_dataclass
+from datetime import timedelta
 from decimal import Decimal, InvalidOperation
 from typing import Any
 
@@ -11,30 +13,51 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Prefetch
-from django.http import Http404, HttpResponse, HttpResponseNotAllowed
+from django.http import (
+    Http404,
+    HttpResponse,
+    HttpResponseBadRequest,
+    HttpResponseForbidden,
+    HttpResponseNotAllowed,
+    JsonResponse,
+)
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 
 from gateops.forms import (
+    AnalyticsCustomReportForm,
+    AnalyticsDateRangeForm,
+    AnalyticsExportForm,
     ApprovalTypeForm,
+    ContractForm,
+    ContractorForm,
+    CurrentlyInsideFilterForm,
     GateEventApprovalForm,
     GateEventForm,
     GateForm,
     GateOpsRoleForm,
     GateOpsSocietyConfigForm,
+    HandoverAcknowledgeForm,
+    HandoverDisputeForm,
     HolidayCalendarForm,
     MasterSettingsForm,
     MaterialCategoryForm,
     NotificationPreferenceForm,
     PassTypeForm,
     PersonForm,
+    QrExitForm,
+    QuickExitForm,
     RuleActionForm,
     RuleConditionForm,
     RuleContextTestForm,
     RuleForm,
+    ShiftHandoverForm,
     VehicleCategoryForm,
+    VehicleRegisterForm,
     VisitorCategoryForm,
+    WorkPermitForm,
+    WorkerForm,
 )
 from gateops.models import (
     ApprovalType,
@@ -45,6 +68,7 @@ from gateops.models import (
     GateOpsRole,
     GateOpsSocietyConfig,
     GateVehicle,
+    GuardShift,
     HolidayCalendar,
     MasterSettings,
     MaterialCategory,
@@ -58,16 +82,22 @@ from gateops.models import (
     RuleAction,
     RuleCondition,
     RuleEvaluation,
+    SecurityGuard,
+    ShiftHandover,
     VehicleCategory,
     VisitorCategory,
 )
+from gateops.services.contractor_service import ContractorService
+from gateops.services.exit_management_service import ExitManagementService
 from gateops.services.gate_event_lifecycle import GateEventLifecycleService
 from gateops.services.material_service import MaterialService
 from gateops.services.parcel_service import ParcelService
 from gateops.services.pass_service import PassService
 from gateops.services.rule_engine import RuleEngineService
 from gateops.services.rule_tester import RuleTestService
+from gateops.services.shift_handover_service import ShiftHandoverService
 from gateops.services.vehicle_service import VehicleService
+from gateops.services.analytics_service import AnalyticsService
 from gateops.services.visitor_category_service import VisitorCategoryService
 from housing_accounting.selection import get_selected_scope
 
@@ -939,21 +969,60 @@ def gate_event_reject_view(request, uuid):
     return redirect("gateops:event-detail", uuid=event.event_uuid)
 
 
+@login_required
 def currently_inside_view(request):
+    """Phase 12 — enhanced with filtering, pagination, and cached count.
+
+    Delegates to :meth:`ExitManagementService.get_currently_inside` for the
+    paginated/filtered query and :meth:`ExitManagementService.get_currently_inside_count`
+    for the cached badge count. The template renders the filter form, the
+    results table (with duration + overstay badge), and pagination controls.
+    """
     society, missing = _selected_society_or_missing(request)
     if missing:
         return missing
-    events = _gate_event_queryset(society).filter(
-        status=GateEvent.Status.ENTERED
-    ).order_by("-entered_at")
+    filter_form = CurrentlyInsideFilterForm(request.GET or None)
+    filters = {}
+    if filter_form.is_valid():
+        cleaned = filter_form.cleaned_data
+        if cleaned.get("gate"):
+            filters["gate_id"] = cleaned["gate"]
+        if cleaned.get("visitor_category"):
+            filters["visitor_category_id"] = cleaned["visitor_category"]
+        if cleaned.get("min_duration") is not None:
+            filters["min_duration_minutes"] = cleaned["min_duration"]
+        if cleaned.get("max_duration") is not None:
+            filters["max_duration_minutes"] = cleaned["max_duration"]
+        if cleaned.get("is_overstay"):
+            filters["is_overstay"] = True
+        if cleaned.get("search"):
+            filters["search"] = cleaned["search"]
+    try:
+        page = int(request.GET.get("page", 1))
+    except (TypeError, ValueError):
+        page = 1
+    result = ExitManagementService.get_currently_inside(
+        society=society, filters=filters, page=page, page_size=50
+    )
     return render(
         request,
         "gateops/currently_inside.html",
         _base_context(
             request,
             society=society,
-            events=events,
             active_tab="inside",
+            results=result["results"],
+            total=result["total"],
+            page=result["page"],
+            page_size=result["page_size"],
+            total_pages=result["total_pages"],
+            filter_form=filter_form,
+            filters=filters,
+            inside_count=ExitManagementService.get_currently_inside_count(society=society),
+            gates=Gate.objects.filter(society=society, is_active=True),
+            visitor_categories=VisitorCategory.objects.filter(
+                society=society, is_active=True
+            ),
             status_badge=_gate_event_status_badge,
         ),
     )
@@ -1217,22 +1286,13 @@ def vehicle_list_view(request):
         return missing
     vehicles = VehicleService.get_recent(society=society, limit=100)
     watchlisted = VehicleService.get_watchlisted(society=society)
-    lines = [
-        f"Vehicles for {society.name} ({vehicles.count()})",
-        f"Watchlisted: {watchlisted.count()}",
-        "",
-    ]
-    for v in vehicles:
-        lines.append(
-            f"[{v.pk}] {v.vehicle_number} | {v.person.name} | "
-            f"{v.vehicle_category.code} | watchlisted={v.is_watchlisted} | "
-            f"repeat={v.is_repeat} | last_seen={v.last_seen_at:%Y-%m-%d %H:%M}"
-            if v.last_seen_at
-            else f"[{v.pk}] {v.vehicle_number} | {v.person.name} | "
-            f"{v.vehicle_category.code} | watchlisted={v.is_watchlisted} | "
-            f"repeat={v.is_repeat} | last_seen=never"
-        )
-    return HttpResponse("\n".join(lines), content_type="text/plain")
+    context = _base_context(
+        request,
+        society=society,
+        vehicles=vehicles,
+        watchlisted_count=watchlisted.count(),
+    )
+    return render(request, "gateops/vehicle_list.html", context)
 
 
 @login_required
@@ -1241,32 +1301,8 @@ def vehicle_detail_view(request, pk):
     if missing:
         return missing
     vehicle = _gate_vehicle_or_404(society, pk)
-    last_seen = (
-        vehicle.last_seen_at.strftime("%Y-%m-%d %H:%M")
-        if vehicle.last_seen_at
-        else "never"
-    )
-    first_seen = (
-        vehicle.first_seen_at.strftime("%Y-%m-%d %H:%M")
-        if vehicle.first_seen_at
-        else "unknown"
-    )
-    info = (
-        f"GateVehicle {vehicle.vehicle_number} (id={vehicle.pk})\n"
-        f"Society: {vehicle.society.name}\n"
-        f"Person: {vehicle.person.name} ({vehicle.person.phone})\n"
-        f"Category: {vehicle.vehicle_category.name} ({vehicle.vehicle_category.code})\n"
-        f"Watchlisted: {vehicle.is_watchlisted}"
-        + (f" (reason: {vehicle.watchlist_reason})" if vehicle.is_watchlisted else "")
-        + f"\n"
-        f"Repeat visitor: {vehicle.is_repeat}\n"
-        f"First seen: {first_seen}\n"
-        f"Last seen: {last_seen}\n"
-        f"Active: {vehicle.is_active}\n"
-        f"Notes: {vehicle.notes or '(none)'}\n"
-        f"Created: {vehicle.created_at:%Y-%m-%d %H:%M}\n"
-    )
-    return HttpResponse(info, content_type="text/plain")
+    context = _base_context(request, society=society, vehicle=vehicle)
+    return render(request, "gateops/vehicle_detail.html", context)
 
 
 @login_required
@@ -1276,57 +1312,43 @@ def vehicle_register_view(request):
         return missing
 
     if request.method == "POST":
-        vehicle_number = (request.POST.get("vehicle_number") or "").strip()
-        person_id = request.POST.get("person_id")
-        vehicle_category_id = request.POST.get("vehicle_category_id")
-        notes = request.POST.get("notes", "")
+        # Normalize legacy POST keys (person_id / vehicle_category_id) to the
+        # ModelForm field names (person / vehicle_category) so older callers
+        # and the existing view test keep working alongside the crispy form.
+        post = request.POST.copy()
+        if "person" not in post and post.get("person_id"):
+            post["person"] = post["person_id"]
+        if "vehicle_category" not in post and post.get("vehicle_category_id"):
+            post["vehicle_category"] = post["vehicle_category_id"]
 
-        if not vehicle_number:
-            messages.error(request, "Vehicle number is required.")
-            return redirect("gateops:vehicle-register")
+        form = VehicleRegisterForm(post, society=society)
+        if form.is_valid():
+            try:
+                vehicle = VehicleService.register_or_create(
+                    society=society,
+                    vehicle_number=form.cleaned_data["vehicle_number"],
+                    person=form.cleaned_data["person"],
+                    vehicle_category=form.cleaned_data["vehicle_category"],
+                    notes=form.cleaned_data.get("notes", ""),
+                    actor=request.user,
+                )
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(
+                    request, f"Vehicle {vehicle.vehicle_number} registered."
+                )
+                return _vehicle_detail_url(vehicle)
+        # Invalid form or service ValidationError: re-render with errors.
+        context = _base_context(
+            request, society=society, form=form
+        )
+        return render(request, "gateops/vehicle_form.html", context)
 
-        try:
-            person = Person.objects.get(pk=person_id, society=society)
-            vehicle_category = VehicleCategory.objects.get(
-                pk=vehicle_category_id, society=society
-            )
-        except (Person.DoesNotExist, VehicleCategory.DoesNotExist):
-            messages.error(request, "Invalid person or vehicle category for this society.")
-            return redirect("gateops:vehicle-register")
-
-        try:
-            vehicle = VehicleService.register_or_create(
-                society=society,
-                vehicle_number=vehicle_number,
-                person=person,
-                vehicle_category=vehicle_category,
-                notes=notes,
-                actor=request.user,
-            )
-        except ValidationError as exc:
-            messages.error(request, str(exc))
-            return redirect("gateops:vehicle-register")
-
-        messages.success(request, f"Vehicle {vehicle.vehicle_number} registered.")
-        return _vehicle_detail_url(vehicle)
-
-    # GET: render a minimal form context listing available vehicle categories/persons.
-    vehicle_categories = VehicleCategory.objects.filter(
-        society=society, is_active=True
-    ).order_by("name")
-    persons = Person.objects.filter(society=society).order_by("name")
-    lines = [f"Register a vehicle for {society.name}", "", "Vehicle categories:"]
-    for vc in vehicle_categories:
-        lines.append(f"  [{vc.pk}] {vc.name} ({vc.code})")
-    lines.append("")
-    lines.append("Persons:")
-    for pr in persons:
-        lines.append(f"  [{pr.pk}] {pr.name} ({pr.phone})")
-    lines.append("")
-    lines.append(
-        "POST fields: vehicle_number, person_id, vehicle_category_id, notes (optional)"
-    )
-    return HttpResponse("\n".join(lines), content_type="text/plain")
+    # GET: render the crispy registration form scoped to this society.
+    form = VehicleRegisterForm(society=society)
+    context = _base_context(request, society=society, form=form)
+    return render(request, "gateops/vehicle_form.html", context)
 
 
 @login_required
@@ -1379,20 +1401,15 @@ def vehicle_search_view(request):
         return missing
     query = request.GET.get("q", "")
     results = VehicleService.search(society=society, query=query)
-    lines = [
-        f"Vehicle search for {society.name} (query={query!r}, {results.count()} matches)",
-        "",
-    ]
-    for v in results:
-        last_seen = (
-            v.last_seen_at.strftime("%Y-%m-%d %H:%M") if v.last_seen_at else "never"
-        )
-        lines.append(
-            f"[{v.pk}] {v.vehicle_number} | {v.person.name} ({v.person.phone}) | "
-            f"{v.vehicle_category.code} | watchlisted={v.is_watchlisted} | "
-            f"last_seen={last_seen}"
-        )
-    return HttpResponse("\n".join(lines), content_type="text/plain")
+    watchlisted = VehicleService.get_watchlisted(society=society)
+    context = _base_context(
+        request,
+        society=society,
+        vehicles=results,
+        watchlisted_count=watchlisted.count(),
+        search_query=query,
+    )
+    return render(request, "gateops/vehicle_list.html", context)
 
 
 @login_required
@@ -1962,3 +1979,1198 @@ def parcel_overdue_view(request):
             f"stored={stored_at}"
         )
     return HttpResponse("\n".join(lines), content_type="text/plain")
+
+
+# ---------------------------------------------------------------------------
+# Phase 9: Contractor Management
+# ---------------------------------------------------------------------------
+#
+# These views are the thin HTTP layer over :class:`ContractorService`. They
+# follow the established patterns in this module:
+#
+# - Society is resolved first via ``_selected_society_or_missing`` (multi-tenant
+#   safety: every query is scoped by ``society``).
+# - Single-object fetches delegate to ``ContractorService.get_*`` (which uses
+#   ``get_object_or_404`` scoped by society + ``is_active=True``).
+# - State-changing operations are POST-only and wrap the service call in a
+#   ``try/except ValidationError`` block, surfacing errors via ``messages``.
+# - Create/edit views render crispy-forms templates on GET and redirect to the
+#   detail view on success.
+# - Redirects target the named ``gateops:contractor-detail`` /
+#   ``gateops:contract-detail`` / ``gateops:worker-detail`` /
+#   ``gateops:work-permit-detail`` URLs.
+
+
+def _contractor_detail_url(contractor):
+    return redirect("gateops:contractor-detail", pk=contractor.pk)
+
+
+def _contract_detail_url(contract):
+    return redirect("gateops:contract-detail", pk=contract.pk)
+
+
+def _worker_detail_url(worker):
+    return redirect("gateops:worker-detail", pk=worker.pk)
+
+
+def _work_permit_detail_url(work_permit):
+    return redirect("gateops:work-permit-detail", pk=work_permit.pk)
+
+
+# ------------------------------------------------------------------ #
+# Contractor views
+# ------------------------------------------------------------------ #
+
+
+@login_required
+def contractor_list(request):
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    contractors = ContractorService.list_contractors(society=society)
+    context = _base_context(request, society=society, contractors=contractors)
+    return render(request, "gateops/contractor_list.html", context)
+
+
+@login_required
+def contractor_detail(request, pk):
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    contractor = ContractorService.get_contractor(society=society, pk=pk)
+    contracts = ContractorService.list_contracts(society=society, contractor=contractor)
+    context = _base_context(
+        request,
+        society=society,
+        contractor=contractor,
+        contracts=contracts,
+    )
+    return render(request, "gateops/contractor_detail.html", context)
+
+
+@login_required
+def contractor_create(request):
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+
+    if request.method == "POST":
+        form = ContractorForm(request.POST, society=society)
+        if form.is_valid():
+            try:
+                contractor = ContractorService.create_contractor(
+                    society=society,
+                    company_name=form.cleaned_data["company_name"],
+                    supervisor_name=form.cleaned_data.get("supervisor_name", ""),
+                    supervisor_phone=form.cleaned_data.get("supervisor_phone", ""),
+                    contact_person=form.cleaned_data.get("contact_person", ""),
+                    contact_phone=form.cleaned_data.get("contact_phone", ""),
+                    gst_number=form.cleaned_data.get("gst_number", ""),
+                    pan_number=form.cleaned_data.get("pan_number", ""),
+                    address=form.cleaned_data.get("address", ""),
+                    actor=request.user,
+                )
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(
+                    request,
+                    f"Contractor {contractor.company_name} created.",
+                )
+                return _contractor_detail_url(contractor)
+        context = _base_context(request, society=society, form=form)
+        return render(request, "gateops/contractor_form.html", context)
+
+    form = ContractorForm(society=society)
+    context = _base_context(request, society=society, form=form)
+    return render(request, "gateops/contractor_form.html", context)
+
+
+@login_required
+def contractor_edit(request, pk):
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    contractor = ContractorService.get_contractor(society=society, pk=pk)
+
+    if request.method == "POST":
+        form = ContractorForm(request.POST, instance=contractor, society=society)
+        if form.is_valid():
+            try:
+                ContractorService.update_contractor(
+                    contractor=contractor,
+                    actor=request.user,
+                    company_name=form.cleaned_data["company_name"],
+                    supervisor_name=form.cleaned_data.get("supervisor_name", ""),
+                    supervisor_phone=form.cleaned_data.get("supervisor_phone", ""),
+                    contact_person=form.cleaned_data.get("contact_person", ""),
+                    contact_phone=form.cleaned_data.get("contact_phone", ""),
+                    gst_number=form.cleaned_data.get("gst_number", ""),
+                    pan_number=form.cleaned_data.get("pan_number", ""),
+                    address=form.cleaned_data.get("address", ""),
+                )
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(
+                    request,
+                    f"Contractor {contractor.company_name} updated.",
+                )
+                return _contractor_detail_url(contractor)
+        context = _base_context(
+            request, society=society, form=form, contractor=contractor
+        )
+        return render(request, "gateops/contractor_form.html", context)
+
+    form = ContractorForm(instance=contractor, society=society)
+    context = _base_context(
+        request, society=society, form=form, contractor=contractor
+    )
+    return render(request, "gateops/contractor_form.html", context)
+
+
+@login_required
+def contractor_deactivate(request, pk):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    contractor = ContractorService.get_contractor(society=society, pk=pk)
+    try:
+        ContractorService.deactivate_contractor(
+            contractor=contractor, actor=request.user
+        )
+    except ValidationError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(
+            request,
+            f"Contractor {contractor.company_name} deactivated.",
+        )
+    return redirect("gateops:contractor-list")
+
+
+# ------------------------------------------------------------------ #
+# Contract views
+# ------------------------------------------------------------------ #
+
+
+@login_required
+def contract_list(request):
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    contractor_pk = request.GET.get("contractor")
+    contractor = None
+    if contractor_pk:
+        contractor = ContractorService.get_contractor(
+            society=society, pk=contractor_pk
+        )
+    contracts = ContractorService.list_contracts(
+        society=society, contractor=contractor
+    )
+    context = _base_context(
+        request,
+        society=society,
+        contracts=contracts,
+        filter_contractor=contractor,
+    )
+    return render(request, "gateops/contract_list.html", context)
+
+
+@login_required
+def contract_detail(request, pk):
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    contract = ContractorService.get_contract(society=society, pk=pk)
+    workers = ContractorService.list_workers(society=society, contract=contract)
+    work_permits = ContractorService.list_work_permits(
+        society=society, contract=contract
+    )
+    labour_count = ContractorService.get_labour_count(contract=contract)
+    context = _base_context(
+        request,
+        society=society,
+        contract=contract,
+        workers=workers,
+        work_permits=work_permits,
+        labour_count=labour_count,
+    )
+    return render(request, "gateops/contract_detail.html", context)
+
+
+@login_required
+def contract_create(request):
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+
+    initial = {}
+    contractor_pk = request.GET.get("contractor")
+    if contractor_pk:
+        initial["contractor"] = contractor_pk
+
+    if request.method == "POST":
+        form = ContractForm(request.POST, society=society)
+        if form.is_valid():
+            try:
+                contract = ContractorService.create_contract(
+                    society=society,
+                    contractor=form.cleaned_data["contractor"],
+                    title=form.cleaned_data["title"],
+                    start_date=form.cleaned_data["start_date"],
+                    end_date=form.cleaned_data["end_date"],
+                    max_workers=form.cleaned_data.get("max_workers", 10),
+                    description=form.cleaned_data.get("description", ""),
+                    actor=request.user,
+                )
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(
+                    request, f"Contract {contract.title} created."
+                )
+                return _contract_detail_url(contract)
+        context = _base_context(request, society=society, form=form)
+        return render(request, "gateops/contract_form.html", context)
+
+    form = ContractForm(society=society, initial=initial)
+    context = _base_context(request, society=society, form=form)
+    return render(request, "gateops/contract_form.html", context)
+
+
+@login_required
+def contract_edit(request, pk):
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    contract = ContractorService.get_contract(society=society, pk=pk)
+
+    if request.method == "POST":
+        form = ContractForm(request.POST, instance=contract, society=society)
+        if form.is_valid():
+            try:
+                ContractorService.update_contract(
+                    contract=contract,
+                    actor=request.user,
+                    title=form.cleaned_data["title"],
+                    description=form.cleaned_data.get("description", ""),
+                    start_date=form.cleaned_data["start_date"],
+                    end_date=form.cleaned_data["end_date"],
+                    max_workers=form.cleaned_data["max_workers"],
+                    status=form.cleaned_data["status"],
+                )
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(
+                    request, f"Contract {contract.title} updated."
+                )
+                return _contract_detail_url(contract)
+        context = _base_context(
+            request, society=society, form=form, contract=contract
+        )
+        return render(request, "gateops/contract_form.html", context)
+
+    form = ContractForm(instance=contract, society=society)
+    context = _base_context(
+        request, society=society, form=form, contract=contract
+    )
+    return render(request, "gateops/contract_form.html", context)
+
+
+@login_required
+def contract_deactivate(request, pk):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    contract = ContractorService.get_contract(society=society, pk=pk)
+    try:
+        ContractorService.deactivate_contract(
+            contract=contract, actor=request.user
+        )
+    except ValidationError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(
+            request, f"Contract {contract.title} deactivated."
+        )
+    return redirect("gateops:contract-list")
+
+
+# ------------------------------------------------------------------ #
+# Worker views
+# ------------------------------------------------------------------ #
+
+
+@login_required
+def worker_list(request):
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    contract_pk = request.GET.get("contract")
+    contract = None
+    if contract_pk:
+        contract = ContractorService.get_contract(society=society, pk=contract_pk)
+    workers = ContractorService.list_workers(society=society, contract=contract)
+    context = _base_context(
+        request,
+        society=society,
+        workers=workers,
+        filter_contract=contract,
+    )
+    return render(request, "gateops/worker_list.html", context)
+
+
+@login_required
+def worker_detail(request, pk):
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    worker = ContractorService.get_worker(society=society, pk=pk)
+    gate_events = (
+        GateEvent.objects.filter(
+            society=society,
+            person=worker.person,
+        )
+        .select_related("contractor", "contract", "work_permit")
+        .order_by("-created_at")[:20]
+    )
+    context = _base_context(
+        request,
+        society=society,
+        worker=worker,
+        gate_events=gate_events,
+    )
+    return render(request, "gateops/worker_detail.html", context)
+
+
+@login_required
+def worker_register(request):
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+
+    initial = {}
+    contract_pk = request.GET.get("contract")
+    if contract_pk:
+        initial["contract"] = contract_pk
+
+    if request.method == "POST":
+        form = WorkerForm(request.POST, society=society)
+        if form.is_valid():
+            try:
+                worker = ContractorService.register_worker(
+                    society=society,
+                    contract=form.cleaned_data["contract"],
+                    person=form.cleaned_data["person"],
+                    designation=form.cleaned_data.get("designation", ""),
+                    id_type=form.cleaned_data.get("id_type", ""),
+                    id_number=form.cleaned_data.get("id_number", ""),
+                    actor=request.user,
+                )
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(
+                    request,
+                    f"Worker {worker.person.name} registered.",
+                )
+                return _worker_detail_url(worker)
+        context = _base_context(request, society=society, form=form)
+        return render(request, "gateops/worker_form.html", context)
+
+    form = WorkerForm(society=society, initial=initial)
+    context = _base_context(request, society=society, form=form)
+    return render(request, "gateops/worker_form.html", context)
+
+
+@login_required
+def worker_edit(request, pk):
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    worker = ContractorService.get_worker(society=society, pk=pk)
+
+    if request.method == "POST":
+        form = WorkerForm(request.POST, instance=worker, society=society)
+        if form.is_valid():
+            # The service layer has no update_worker method; persist via the
+            # form (society-scoped) so the audit trail is consistent with the
+            # model-level clean() validation.
+            try:
+                worker = form.save()
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(
+                    request,
+                    f"Worker {worker.person.name} updated.",
+                )
+                return _worker_detail_url(worker)
+        context = _base_context(
+            request, society=society, form=form, worker=worker
+        )
+        return render(request, "gateops/worker_form.html", context)
+
+    form = WorkerForm(instance=worker, society=society)
+    context = _base_context(
+        request, society=society, form=form, worker=worker
+    )
+    return render(request, "gateops/worker_form.html", context)
+
+
+@login_required
+def worker_deactivate(request, pk):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    worker = ContractorService.get_worker(society=society, pk=pk)
+    try:
+        ContractorService.deactivate_worker(
+            worker=worker, actor=request.user
+        )
+    except ValidationError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(
+            request,
+            f"Worker {worker.person.name} deactivated.",
+        )
+    return redirect("gateops:worker-list")
+
+
+# ------------------------------------------------------------------ #
+# Work Permit views
+# ------------------------------------------------------------------ #
+
+
+@login_required
+def work_permit_list(request):
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    contract_pk = request.GET.get("contract")
+    contract = None
+    if contract_pk:
+        contract = ContractorService.get_contract(society=society, pk=contract_pk)
+    work_permits = ContractorService.list_work_permits(
+        society=society, contract=contract
+    )
+    context = _base_context(
+        request,
+        society=society,
+        work_permits=work_permits,
+        filter_contract=contract,
+    )
+    return render(request, "gateops/work_permit_list.html", context)
+
+
+@login_required
+def work_permit_detail(request, pk):
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    work_permit = ContractorService.get_work_permit(society=society, pk=pk)
+    expiry_info = ContractorService.check_work_permit_expiry(
+        work_permit=work_permit
+    )
+    context = _base_context(
+        request,
+        society=society,
+        work_permit=work_permit,
+        expiry_info=expiry_info,
+    )
+    return render(request, "gateops/work_permit_detail.html", context)
+
+
+@login_required
+def work_permit_issue(request):
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+
+    initial = {}
+    contract_pk = request.GET.get("contract")
+    if contract_pk:
+        initial["contract"] = contract_pk
+
+    if request.method == "POST":
+        form = WorkPermitForm(request.POST, society=society)
+        if form.is_valid():
+            try:
+                work_permit = ContractorService.issue_work_permit(
+                    society=society,
+                    contract=form.cleaned_data["contract"],
+                    permit_number=form.cleaned_data["permit_number"],
+                    issued_at=form.cleaned_data["issued_at"],
+                    expires_at=form.cleaned_data["expires_at"],
+                    safety_docs_verified=form.cleaned_data.get(
+                        "safety_docs_verified", False
+                    ),
+                    safety_briefing_given=form.cleaned_data.get(
+                        "safety_briefing_given", False
+                    ),
+                    work_area=form.cleaned_data.get("work_area", ""),
+                    hazard_level=form.cleaned_data.get("hazard_level", "low"),
+                    notes=form.cleaned_data.get("notes", ""),
+                    actor=request.user,
+                )
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(
+                    request,
+                    f"Work permit {work_permit.permit_number} issued.",
+                )
+                return _work_permit_detail_url(work_permit)
+        context = _base_context(request, society=society, form=form)
+        return render(request, "gateops/work_permit_form.html", context)
+
+    form = WorkPermitForm(society=society, initial=initial)
+    context = _base_context(request, society=society, form=form)
+    return render(request, "gateops/work_permit_form.html", context)
+
+
+@login_required
+def work_permit_edit(request, pk):
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    work_permit = ContractorService.get_work_permit(society=society, pk=pk)
+
+    if request.method == "POST":
+        form = WorkPermitForm(request.POST, instance=work_permit, society=society)
+        if form.is_valid():
+            # The service layer has no update_work_permit method; persist via
+            # the form (society-scoped) so model-level clean() validation runs.
+            try:
+                work_permit = form.save()
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(
+                    request,
+                    f"Work permit {work_permit.permit_number} updated.",
+                )
+                return _work_permit_detail_url(work_permit)
+        context = _base_context(
+            request, society=society, form=form, work_permit=work_permit
+        )
+        return render(request, "gateops/work_permit_form.html", context)
+
+    form = WorkPermitForm(instance=work_permit, society=society)
+    context = _base_context(
+        request, society=society, form=form, work_permit=work_permit
+    )
+    return render(request, "gateops/work_permit_form.html", context)
+
+
+@login_required
+def work_permit_revoke(request, pk):
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    work_permit = ContractorService.get_work_permit(society=society, pk=pk)
+    try:
+        ContractorService.revoke_work_permit(
+            work_permit=work_permit, actor=request.user
+        )
+    except ValidationError as exc:
+        messages.error(request, str(exc))
+    else:
+        messages.success(
+            request,
+            f"Work permit {work_permit.permit_number} revoked.",
+        )
+    return _work_permit_detail_url(work_permit)
+
+
+# ------------------------------------------------------------------ #
+# Contractor dashboard (command center)
+# ------------------------------------------------------------------ #
+
+
+@login_required
+def contractor_dashboard(request):
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    expired_contracts = ContractorService.get_expired_contracts(society=society)
+    expired_permits = ContractorService.get_expired_work_permits(society=society)
+    active_workers_on_site = ContractorService.get_active_workers_on_site(
+        society=society
+    )
+    active_contracts = ContractorService.list_contracts(society=society)
+    context = _base_context(
+        request,
+        society=society,
+        expired_contracts_count=expired_contracts.count(),
+        expired_permits_count=expired_permits.count(),
+        active_workers_on_site_count=active_workers_on_site.count(),
+        active_contracts_count=active_contracts.count(),
+    )
+    return render(request, "gateops/contractor_dashboard.html", context)
+
+
+# ---------------------------------------------------------------------------
+# Phase 12 — Exit Management views
+# ---------------------------------------------------------------------------
+#
+# Thin HTTP layer over :class:`ExitManagementService` and
+# :class:`ShiftHandoverService`. The exit transition itself is delegated to
+# :meth:`GateEventLifecycleService.record_exit` — no view sets ``status=EXITED``
+# directly.
+#
+# Patterns (matching the rest of this module):
+# - Society resolved first via ``_selected_society_or_missing``.
+# - POST-only mutation endpoints return ``HttpResponseNotAllowed(["POST"])`` on
+#   GET.
+# - ``ValidationError`` from services is surfaced via ``messages.error``.
+# - Success redirects to the relevant list/detail page.
+
+
+@login_required
+def quick_exit_view(request):
+    """POST-only one-tap exit by GateEvent UUID or PK."""
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    form = QuickExitForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, f"Invalid input: {form.errors.as_text()}")
+        return redirect("gateops:currently-inside")
+    gate_event_id = form.cleaned_data["gate_event_id"]
+    actor = request.user if request.user.is_authenticated else None
+    try:
+        event = ExitManagementService.process_quick_exit(
+            society=society, gate_event_id=gate_event_id, guard=None, actor=actor
+        )
+    except (GateEvent.DoesNotExist, ValidationError) as exc:
+        messages.error(request, f"Could not process exit: {exc}")
+        return redirect("gateops:currently-inside")
+    messages.success(request, f"Exit recorded for event {event.event_uuid}.")
+    return redirect("gateops:currently-inside")
+
+
+@login_required
+def qr_exit_scan_view(request):
+    """GET form page where the guard enters/scans a QR code."""
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    form = QrExitForm()
+    return render(
+        request,
+        "gateops/qr_exit_scan.html",
+        _base_context(request, society=society, active_tab="inside", form=form),
+    )
+
+
+@login_required
+def qr_exit_view(request):
+    """POST-only QR-code-based exit (Pass code or GateEvent UUID)."""
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    form = QrExitForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, f"Invalid input: {form.errors.as_text()}")
+        return redirect("gateops:qr-exit-scan")
+    qr_code = form.cleaned_data["qr_code"]
+    actor = request.user if request.user.is_authenticated else None
+    try:
+        event = ExitManagementService.process_qr_exit(
+            society=society, qr_code=qr_code, guard=None, actor=actor
+        )
+    except (GateEvent.DoesNotExist, ValidationError) as exc:
+        messages.error(request, f"Could not process QR exit: {exc}")
+        return redirect("gateops:qr-exit-scan")
+    messages.success(request, f"Exit recorded via QR for event {event.event_uuid}.")
+    return redirect("gateops:currently-inside")
+
+
+@login_required
+def handover_list_view(request):
+    """List shift handovers for the society with optional status/gate filters."""
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    status = request.GET.get("status") or None
+    gate_id = request.GET.get("gate") or None
+    gate = None
+    if gate_id:
+        gate = get_object_or_404(Gate, pk=gate_id, society=society)
+    handovers = ShiftHandoverService.list_handovers(
+        society=society, status=status, gate=gate, include_inactive=False
+    )
+    return render(
+        request,
+        "gateops/handover_list.html",
+        _base_context(
+            request,
+            society=society,
+            active_tab="handovers",
+            handovers=handovers,
+            status_filter=status,
+            gate_filter=gate_id,
+            gates=Gate.objects.filter(society=society, is_active=True),
+            status_choices=ShiftHandover.Status.choices,
+        ),
+    )
+
+
+@login_required
+def handover_create_view(request):
+    """Create a shift handover (outgoing → incoming guard)."""
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    if request.method == "POST":
+        form = ShiftHandoverForm(request.POST, society=society)
+        if form.is_valid():
+            actor = request.user if request.user.is_authenticated else None
+            try:
+                handover = ShiftHandoverService.create_shift_handover(
+                    society=society,
+                    outgoing_guard=form.cleaned_data["outgoing_guard"],
+                    incoming_guard=form.cleaned_data["incoming_guard"],
+                    gate=form.cleaned_data["gate"],
+                    shift=form.cleaned_data.get("shift"),
+                    outgoing_notes=form.cleaned_data.get("outgoing_notes", ""),
+                    actor=actor,
+                )
+            except ValidationError as exc:
+                form.add_error(None, exc)
+            else:
+                messages.success(request, "Shift handover created.")
+                return redirect("gateops:handover-detail", uuid=handover.handover_uuid)
+    else:
+        form = ShiftHandoverForm(society=society)
+    return render(
+        request,
+        "gateops/handover_form.html",
+        _base_context(request, society=society, active_tab="handovers", form=form),
+    )
+
+
+@login_required
+def handover_detail_view(request, uuid):
+    """Render a handover with its snapshot items and acknowledge/dispute forms."""
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    handover = ShiftHandoverService.get_handover(society=society, handover_id=uuid)
+    if handover is None:
+        raise Http404("Shift handover not found.")
+    items = ShiftHandoverService.get_handover_items(society=society, handover_id=uuid)
+    acknowledge_form = HandoverAcknowledgeForm()
+    dispute_form = HandoverDisputeForm()
+    return render(
+        request,
+        "gateops/handover_detail.html",
+        _base_context(
+            request,
+            society=society,
+            active_tab="handovers",
+            handover=handover,
+            items=items,
+            acknowledge_form=acknowledge_form,
+            dispute_form=dispute_form,
+        ),
+    )
+
+
+@login_required
+def handover_acknowledge_view(request, uuid):
+    """POST-only acknowledgement of a pending/disputed handover."""
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    handover = ShiftHandoverService.get_handover(society=society, handover_id=uuid)
+    if handover is None:
+        raise Http404("Shift handover not found.")
+    form = HandoverAcknowledgeForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, f"Invalid input: {form.errors.as_text()}")
+        return redirect("gateops:handover-detail", uuid=uuid)
+    actor = request.user if request.user.is_authenticated else None
+    try:
+        ShiftHandoverService.acknowledge_handover(
+            society=society,
+            handover_id=uuid,
+            incoming_guard=handover.incoming_guard,
+            notes=form.cleaned_data.get("notes", ""),
+            actor=actor,
+        )
+    except ValidationError as exc:
+        messages.error(request, f"Could not acknowledge handover: {exc}")
+    else:
+        messages.success(request, "Handover acknowledged.")
+    return redirect("gateops:handover-detail", uuid=uuid)
+
+
+@login_required
+def handover_dispute_view(request, uuid):
+    """POST-only dispute of a pending handover with a mandatory reason."""
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    handover = ShiftHandoverService.get_handover(society=society, handover_id=uuid)
+    if handover is None:
+        raise Http404("Shift handover not found.")
+    form = HandoverDisputeForm(request.POST)
+    if not form.is_valid():
+        messages.error(request, f"Invalid input: {form.errors.as_text()}")
+        return redirect("gateops:handover-detail", uuid=uuid)
+    actor = request.user if request.user.is_authenticated else None
+    try:
+        ShiftHandoverService.dispute_handover(
+            society=society,
+            handover_id=uuid,
+            incoming_guard=handover.incoming_guard,
+            reason=form.cleaned_data["reason"],
+            actor=actor,
+        )
+    except ValidationError as exc:
+        messages.error(request, f"Could not dispute handover: {exc}")
+    else:
+        messages.success(request, "Handover disputed.")
+    return redirect("gateops:handover-detail", uuid=uuid)
+
+
+# --- Phase 13: Analytics -------------------------------------------------
+
+
+def _check_analytics_permission(request):
+    """Return True if the user can view analytics, False otherwise.
+
+    Superusers / super-admins always pass.  Otherwise the user's
+    :class:`GateOpsRole` for the selected society is consulted via its
+    JSON ``permissions`` field.
+    """
+    user = getattr(request, "user", None)
+    if not user or not user.is_authenticated:
+        return False
+    if getattr(user, "is_superuser", False) or getattr(user, "is_super_admin", False):
+        return True
+    society = getattr(request, "current_society", None)
+    if society is None:
+        society, _ = get_selected_scope(request, persist=True)
+    if society is None:
+        return False
+    role = (
+        GateOpsRole.objects.filter(
+            society=society,
+            is_active=True,
+            deleted_at__isnull=True,
+        )
+        .first()
+    )
+    # GateOpsRole is society-scoped, not user-scoped; the JSON permissions
+    # represent the active role configuration for the society.  When a
+    # per-user role link is introduced, this lookup will be tightened.
+    return bool(role and role.has_perm("can_view_analytics"))
+
+
+@login_required
+def analytics_dashboard_view(request):
+    """Phase 13 analytics landing page with summary cards."""
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    if not _check_analytics_permission(request):
+        return HttpResponseForbidden("You do not have permission to view analytics.")
+
+    today = timezone.localdate()
+    live = AnalyticsService.get_live_visitors(society=society)
+    anomaly_stats = AnalyticsService.get_anomaly_stats(
+        society=society, date_from=today, date_to=today
+    )
+    peak = AnalyticsService.get_peak_hours(
+        society=society, date_from=today, date_to=today
+    )
+
+    context = _base_context(
+        request,
+        society=society,
+        active_tab="analytics",
+        live_count=live["count"],
+        anomaly_open=anomaly_stats["by_status"].get("OPEN", 0),
+        peak_hour=peak["peak_hour"],
+        peak_hour_count=peak["peak_hour_count"],
+        today=today,
+    )
+    return render(request, "gateops/analytics_dashboard.html", context)
+
+
+@login_required
+def analytics_live_visitors_view(request):
+    """AJAX endpoint returning JSON of visitors currently inside."""
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return JsonResponse({"error": "No society selected"}, status=400)
+    if not _check_analytics_permission(request):
+        return JsonResponse({"error": "Permission denied"}, status=403)
+
+    filters = {}
+    gate_id = request.GET.get("gate_id")
+    if gate_id:
+        filters["gate_id"] = gate_id
+    visitor_category_id = request.GET.get("visitor_category_id")
+    if visitor_category_id:
+        filters["visitor_category_id"] = visitor_category_id
+
+    data = AnalyticsService.get_live_visitors(society=society, filters=filters)
+    return JsonResponse(data)
+
+
+@login_required
+def analytics_peak_hours_view(request):
+    """Hourly traffic distribution chart with predicted overlay."""
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    if not _check_analytics_permission(request):
+        return HttpResponseForbidden("You do not have permission to view analytics.")
+
+    form = AnalyticsDateRangeForm(request.GET or None, society=society)
+    today = timezone.localdate()
+    date_from = today - timedelta(days=7)
+    date_to = today
+    if form.is_valid():
+        date_from = form.cleaned_data.get("date_from") or date_from
+        date_to = form.cleaned_data.get("date_to") or date_to
+
+    data = AnalyticsService.get_peak_hours(
+        society=society, date_from=date_from, date_to=date_to
+    )
+    context = _base_context(
+        request, society=society, active_tab="analytics", data=data, form=form
+    )
+    return render(request, "gateops/analytics_peak_hours.html", context)
+
+
+@login_required
+def analytics_guard_performance_view(request):
+    """Per-guard throughput metrics table and chart."""
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    if not _check_analytics_permission(request):
+        return HttpResponseForbidden("You do not have permission to view analytics.")
+
+    form = AnalyticsDateRangeForm(request.GET or None, society=society)
+    today = timezone.localdate()
+    date_from = today - timedelta(days=7)
+    date_to = today
+    if form.is_valid():
+        date_from = form.cleaned_data.get("date_from") or date_from
+        date_to = form.cleaned_data.get("date_to") or date_to
+
+    data = AnalyticsService.get_guard_performance(
+        society=society, date_from=date_from, date_to=date_to
+    )
+    context = _base_context(
+        request, society=society, active_tab="analytics", data=data, form=form
+    )
+    return render(request, "gateops/analytics_guard_performance.html", context)
+
+
+@login_required
+def analytics_custom_report_view(request):
+    """Filterable custom report of gate events with summary table."""
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    if not _check_analytics_permission(request):
+        return HttpResponseForbidden("You do not have permission to view analytics.")
+
+    form = AnalyticsCustomReportForm(request.GET or None, society=society)
+    today = timezone.localdate()
+    date_from = today - timedelta(days=7)
+    date_to = today
+    metrics = ["total_events", "by_status", "by_visitor_category"]
+    group_by = None
+    filters = {}
+    if form.is_valid():
+        date_from = form.cleaned_data.get("date_from") or date_from
+        date_to = form.cleaned_data.get("date_to") or date_to
+        metrics = form.cleaned_data.get("metrics") or metrics
+        group_by = form.cleaned_data.get("group_by") or None
+        gate = form.cleaned_data.get("gate")
+        visitor_category = form.cleaned_data.get("visitor_category")
+        event_type = form.cleaned_data.get("event_type")
+        status = form.cleaned_data.get("status")
+        if gate:
+            filters["gate_id"] = gate.id
+        if visitor_category:
+            filters["visitor_category_id"] = visitor_category.id
+        if event_type:
+            filters["event_type"] = event_type
+        if status:
+            filters["status"] = status
+
+    data = AnalyticsService.get_custom_report(
+        society=society,
+        metrics=metrics,
+        date_from=date_from,
+        date_to=date_to,
+        group_by=group_by,
+        filters=filters,
+    )
+    context = _base_context(
+        request, society=society, active_tab="analytics", data=data, form=form
+    )
+    return render(request, "gateops/analytics_custom_report.html", context)
+
+
+@login_required
+def analytics_rule_violations_view(request):
+    """Rule violation statistics with action distribution and daily trend."""
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return missing
+    if not _check_analytics_permission(request):
+        return HttpResponseForbidden("You do not have permission to view analytics.")
+
+    form = AnalyticsDateRangeForm(request.GET or None, society=society)
+    today = timezone.localdate()
+    date_from = today - timedelta(days=7)
+    date_to = today
+    if form.is_valid():
+        date_from = form.cleaned_data.get("date_from") or date_from
+        date_to = form.cleaned_data.get("date_to") or date_to
+
+    data = AnalyticsService.get_rule_violation_stats(
+        society=society, date_from=date_from, date_to=date_to
+    )
+    anomaly_data = AnalyticsService.get_anomaly_stats(
+        society=society, date_from=date_from, date_to=date_to
+    )
+    context = _base_context(
+        request,
+        society=society,
+        active_tab="analytics",
+        data=data,
+        anomaly_data=anomaly_data,
+        form=form,
+    )
+    return render(request, "gateops/analytics_rule_violations.html", context)
+
+
+@login_required
+def analytics_export_view(request):
+    """POST-only CSV export of analytics data."""
+    if request.method != "POST":
+        return HttpResponseNotAllowed(["POST"])
+    society, missing = _selected_society_or_missing(request)
+    if missing:
+        return HttpResponseBadRequest("No society selected")
+    if not _check_analytics_permission(request):
+        return HttpResponseForbidden("You do not have permission to view analytics.")
+
+    form = AnalyticsExportForm(request.POST, society=society)
+    if not form.is_valid():
+        return HttpResponseBadRequest("Invalid export parameters")
+
+    export_type = form.cleaned_data["export_type"]
+    date_from = form.cleaned_data["date_from"]
+    date_to = form.cleaned_data["date_to"]
+
+    response = HttpResponse(content_type="text/csv")
+    response["Content-Disposition"] = (
+        f'attachment; filename="gateops_{export_type}_{date_from}_{date_to}.csv"'
+    )
+    writer = csv.writer(response)
+
+    if export_type == "events":
+        data = AnalyticsService.get_custom_report(
+            society=society,
+            metrics=["total_events"],
+            date_from=date_from,
+            date_to=date_to,
+        )
+        writer.writerow([
+            "Gate Event ID", "UUID", "Person", "Visitor Category", "Gate",
+            "Event Type", "Status", "Arrived At", "Entered At", "Exited At",
+            "Duration (min)", "Vehicle Number",
+        ])
+        for event in data["items"]:
+            writer.writerow([
+                event["gate_event_id"], event["gate_event_uuid"],
+                event["person_name"], event["visitor_category"],
+                event["gate_name"], event["event_type"], event["status"],
+                event["arrived_at"], event["entered_at"], event["exited_at"],
+                event["duration_minutes"], event["vehicle_number"],
+            ])
+    elif export_type == "guard_performance":
+        data = AnalyticsService.get_guard_performance(
+            society=society, date_from=date_from, date_to=date_to
+        )
+        writer.writerow([
+            "Guard ID", "Guard Name", "Entries", "Exits", "Approvals",
+            "Rejections", "Rule Violations", "Avg Processing Time (ms)",
+        ])
+        for guard in data["guards"]:
+            writer.writerow([
+                guard["guard_id"], guard["guard_name"],
+                guard["entries_processed"], guard["exits_processed"],
+                guard["approvals_given"], guard["rejections_given"],
+                guard["rule_violations_triggered"],
+                guard["avg_processing_time_ms"],
+            ])
+    elif export_type == "rule_violations":
+        data = AnalyticsService.get_rule_violation_stats(
+            society=society, date_from=date_from, date_to=date_to
+        )
+        writer.writerow(["Action", "Count"])
+        for action, count in data["by_action"].items():
+            writer.writerow([action, count])
+        writer.writerow([])
+        writer.writerow(["Rule ID", "Rule Name", "Violation Count"])
+        for rule in data["top_violated_rules"]:
+            writer.writerow([
+                rule["rule_id"], rule["rule_name"], rule["violation_count"],
+            ])
+    elif export_type == "anomalies":
+        data = AnalyticsService.get_anomaly_stats(
+            society=society, date_from=date_from, date_to=date_to
+        )
+        writer.writerow(["Type", "Count"])
+        for atype, count in data["by_type"].items():
+            writer.writerow([atype, count])
+        writer.writerow([])
+        writer.writerow(["Severity", "Count"])
+        for severity, count in data["by_severity"].items():
+            writer.writerow([severity, count])
+
+    _audit(
+        request,
+        society,
+        "EXPORT",
+        "AnalyticsExport",
+        None,
+        after_value={
+            "export_type": export_type,
+            "start": date_from.isoformat(),
+            "end": date_to.isoformat(),
+        },
+    )
+    return response

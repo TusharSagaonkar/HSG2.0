@@ -30,8 +30,10 @@ from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.http import JsonResponse
 
+from housing.forms import SocietyConfigForm
 from housing.forms import SocietyForm
 from housing.forms import SocietyEmailSettingsForm
+from housing.forms import SocietyProfileForm
 from housing.forms import SocietyUserCreationForm
 from housing.forms import StructureForm
 from housing.forms import BulkUnitCreateForm
@@ -46,7 +48,9 @@ from housing.forms import VoucherTemplateForm
 from housing.forms import VoucherTemplateRowFormSet
 from housing.services import sync_member_unit_lifecycle
 from societies.models import Society
+from societies.models import SocietyConfig
 from societies.models import Membership
+from onboarding.models import OnboardingWizard
 from notifications.models import EmailVerificationToken
 from members.models import Member
 from members.models import Structure
@@ -67,8 +71,11 @@ from notifications.models import SocietyEmailSettings
 from housing_accounting.selection import get_selected_scope
 from societies.services import create_society
 from societies.permissions import has_role_or_above
+from societies.permissions import has_permission
 from societies.roles import ROLE_ADMIN
+from societies.roles import ROLE_OWNER
 from societies.utils import get_user_role
+from auditlog.models import AuditLog
 
 
 
@@ -1436,15 +1443,21 @@ class SocietyAdminView(LoginRequiredMixin, DetailView):
     template_name = "housing/society_admin.html"
     context_object_name = "society"
 
+    def dispatch(self, request, *args, **kwargs):
+        society = self.get_object()
+        if not has_permission(request.user, "societies.membership.view", society):
+            raise PermissionDenied("You do not have permission to manage this society.")
+        return super().dispatch(request, *args, **kwargs)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         society = self.object
-        
+
         # Get all memberships for this society with user details
         memberships = Membership.objects.filter(
             society=society
         ).select_related('user').order_by('-is_active', '-joined_at')
-        
+
         # Role labels mapping
         role_labels = {
             "owner": _("Owner"),
@@ -1453,11 +1466,11 @@ class SocietyAdminView(LoginRequiredMixin, DetailView):
             "member": _("Member"),
             "viewer": _("Viewer"),
         }
-        
+
         # Enrich memberships with role info and computed status
         for membership in memberships:
             membership.role_label = role_labels.get(membership.role, membership.role)
-            
+
             # Compute combined status
             if not membership.is_active:
                 membership.status_display = "Inactive"
@@ -1471,7 +1484,7 @@ class SocietyAdminView(LoginRequiredMixin, DetailView):
                 membership.status_display = "Active & Verified"
                 membership.status_badge_class = "bg-success"
                 membership.status_icon = "fas fa-check-circle"
-        
+
         context['memberships'] = memberships
         context['role_summary'] = [
             {"key": "owner", "label": _("Owner"), "description": _("Full control, ownership transfer, and admin governance.")},
@@ -1481,16 +1494,181 @@ class SocietyAdminView(LoginRequiredMixin, DetailView):
             {"key": "viewer", "label": _("Viewer"), "description": _("Read-only access to society data and reports.")},
         ]
         context['current_user_role'] = get_user_role(self.request.user, society)
+
+        # --- Society configuration & profile forms ---
+        # share_config is a get_or_create property on Society; safe to call.
+        society_config = society.share_config
+        context['society_config'] = society_config
+        context['society_config_form'] = SocietyConfigForm(instance=society_config)
+        context['society_profile_form'] = SocietyProfileForm(initial={
+            "name": society.name,
+            "registration_number": society.registration_number or "",
+            "address": society.address or "",
+        })
+
+        # --- Onboarding wizard (latest for this society) ---
+        # OnboardingWizard uses TenantManager which auto-filters by the current
+        # tenant contextvar; use .unscoped() to query across tenants since the
+        # request's current tenant may not match this society.
+        onboarding_wizard = (
+            OnboardingWizard.objects.unscoped()
+            .filter(society=society)
+            .order_by("-started_at")
+            .first()
+        )
+        context['onboarding_wizard'] = onboarding_wizard
+        if onboarding_wizard:
+            # 28 total steps in the wizard; clamp progress to [0, 100].
+            current_step = max(onboarding_wizard.current_step or 0, 0)
+            context['onboarding_progress_percent'] = min(
+                int((current_step / 28) * 100), 100
+            )
+        else:
+            context['onboarding_progress_percent'] = 0
+
+        # --- Quick stats ---
+        context['total_members'] = Member.objects.filter(society=society).count()
+        context['total_users'] = memberships.count()
+        context['active_users'] = memberships.filter(is_active=True).count()
+        # Pending verifications: memberships whose linked user has not verified email.
+        context['pending_verifications'] = memberships.filter(
+            user__email_verified=False
+        ).count()
+
         return context
 
 
 society_admin_view = SocietyAdminView.as_view()
 
 
+class SocietySettingsUpdateView(LoginRequiredMixin, View):
+    """POST-only view for updating a society's SocietyConfig (share/fee settings).
+
+    Requires both the ``societies.membership.edit`` permission and an
+    admin-or-above role. On success or failure, redirects back to the society
+    admin page with a flash message.
+    """
+
+    def dispatch(self, request, *args, **kwargs):
+        society = get_object_or_404(Society, pk=kwargs["pk"])
+        if not has_permission(request.user, "societies.membership.edit", society):
+            raise PermissionDenied(
+                _("You do not have permission to edit society settings.")
+            )
+        user_role = get_user_role(request.user, society)
+        if not has_role_or_above(user_role, ROLE_ADMIN):
+            raise PermissionDenied(
+                _("You must be an admin or owner to edit society settings.")
+            )
+        self.society = society
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        society = self.society
+        config = society.share_config
+        form = SocietyConfigForm(request.POST, instance=config)
+        if form.is_valid():
+            with transaction.atomic():
+                saved = form.save(commit=False)
+                saved.society = society
+                saved.save()
+                AuditLog.log(
+                    society=society,
+                    action=AuditLog.Action.UPDATE,
+                    entity_type="society_config",
+                    entity_id=saved.pk,
+                    actor=request.user,
+                    after_value={
+                        "share_value": str(saved.share_value),
+                        "default_share_count": saved.default_share_count,
+                        "entrance_fee": str(saved.entrance_fee),
+                        "transfer_fee": str(saved.transfer_fee),
+                        "premium_amount": str(saved.premium_amount),
+                        "allow_multiple_nominees": saved.allow_multiple_nominees,
+                        "require_approval": saved.require_approval,
+                        "auto_generate_vouchers": saved.auto_generate_vouchers,
+                    },
+                    module="societies",
+                )
+            messages.success(request, _("Society settings saved successfully."))
+        else:
+            messages.error(
+                request,
+                _("Please correct the errors in the settings form and try again."),
+            )
+        return redirect("housing:society-admin", pk=society.pk)
+
+
+society_settings_update_view = SocietySettingsUpdateView.as_view()
+
+
+class SocietyProfileUpdateView(LoginRequiredMixin, View):
+    """POST-only view for updating a society's profile (name, registration, address).
+
+    Uses a plain Form (not ModelForm) so only whitelisted fields are ever
+    written back to the Society instance. Requires admin-or-above role.
+    """
+
+    def dispatch(self, request, *args, **kwargs):
+        society = get_object_or_404(Society, pk=kwargs["pk"])
+        if not has_permission(request.user, "societies.membership.edit", society):
+            raise PermissionDenied(
+                _("You do not have permission to edit the society profile.")
+            )
+        user_role = get_user_role(request.user, society)
+        if not has_role_or_above(user_role, ROLE_ADMIN):
+            raise PermissionDenied(
+                _("You must be an admin or owner to edit the society profile.")
+            )
+        self.society = society
+        return super().dispatch(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        society = self.society
+        form = SocietyProfileForm(request.POST)
+        if form.is_valid():
+            with transaction.atomic():
+                society.name = form.cleaned_data["name"]
+                society.registration_number = form.cleaned_data.get(
+                    "registration_number", ""
+                )
+                society.address = form.cleaned_data.get("address", "")
+                society.save()
+                AuditLog.log(
+                    society=society,
+                    action=AuditLog.Action.UPDATE,
+                    entity_type="society",
+                    entity_id=society.pk,
+                    actor=request.user,
+                    after_value={
+                        "name": society.name,
+                        "registration_number": society.registration_number or "",
+                        "address": society.address or "",
+                    },
+                    module="societies",
+                )
+            messages.success(request, _("Society profile updated successfully."))
+        else:
+            messages.error(
+                request,
+                _("Please correct the errors in the profile form and try again."),
+            )
+        return redirect("housing:society-admin", pk=society.pk)
+
+
+society_profile_update_view = SocietyProfileUpdateView.as_view()
+
+
 class SocietyUserCreateView(LoginRequiredMixin, FormView):
     """View for creating a new user and granting them access to a society."""
     form_class = SocietyUserCreationForm
     template_name = "housing/form.html"
+
+    def dispatch(self, request, *args, **kwargs):
+        society = self.get_society()
+        if not has_permission(request.user, "societies.membership.create", society):
+            raise PermissionDenied("You do not have permission to create users in this society.")
+        return super().dispatch(request, *args, **kwargs)
 
     def get_society(self):
         return Society.objects.get(pk=self.kwargs["pk"])
@@ -1639,14 +1817,8 @@ class ResendVerificationEmailView(LoginRequiredMixin, View):
         try:
             society = Society.objects.get(pk=society_pk)
             
-            # Check if user has permission to resend (Owner or Admin)
-            if not request.user.is_superuser:
-                try:
-                    membership = Membership.objects.get(user=request.user, society=society)
-                    if membership.role not in ['owner', 'admin']:
-                        raise PermissionDenied(_("You don't have permission to resend verification emails."))
-                except Membership.DoesNotExist:
-                    raise PermissionDenied(_("You don't have access to this society."))
+            if not has_permission(request.user, "societies.membership.edit", society):
+                raise PermissionDenied(_("You don't have permission to resend verification emails."))
             
             # Get the user to resend email to (must be member of the society)
             user = User.objects.get(id=user_id)
@@ -1739,14 +1911,8 @@ class UpdateMembershipView(LoginRequiredMixin, View):
         try:
             society = Society.objects.get(pk=society_pk)
             
-            # Check if user has permission to update (Owner or Admin)
-            if not request.user.is_superuser:
-                try:
-                    updater_membership = Membership.objects.get(user=request.user, society=society)
-                    if updater_membership.role not in ['owner', 'admin']:
-                        raise PermissionDenied(_("You don't have permission to update memberships."))
-                except Membership.DoesNotExist:
-                    raise PermissionDenied(_("You don't have access to this society."))
+            if not has_permission(request.user, "societies.membership.edit", society):
+                raise PermissionDenied(_("You don't have permission to update memberships."))
             
             # Get the user and their membership
             user = User.objects.get(id=user_id)
@@ -1779,6 +1945,15 @@ class UpdateMembershipView(LoginRequiredMixin, View):
                 membership.role = new_role
                 membership.is_active = new_is_active
                 membership.save()
+                AuditLog.log(
+                    society=society,
+                    action=AuditLog.Action.ROLE_CHANGE if 'role' in form.changed_data else AuditLog.Action.UPDATE,
+                    entity_type="membership",
+                    entity_id=membership.pk,
+                    actor=request.user,
+                    after_value={"role": membership.role, "is_active": membership.is_active},
+                    module="societies",
+                )
                 
                 messages.success(
                     request,

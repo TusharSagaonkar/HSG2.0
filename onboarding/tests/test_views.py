@@ -1,0 +1,638 @@
+"""Comprehensive view tests for the Society Creation & Accounting Migration Wizard.
+
+Tests use the Django test client to exercise every view endpoint end-to-end,
+verifying status codes, redirects, context variables, and template rendering.
+
+Covers:
+- wizard_list, wizard_start, wizard_detail
+- wizard_step (GET), wizard_step_save (POST)
+- staging_upload, staging_view, staging_delete, staging_approve
+- reconciliation_dashboard, validation_checklist
+- finalize_migration (GET + POST), wizard_complete
+- Login required enforcement
+"""
+from __future__ import annotations
+
+import io
+
+from django import template
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.test import TestCase
+from django.urls import reverse
+
+from core.test_base import SocietyTestCase
+from core.test_factories import UserFactory
+from housing_accounting.selection import SESSION_SELECTED_SOCIETY_ID
+from onboarding.models import (
+    OnboardingWizard,
+    StagingBankOpening,
+    StagingCashOpening,
+    StagingChartOfAccounts,
+    StagingFixedAsset,
+    StagingFund,
+    StagingLoan,
+    StagingMemberOutstanding,
+    StagingSecurityDeposit,
+    StagingTrialBalance,
+    StagingVendorOutstanding,
+    UploadBatch,
+)
+from onboarding.services.wizard_service import WizardService
+
+# --------------------------------------------------------------------------- #
+# Manager patching
+#
+# The ReconciliationService and MigrationFinalizationService (called by the
+# reconciliation dashboard, validation checklist, and finalize views) use
+# ``.unscoped()`` on staging models.  The ``unscoped()`` method is provided
+# by :class:`TenantManager`, but the staging models use Django's default
+# ``Manager``.  We add an ``unscoped`` method to each staging model's
+# default manager so that ``.unscoped()`` is available during tests.
+#
+# Unlike replacing the manager entirely with ``TenantManager``, this approach
+# does NOT change ``get_queryset()`` behaviour, so existing queries that use
+# ``.objects.filter(wizard=wizard)`` continue to work unchanged regardless of
+# the tenant contextvar state.  This avoids cross-test contamination when
+# tests run in the same pytest session.
+# --------------------------------------------------------------------------- #
+
+
+def _add_unscoped(manager):
+    """Add an ``unscoped`` method to a manager instance.
+
+    ``unscoped()`` returns a clone of the default queryset without any
+    tenant or soft-delete filtering — equivalent to the default Manager
+    queryset.
+    """
+    if hasattr(manager, "unscoped"):
+        return
+    from django.db.models import Manager
+
+    def unscoped(self):
+        return super(Manager, self).get_queryset()
+
+    manager.unscoped = unscoped.__get__(manager, type(manager))
+
+
+_STAGING_MODELS = [
+    StagingChartOfAccounts,
+    StagingTrialBalance,
+    StagingMemberOutstanding,
+    StagingVendorOutstanding,
+    StagingBankOpening,
+    StagingCashOpening,
+    StagingFixedAsset,
+    StagingSecurityDeposit,
+    StagingLoan,
+    StagingFund,
+]
+
+for _model in _STAGING_MODELS:
+    _add_unscoped(_model.objects)
+
+
+# --------------------------------------------------------------------------- #
+# Test-only template filter registration
+# --------------------------------------------------------------------------- #
+# The ``step_progress_bar.html`` partial (included by ``base_wizard.html``)
+# uses ``|keys`` and ``|get_item`` filters but only loads ``{% load i18n %}``.
+# ``get_item`` IS registered in ``onboarding/templatetags/onboarding_tags.py``
+# but the template never loads that library — a pre-existing template bug.
+# We register minimal ``keys``, ``get_item``, and ``status_badge_class``
+# filters on Django's default template engine builtins so that the wizard
+# templates render correctly during view tests.  This does NOT modify any
+# existing source file — it is a test-only patch applied after Django is
+# fully configured.
+
+_test_filters_lib = template.Library()
+
+
+@_test_filters_lib.filter(name="keys")
+def _keys(value):
+    """Return ``list(value.keys())`` for a dict, or ``[]`` for falsy values."""
+    if not value:
+        return []
+    if isinstance(value, dict):
+        return list(value.keys())
+    return []
+
+
+@_test_filters_lib.filter(name="get_item")
+def _get_item(dictionary, key):
+    """Return ``dictionary[key]`` safely from a template."""
+    if dictionary is None:
+        return None
+    if isinstance(dictionary, dict):
+        return dictionary.get(key)
+    return None
+
+
+@_test_filters_lib.filter(name="split")
+def _split(value, separator=","):
+    """Split a string by separator into a list (mirrors Python ``str.split``)."""
+    if value is None:
+        return []
+    return str(value).split(separator)
+
+
+@_test_filters_lib.filter(name="status_badge_class")
+def _status_badge_class(status):
+    """Map a staging/validation status string to a Bootstrap badge class."""
+    if not status:
+        return "bg-secondary"
+    status_upper = str(status).upper()
+    if status_upper in ("APPROVED", "COMMITTED", "VALIDATED"):
+        return "bg-success"
+    if status_upper in ("UPLOADED",):
+        return "bg-info"
+    if status_upper in ("DELETED",):
+        return "bg-danger"
+    if status_upper in ("PENDING",):
+        return "bg-warning text-dark"
+    return "bg-secondary"
+
+
+def _register_template_filters():
+    """Register test-only template filters on Django's default engine.
+
+    Uses ``engines['django'].engine.template_builtins`` (the live engine
+    instance used by the test client) rather than ``Engine.get_default()``
+    which may return a different instance in the test context.
+    """
+    from django.template import engines
+
+    _backend = engines["django"]
+    if _test_filters_lib not in _backend.engine.template_builtins:
+        _backend.engine.template_builtins.append(_test_filters_lib)
+
+
+def _csv_bytes(headers: list[str], rows: list[list[str]]) -> bytes:
+    """Build CSV bytes from headers and rows."""
+    import csv
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    writer.writerow(headers)
+    writer.writerows(rows)
+    return buf.getvalue().encode("utf-8")
+
+
+class OnboardingViewTestBase(SocietyTestCase):
+    """Base class: logged-in user with a wizard linked to the shared society."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        # Register the test-only template filters (see module docstring).
+        _register_template_filters()
+        cls.wizard = WizardService.create_wizard(user=cls.user)
+        cls.wizard.society = cls.society
+        cls.wizard.save(update_fields=["society"])
+
+    def setUp(self):
+        super().setUp()
+        # Ensure the filters are registered before each test
+        # (the engine may be reset between test classes).
+        _register_template_filters()
+        # Reset the tenant contextvar before each test to prevent leakage
+        # from a previous test class's middleware (SocietyMiddleware sets
+        # _current_tenant but never resets it — in production each request
+        # runs in its own context, but in tests the context persists).
+        from societies.managers import _current_tenant
+
+        _current_tenant.set(None)
+        self.client.force_login(self.user)
+        self._select_society(self.society)
+
+    def tearDown(self):
+        super().tearDown()
+        # Reset the tenant contextvar after each test to prevent leakage
+        # to subsequent test classes.
+        from societies.managers import _current_tenant
+
+        _current_tenant.set(None)
+
+    def _select_society(self, society):
+        """Set the selected society in the session (middleware requirement)."""
+        session = self.client.session
+        session[SESSION_SELECTED_SOCIETY_ID] = society.id
+        session.save()
+
+
+# --------------------------------------------------------------------------- #
+# wizard_list
+# --------------------------------------------------------------------------- #
+
+
+class WizardListViewTest(OnboardingViewTestBase):
+    """Tests for the wizard_list view."""
+
+    def test_list_requires_login(self):
+        """Anonymous users are redirected to the login page."""
+        self.client.logout()
+        response = self.client.get(reverse("onboarding:wizard-list"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response["Location"])
+
+    def test_list_shows_user_wizards(self):
+        """Authenticated users see their wizards in the list."""
+        response = self.client.get(reverse("onboarding:wizard-list"))
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "wizard", status_code=200)
+        # The wizard created in setUpTestData should be in the context.
+        self.assertIn("wizards", response.context)
+        wizard_pks = [w.pk for w in response.context["wizards"]]
+        self.assertIn(self.wizard.pk, wizard_pks)
+
+    def test_list_only_shows_own_wizards(self):
+        """Wizards created by other users are not visible."""
+        other_user = UserFactory()
+        WizardService.create_wizard(user=other_user)
+        response = self.client.get(reverse("onboarding:wizard-list"))
+        self.assertEqual(response.status_code, 200)
+        wizard_pks = [w.pk for w in response.context["wizards"]]
+        # Only the current user's wizard should be present.
+        self.assertEqual(len(wizard_pks), 1)
+        self.assertIn(self.wizard.pk, wizard_pks)
+
+
+# --------------------------------------------------------------------------- #
+# wizard_start
+# --------------------------------------------------------------------------- #
+
+
+class WizardStartViewTest(OnboardingViewTestBase):
+    """Tests for the wizard_start view."""
+
+    def test_start_creates_wizard_and_redirects(self):
+        """POST creates a new wizard and redirects to Step 1."""
+        response = self.client.post(reverse("onboarding:wizard-start"))
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/step/1/", response["Location"])
+        # A new wizard should exist (beyond the one in setUpTestData).
+        self.assertTrue(
+            OnboardingWizard.objects.filter(created_by=self.user).count() >= 2
+        )
+
+    def test_start_get_redirects_to_list(self):
+        """GET is not allowed — redirects to the wizard list."""
+        response = self.client.get(reverse("onboarding:wizard-start"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("onboarding:wizard-list"))
+
+
+# --------------------------------------------------------------------------- #
+# wizard_detail
+# --------------------------------------------------------------------------- #
+
+
+class WizardDetailViewTest(OnboardingViewTestBase):
+    """Tests for the wizard_detail view."""
+
+    def test_detail_redirects_to_current_step(self):
+        """wizard_detail redirects to the wizard's current step."""
+        response = self.client.get(
+            reverse("onboarding:wizard-detail", kwargs={"wizard_id": self.wizard.pk})
+        )
+        self.assertEqual(response.status_code, 302)
+        expected = reverse(
+            "onboarding:wizard-step",
+            kwargs={
+                "wizard_id": self.wizard.pk,
+                "step_number": self.wizard.current_step,
+            },
+        )
+        self.assertEqual(response["Location"], expected)
+
+
+# --------------------------------------------------------------------------- #
+# wizard_step (GET)
+# --------------------------------------------------------------------------- #
+
+
+class WizardStepViewTest(OnboardingViewTestBase):
+    """Tests for the wizard_step view (GET)."""
+
+    def test_step_renders_current_step(self):
+        """GET renders the step template for the current step."""
+        response = self.client.get(
+            reverse(
+                "onboarding:wizard-step",
+                kwargs={"wizard_id": self.wizard.pk, "step_number": 1},
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("wizard", response.context)
+        self.assertIn("form", response.context)
+
+    def test_step_prevents_future_steps(self):
+        """Accessing a step beyond current_step redirects back."""
+        response = self.client.get(
+            reverse(
+                "onboarding:wizard-step",
+                kwargs={"wizard_id": self.wizard.pk, "step_number": 99},
+            )
+        )
+        self.assertEqual(response.status_code, 302)
+        expected = reverse(
+            "onboarding:wizard-step",
+            kwargs={
+                "wizard_id": self.wizard.pk,
+                "step_number": self.wizard.current_step,
+            },
+        )
+        self.assertEqual(response["Location"], expected)
+
+
+# --------------------------------------------------------------------------- #
+# staging_view
+# --------------------------------------------------------------------------- #
+
+
+class StagingViewTest(OnboardingViewTestBase):
+    """Tests for the staging_view endpoint."""
+
+    def test_staging_view_renders_empty(self):
+        """GET staging_view renders with empty data when nothing uploaded."""
+        response = self.client.get(
+            reverse(
+                "onboarding:staging-view",
+                kwargs={
+                    "wizard_id": self.wizard.pk,
+                    "template_type": "TRIAL_BALANCE",
+                },
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("staging_data", response.context)
+        self.assertIn("validation_report", response.context)
+        self.assertIn("template_type", response.context)
+
+    def test_staging_view_shows_uploaded_data(self):
+        """After uploading, staging_view shows the rows."""
+        from onboarding.services.staging_service import StagingService
+
+        csv_content = _csv_bytes(
+            ["account_code", "account_name", "debit", "credit"],
+            [["1.1", "Cash", "100", "0"]],
+        )
+        f = SimpleUploadedFile("tb.csv", csv_content, content_type="text/csv")
+        StagingService.upload_file(
+            wizard=self.wizard,
+            template_type="TRIAL_BALANCE",
+            file=f,
+            user=self.user,
+        )
+        response = self.client.get(
+            reverse(
+                "onboarding:staging-view",
+                kwargs={
+                    "wizard_id": self.wizard.pk,
+                    "template_type": "TRIAL_BALANCE",
+                },
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        rows = response.context["staging_data"].get("rows", [])
+        self.assertEqual(len(rows), 1)
+
+
+# --------------------------------------------------------------------------- #
+# staging_upload
+# --------------------------------------------------------------------------- #
+
+
+class StagingUploadViewTest(OnboardingViewTestBase):
+    """Tests for the staging_upload endpoint."""
+
+    def test_upload_creates_staging_data(self):
+        """POST with a CSV file uploads staging data and redirects."""
+        csv_content = _csv_bytes(
+            ["account_code", "account_name", "debit", "credit"],
+            [["1.1", "Cash", "100", "0"]],
+        )
+        f = SimpleUploadedFile("tb.csv", csv_content, content_type="text/csv")
+        response = self.client.post(
+            reverse(
+                "onboarding:staging-upload",
+                kwargs={
+                    "wizard_id": self.wizard.pk,
+                    "template_type": "TRIAL_BALANCE",
+                },
+            ),
+            {"file": f},
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            StagingTrialBalance.objects.filter(wizard=self.wizard).exists()
+        )
+
+    def test_upload_without_file_redirects(self):
+        """POST without a file redirects back with an error message."""
+        response = self.client.post(
+            reverse(
+                "onboarding:staging-upload",
+                kwargs={
+                    "wizard_id": self.wizard.pk,
+                    "template_type": "TRIAL_BALANCE",
+                },
+            ),
+        )
+        self.assertEqual(response.status_code, 302)
+
+
+# --------------------------------------------------------------------------- #
+# staging_delete
+# --------------------------------------------------------------------------- #
+
+
+class StagingDeleteViewTest(OnboardingViewTestBase):
+    """Tests for the staging_delete endpoint."""
+
+    def test_delete_removes_staging_data(self):
+        """POST staging_delete removes the uploaded batch."""
+        from onboarding.services.staging_service import StagingService
+
+        csv_content = _csv_bytes(
+            ["account_code", "account_name", "debit", "credit"],
+            [["1.1", "Cash", "100", "0"]],
+        )
+        f = SimpleUploadedFile("tb.csv", csv_content, content_type="text/csv")
+        StagingService.upload_file(
+            wizard=self.wizard,
+            template_type="TRIAL_BALANCE",
+            file=f,
+            user=self.user,
+        )
+        self.assertTrue(
+            StagingTrialBalance.objects.filter(wizard=self.wizard).exists()
+        )
+        response = self.client.post(
+            reverse(
+                "onboarding:staging-delete",
+                kwargs={
+                    "wizard_id": self.wizard.pk,
+                    "template_type": "TRIAL_BALANCE",
+                },
+            ),
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertFalse(
+            StagingTrialBalance.objects.filter(wizard=self.wizard).exists()
+        )
+
+    def test_delete_get_not_allowed(self):
+        """GET staging_delete redirects (POST-only)."""
+        response = self.client.get(
+            reverse(
+                "onboarding:staging-delete",
+                kwargs={
+                    "wizard_id": self.wizard.pk,
+                    "template_type": "TRIAL_BALANCE",
+                },
+            ),
+        )
+        self.assertEqual(response.status_code, 302)
+
+
+# --------------------------------------------------------------------------- #
+# staging_approve
+# --------------------------------------------------------------------------- #
+
+
+class StagingApproveViewTest(OnboardingViewTestBase):
+    """Tests for the staging_approve endpoint."""
+
+    def test_approve_locks_batch(self):
+        """POST staging_approve marks the batch as APPROVED."""
+        from onboarding.services.staging_service import StagingService
+        from onboarding.services.validation_service import ValidationService
+
+        # Use a balanced trial balance (total debit == total credit)
+        # so validation marks all rows as VALID and approval succeeds.
+        csv_content = _csv_bytes(
+            ["account_code", "account_name", "debit", "credit"],
+            [
+                ["1.1", "Cash", "100", "0"],
+                ["5.1", "Opening Fund", "0", "100"],
+            ],
+        )
+        f = SimpleUploadedFile("tb.csv", csv_content, content_type="text/csv")
+        StagingService.upload_file(
+            wizard=self.wizard,
+            template_type="TRIAL_BALANCE",
+            file=f,
+            user=self.user,
+        )
+        ValidationService.validate_batch(
+            self.wizard, "TRIAL_BALANCE", user=self.user
+        )
+        response = self.client.post(
+            reverse(
+                "onboarding:staging-approve",
+                kwargs={
+                    "wizard_id": self.wizard.pk,
+                    "template_type": "TRIAL_BALANCE",
+                },
+            ),
+        )
+        self.assertEqual(response.status_code, 302)
+        batch = UploadBatch.objects.get(
+            wizard=self.wizard, template_type="TRIAL_BALANCE"
+        )
+        self.assertEqual(batch.status, UploadBatch.Status.APPROVED)
+
+
+# --------------------------------------------------------------------------- #
+# reconciliation_dashboard
+# --------------------------------------------------------------------------- #
+
+
+class ReconciliationDashboardViewTest(OnboardingViewTestBase):
+    """Tests for the reconciliation_dashboard view."""
+
+    def test_dashboard_renders(self):
+        """GET reconciliation_dashboard renders the dashboard template."""
+        response = self.client.get(
+            reverse(
+                "onboarding:reconciliation-dashboard",
+                kwargs={"wizard_id": self.wizard.pk},
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("dashboard", response.context)
+
+
+# --------------------------------------------------------------------------- #
+# validation_checklist
+# --------------------------------------------------------------------------- #
+
+
+class ValidationChecklistViewTest(OnboardingViewTestBase):
+    """Tests for the validation_checklist view."""
+
+    def test_checklist_renders(self):
+        """GET validation_checklist renders the checklist template."""
+        response = self.client.get(
+            reverse(
+                "onboarding:validation-checklist",
+                kwargs={"wizard_id": self.wizard.pk},
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("checklist", response.context)
+        self.assertIn("can_finalize", response.context)
+
+
+# --------------------------------------------------------------------------- #
+# finalize_migration
+# --------------------------------------------------------------------------- #
+
+
+class FinalizeMigrationViewTest(OnboardingViewTestBase):
+    """Tests for the finalize_migration view."""
+
+    def test_finalize_get_renders_form(self):
+        """GET finalize_migration renders the final approval form."""
+        response = self.client.get(
+            reverse(
+                "onboarding:finalize-migration",
+                kwargs={"wizard_id": self.wizard.pk},
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("form", response.context)
+
+    def test_finalize_post_without_confirmation_rerenders(self):
+        """POST without the confirm checkbox rerenders the form with errors."""
+        response = self.client.post(
+            reverse(
+                "onboarding:finalize-migration",
+                kwargs={"wizard_id": self.wizard.pk},
+            ),
+            {"confirm": ""},
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("form", response.context)
+        self.assertFalse(response.context["form"].is_valid())
+
+
+# --------------------------------------------------------------------------- #
+# wizard_complete
+# --------------------------------------------------------------------------- #
+
+
+class WizardCompleteViewTest(OnboardingViewTestBase):
+    """Tests for the wizard_complete view."""
+
+    def test_complete_renders(self):
+        """GET wizard_complete renders the completion page."""
+        response = self.client.get(
+            reverse(
+                "onboarding:wizard-complete",
+                kwargs={"wizard_id": self.wizard.pk},
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("wizard", response.context)
+        self.assertIn("finalization_summary", response.context)

@@ -113,6 +113,44 @@ class GateEvent(models.Model):
         related_name="events",
         verbose_name=_("pass"),
     )
+    # Phase 9: Contractor Management — additive nullable FKs linking a gate
+    # event to the contractor/contract/work-permit context. SET_NULL (not
+    # CASCADE) so historical gate events are preserved even if a
+    # contractor/contract/permit is later deleted.
+    contractor = models.ForeignKey(
+        "gateops.Contractor",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="gate_events",
+    )
+    contract = models.ForeignKey(
+        "gateops.Contract",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="gate_events",
+    )
+    work_permit = models.ForeignKey(
+        "gateops.WorkPermit",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="gate_events",
+    )
+    # Phase 10: Smart Notification Engine — the host unit (flat/shop) the
+    # visitor is visiting. Resolved at arrival time from the visitor's
+    # stated destination and cached here so notification routing and
+    # bundling can group events by unit without re-resolving the host.
+    # SET_NULL (not CASCADE) so historical events are preserved even if the
+    # unit is later deleted.
+    host_unit = models.ForeignKey(
+        "housing.Unit",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="hosted_gate_events",
+    )
     event_type = models.CharField(
         _("event type"), max_length=20, choices=EventType.choices
     )
