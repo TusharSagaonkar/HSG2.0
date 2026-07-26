@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% load i18n %}
+{% load humanize %}
 
 {% block title %}
   {{ society.name }} - {% translate "Admin" %} | Housing Accounting System
@@ -499,64 +500,264 @@
     {# ===================== Tab 5: Onboarding ===================== #}
     <div class="tab-pane fade" id="onboarding" role="tabpanel" aria-labelledby="onboarding-tab" tabindex="0">
       {% if onboarding_wizard %}
-        <div class="card">
-          <div class="card-header">
-            <div class="card-title">
+
+        {# --- Wizard summary header card --- #}
+        <div class="card mb-3">
+          <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+            <div class="card-title mb-0">
               <i class="fas fa-rocket me-2"></i>{% translate "Onboarding Wizard" %}
             </div>
-          </div>
-          <div class="card-body">
-            <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+            <div class="d-flex flex-wrap align-items-center gap-2">
               <span class="badge {% if onboarding_wizard.status == 'IN_PROGRESS' %}bg-warning{% elif onboarding_wizard.status == 'COMPLETED' %}bg-success{% elif onboarding_wizard.status == 'ABANDONED' %}bg-danger{% else %}bg-secondary{% endif %}">
                 {{ onboarding_wizard.get_status_display }}
               </span>
               {% if onboarding_wizard.society_type %}
                 <span class="badge bg-light text-dark">{{ onboarding_wizard.get_society_type_display }}</span>
               {% endif %}
+              <span class="badge bg-light text-dark">
+                <i class="fas fa-check-circle text-success me-1"></i>{{ onboarding_completed_steps }} / {{ onboarding_total_steps }} {% translate "steps done" %}
+              </span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="row g-3 mb-3">
+              <div class="col-12 col-md-6 col-lg-3">
+                <div class="border rounded p-2 h-100">
+                  <div class="text-muted small text-uppercase">{% translate "Current Step" %}</div>
+                  <div class="fs-5 fw-semibold">
+                    {{ onboarding_wizard.current_step }} / 28
+                  </div>
+                </div>
+              </div>
+              <div class="col-12 col-md-6 col-lg-3">
+                <div class="border rounded p-2 h-100">
+                  <div class="text-muted small text-uppercase">{% translate "Started" %}</div>
+                  <div class="fs-6">{{ onboarding_wizard.started_at|date:"SHORT_DATE_FORMAT" }}</div>
+                </div>
+              </div>
+              <div class="col-12 col-md-6 col-lg-3">
+                <div class="border rounded p-2 h-100">
+                  <div class="text-muted small text-uppercase">{% translate "Completed" %}</div>
+                  <div class="fs-6">
+                    {% if onboarding_wizard.completed_at %}
+                      {{ onboarding_wizard.completed_at|date:"SHORT_DATE_FORMAT" }}
+                    {% else %}
+                      <span class="text-muted">—</span>
+                    {% endif %}
+                  </div>
+                </div>
+              </div>
+              <div class="col-12 col-md-6 col-lg-3">
+                <div class="border rounded p-2 h-100">
+                  <div class="text-muted small text-uppercase">{% translate "Resumed" %}</div>
+                  <div class="fs-6">{{ onboarding_wizard.resumed_count|default:0 }} ×</div>
+                </div>
+              </div>
             </div>
 
-            <dl class="row mb-3">
-              <dt class="col-sm-3">{% translate "Current Step" %}</dt>
-              <dd class="col-sm-9">{{ onboarding_wizard.current_step }} / 28</dd>
-
-              <dt class="col-sm-3">{% translate "Started At" %}</dt>
-              <dd class="col-sm-9">{{ onboarding_wizard.started_at|date:"SHORT_DATE_FORMAT" }}</dd>
-
-              {% if onboarding_wizard.completed_at %}
-                <dt class="col-sm-3">{% translate "Completed At" %}</dt>
-                <dd class="col-sm-9">{{ onboarding_wizard.completed_at|date:"SHORT_DATE_FORMAT" }}</dd>
-              {% endif %}
-            </dl>
-
-            <div class="progress mb-3" role="progressbar" aria-label="{% translate 'Onboarding progress' %}" aria-valuenow="{{ onboarding_progress_percent }}" aria-valuemin="0" aria-valuemax="100" style="height: 10px;">
-              <div class="progress-bar {% if onboarding_wizard.status == 'COMPLETED' %}bg-success{% elif onboarding_wizard.status == 'ABANDONED' %}bg-danger{% endif %}" style="width: {{ onboarding_progress_percent }}%"></div>
+            <div class="progress mb-3" role="progressbar" aria-label="{% translate 'Onboarding progress' %}" aria-valuenow="{{ onboarding_progress_percent }}" aria-valuemin="0" aria-valuemax="100" style="height: 12px;">
+              <div class="progress-bar {% if onboarding_wizard.status == 'COMPLETED' %}bg-success{% elif onboarding_wizard.status == 'ABANDONED' %}bg-danger{% endif %}" style="width: {{ onboarding_progress_percent }}%">{{ onboarding_progress_percent }}%</div>
             </div>
 
-            {% if onboarding_wizard.selected_modules %}
-              <h6 class="mt-3">{% translate "Selected Modules" %}</h6>
-              <ul class="list-group list-group-flush mb-3">
-                {% for module in onboarding_wizard.selected_modules %}
-                  <li class="list-group-item px-0">
-                    <i class="fas fa-check-circle text-success me-1"></i>{{ module }}
-                  </li>
-                {% endfor %}
-              </ul>
-            {% endif %}
-
-            <div class="d-flex gap-2">
+            <div class="d-flex flex-wrap gap-2">
               {% if onboarding_wizard.status == 'IN_PROGRESS' %}
                 <a href="{% url 'onboarding:wizard-detail' onboarding_wizard.pk %}" class="btn btn-primary">
                   <i class="fas fa-play me-1"></i>{% translate "Resume Onboarding" %}
                 </a>
+                <a href="{% url 'onboarding:wizard-step' onboarding_wizard.pk onboarding_wizard.current_step %}" class="btn btn-outline-primary">
+                  <i class="fas fa-step-forward me-1"></i>{% translate "Go to Current Step" %}
+                </a>
               {% elif onboarding_wizard.status == 'COMPLETED' %}
-                <a href="{% url 'onboarding:wizard-detail' onboarding_wizard.pk %}" class="btn btn-success">
+                <a href="{% url 'onboarding:wizard-complete' onboarding_wizard.pk %}" class="btn btn-success">
                   <i class="fas fa-check-double me-1"></i>{% translate "View Completion" %}
                 </a>
+              {% elif onboarding_wizard.status == 'ABANDONED' %}
+                <a href="{% url 'onboarding:wizard-detail' onboarding_wizard.pk %}" class="btn btn-outline-secondary">
+                  <i class="fas fa-eye me-1"></i>{% translate "View Abandoned Wizard" %}
+                </a>
               {% endif %}
+              <a href="{% url 'onboarding:reconciliation-dashboard' onboarding_wizard.pk %}" class="btn btn-outline-info">
+                <i class="fas fa-balance-scale me-1"></i>{% translate "Reconciliation" %}
+              </a>
+              <a href="{% url 'onboarding:validation-checklist' onboarding_wizard.pk %}" class="btn btn-outline-warning">
+                <i class="fas fa-clipboard-check me-1"></i>{% translate "Validation Checklist" %}
+              </a>
             </div>
           </div>
         </div>
+
+        {# --- Step-by-step progress stepper --- #}
+        <div class="card mb-3">
+          <div class="card-header">
+            <div class="card-title">
+              <i class="fas fa-list-ol me-2"></i>{% translate "Wizard Steps" %}
+              <span class="badge bg-light text-dark ms-2">{{ onboarding_completed_steps }} / {{ onboarding_total_steps }}</span>
+            </div>
+          </div>
+          <div class="card-body">
+            <div class="table-responsive">
+              <table class="table table-sm table-hover align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th scope="col" style="width: 56px;">#</th>
+                    <th scope="col">{% translate "Step" %}</th>
+                    <th scope="col" style="width: 120px;">{% translate "Status" %}</th>
+                    <th scope="col" style="width: 140px;">{% translate "Action" %}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% for step in onboarding_steps %}
+                    <tr class="{% if step.state == 'current' %}table-warning{% endif %}">
+                      <td>
+                        {% if step.state == 'completed' %}
+                          <i class="fas fa-check-circle text-success" title="{% translate 'Completed' %}"></i>
+                        {% elif step.state == 'current' %}
+                          <i class="fas fa-circle-dot text-warning" title="{% translate 'Current' %}"></i>
+                        {% else %}
+                          <i class="far fa-circle text-muted" title="{% translate 'Pending' %}"></i>
+                        {% endif %}
+                        <span class="ms-1 fw-semibold">{{ step.number }}</span>
+                      </td>
+                      <td>{{ step.name }}</td>
+                      <td>
+                        {% if step.state == 'completed' %}
+                          <span class="badge bg-success-subtle text-success-emphasis">{% translate "Completed" %}</span>
+                        {% elif step.state == 'current' %}
+                          <span class="badge bg-warning-subtle text-warning-emphasis">{% translate "In Progress" %}</span>
+                        {% else %}
+                          <span class="badge bg-light text-muted">{% translate "Pending" %}</span>
+                        {% endif %}
+                      </td>
+                      <td>
+                        {% if onboarding_wizard.status == 'IN_PROGRESS' %}
+                          <a href="{% url 'onboarding:wizard-step' onboarding_wizard.pk step.number %}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-arrow-right-to-bracket me-1"></i>{% if step.state == 'current' %}{% translate "Open" %}{% else %}{% translate "Review" %}{% endif %}
+                          </a>
+                        {% else %}
+                          <span class="text-muted small">—</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="row g-3">
+          {# --- Selected modules --- #}
+          <div class="col-12 col-lg-6">
+            <div class="card h-100">
+              <div class="card-header">
+                <div class="card-title">
+                  <i class="fas fa-cubes me-2"></i>{% translate "Selected Modules" %}
+                </div>
+              </div>
+              <div class="card-body">
+                {% if onboarding_wizard.selected_modules %}
+                  <div class="d-flex flex-wrap gap-2">
+                    {% for module in onboarding_wizard.selected_modules %}
+                      <span class="badge bg-primary-subtle text-primary-emphasis px-2 py-1">
+                        <i class="fas fa-puzzle-piece me-1"></i>{{ module }}
+                      </span>
+                    {% endfor %}
+                  </div>
+                {% else %}
+                  <p class="text-muted mb-0"><i class="fas fa-info-circle me-1"></i>{% translate "No modules selected yet." %}</p>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          {# --- Migration data status --- #}
+          <div class="col-12 col-lg-6">
+            <div class="card h-100">
+              <div class="card-header">
+                <div class="card-title">
+                  <i class="fas fa-database me-2"></i>{% translate "Migration Data Status" %}
+                </div>
+              </div>
+              <div class="card-body">
+                <div class="d-flex flex-wrap gap-3 mb-3">
+                  <div>
+                    <span class="text-muted small text-uppercase d-block">{% translate "Uploads" %}</span>
+                    <span class="fs-5 fw-semibold">{{ onboarding_uploaded_count }}</span>
+                  </div>
+                  <div>
+                    <span class="text-muted small text-uppercase d-block">{% translate "Staging Rows" %}</span>
+                    <span class="fs-5 fw-semibold">{{ onboarding_total_staging_rows|intcomma }}</span>
+                  </div>
+                </div>
+                {% if onboarding_upload_batches %}
+                  <div class="table-responsive">
+                    <table class="table table-sm table-hover mb-0">
+                      <thead>
+                        <tr>
+                          <th>{% translate "Template Type" %}</th>
+                          <th>{% translate "File" %}</th>
+                          <th class="text-end">{% translate "Rows" %}</th>
+                          <th>{% translate "Status" %}</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {% for batch in onboarding_upload_batches %}
+                          <tr>
+                            <td class="small">{{ batch.template_type }}</td>
+                            <td class="small text-truncate" style="max-width: 180px;" title="{{ batch.file_name }}">{{ batch.file_name }}</td>
+                            <td class="text-end">{{ batch.row_count|intcomma }}</td>
+                            <td>
+                              {% if batch.status == 'COMMITTED' or batch.status == 'APPROVED' %}
+                                <span class="badge bg-success-subtle text-success-emphasis">{{ batch.status }}</span>
+                              {% elif batch.status == 'VALIDATED' %}
+                                <span class="badge bg-info-subtle text-info-emphasis">{{ batch.status }}</span>
+                              {% elif batch.status == 'UPLOADED' %}
+                                <span class="badge bg-warning-subtle text-warning-emphasis">{{ batch.status }}</span>
+                              {% else %}
+                                <span class="badge bg-light text-muted">{{ batch.status }}</span>
+                              {% endif %}
+                            </td>
+                          </tr>
+                        {% endfor %}
+                      </tbody>
+                    </table>
+                  </div>
+                {% else %}
+                  <p class="text-muted mb-0"><i class="fas fa-info-circle me-1"></i>{% translate "No migration data uploaded yet." %}</p>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {# --- Migration audit log (recent events) --- #}
+        {% if onboarding_migration_events %}
+          <div class="card mt-3">
+            <div class="card-header">
+              <div class="card-title">
+                <i class="fas fa-history me-2"></i>{% translate "Recent Migration Events" %}
+              </div>
+            </div>
+            <div class="card-body">
+              <ul class="list-group list-group-flush">
+                {% for event in onboarding_migration_events %}
+                  <li class="list-group-item d-flex justify-content-between align-items-start px-0">
+                    <div>
+                      <span class="fw-semibold">{{ event.action }}</span>
+                      {% if event.actor__email %}
+                        <span class="text-muted small">— {{ event.actor__email }}</span>
+                      {% endif %}
+                    </div>
+                    <span class="text-muted small">{{ event.timestamp|date:"SHORT_DATE_FORMAT" }} {{ event.timestamp|time:"H:i" }}</span>
+                  </li>
+                {% endfor %}
+              </ul>
+            </div>
+          </div>
+        {% endif %}
+
       {% else %}
+        {# --- No wizard exists --- #}
         <div class="card">
           <div class="card-body">
             <div class="alert alert-info mb-0" role="alert">

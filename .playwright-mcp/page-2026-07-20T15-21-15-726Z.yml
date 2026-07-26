@@ -1,0 +1,135 @@
+- generic [active] [ref=e1]:
+  - link "Skip to main content" [ref=e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - main "Authentication" [ref=e3]:
+    - generic [ref=e4]:
+      - region "Housynk overview" [ref=e5]:
+        - link "Housynk Home" [ref=e7] [cursor=pointer]:
+          - /url: /
+          - img "Housynk" [ref=e8]
+        - generic [ref=e9]:
+          - generic [ref=e10]: Housing Society Finance
+          - heading "Accounting clarity for every society operation." [level=1] [ref=e11]
+          - paragraph [ref=e12]: Manage billing, receipts, reconciliation, shares, and audit-ready ledgers from one secure workspace.
+        - generic "Platform highlights" [ref=e13]:
+          - generic [ref=e14]:
+            - generic [ref=e15]: 
+            - strong [ref=e17]: Secure Access
+            - generic [ref=e18]: Role-based controls for society data.
+          - generic [ref=e19]:
+            - generic [ref=e20]: 
+            - strong [ref=e22]: Audit Ready
+            - generic [ref=e23]: Traceable financial workflows.
+      - region "Sign in form" [ref=e24]:
+        - generic [ref=e25]:
+          - generic [ref=e26]:
+            - generic [ref=e27]: Welcome back
+            - heading "Sign in to Housynk" [level=2] [ref=e28]
+            - paragraph [ref=e29]: Continue to your housing accounting workspace.
+          - heading "Sign In" [level=1] [ref=e30]
+          - paragraph [ref=e31]:
+            - text: If you have not created an account yet, then please
+            - link "sign up" [ref=e32] [cursor=pointer]:
+              - /url: /accounts/signup/?next=%2Fhousing%2Fstructures%2Fadd%2F
+            - text: first.
+          - generic [ref=e33]:
+            - generic [ref=e34]:
+              - generic [ref=e35]: Email*
+              - textbox "Email*" [ref=e36]:
+                - /placeholder: Email address
+            - generic [ref=e37]:
+              - generic [ref=e38]: Password*
+              - textbox "Password*" [ref=e39]:
+                - /placeholder: Password
+              - link "Forgot your password?" [ref=e41] [cursor=pointer]:
+                - /url: /accounts/password/reset/
+            - generic [ref=e43]:
+              - checkbox "Remember Me" [ref=e44]
+              - generic [ref=e45]: Remember Me
+            - button "Sign In" [ref=e46] [cursor=pointer]
+          - generic "Install app" [ref=e47]:
+            - generic [ref=e48]: 
+            - generic [ref=e50]:
+              - generic [ref=e51]: Install Housynk on your device
+              - generic [ref=e52]: Add the app to your home screen for faster access and offline use.
+            - generic [ref=e53]:
+              - button "Install" [ref=e54] [cursor=pointer]:
+                - generic [ref=e55]: 
+                - text: Install
+              - generic [ref=e56]: Use your browser menu if the button is unavailable.
+  - alert
+  - region "Install app" [ref=e57]:
+    - generic [ref=e58]:
+      - generic [ref=e59]:
+        - generic [ref=e60]: Get the app
+        - generic [ref=e61]: Install Housynk for faster access and offline use.
+      - generic [ref=e62]:
+        - button "Install" [ref=e63] [cursor=pointer]:
+          - generic [ref=e64]: 
+          - text: Install
+        - button "Not now" [ref=e65] [cursor=pointer]
+  - list [ref=e67]:
+    - listitem [ref=e68]:
+      - link "Hide »" [ref=e69] [cursor=pointer]:
+        - /url: "#"
+    - listitem [ref=e70]:
+      - link "Toggle Theme" [ref=e71] [cursor=pointer]:
+        - /url: "#"
+    - listitem [ref=e74]:
+      - checkbox "Disable for next and successive requests" [checked] [ref=e75]
+      - link "History /accounts/login/?next=/housing/structures/add/" [ref=e76] [cursor=pointer]:
+        - /url: "#"
+    - listitem [ref=e77]:
+      - checkbox "Disable for next and successive requests" [checked] [ref=e78]
+      - link "Versions Django 5.2.10" [ref=e79] [cursor=pointer]:
+        - /url: "#"
+    - listitem [ref=e80]:
+      - checkbox "Disable for next and successive requests" [checked] [ref=e81]
+      - 'link "Time CPU: 1030.15ms (36000.33ms)" [ref=e82] [cursor=pointer]':
+        - /url: "#"
+    - listitem [ref=e83]:
+      - checkbox "Disable for next and successive requests" [checked] [ref=e84]
+      - link "Settings" [ref=e85] [cursor=pointer]:
+        - /url: "#"
+    - listitem [ref=e86]:
+      - checkbox "Disable for next and successive requests" [checked] [ref=e87]
+      - link "Headers" [ref=e88] [cursor=pointer]:
+        - /url: "#"
+    - listitem [ref=e89]:
+      - checkbox "Disable for next and successive requests" [checked] [ref=e90]
+      - link "Request LoginView" [ref=e91] [cursor=pointer]:
+        - /url: "#"
+    - listitem [ref=e92]:
+      - checkbox "Disable for next and successive requests" [checked] [ref=e93]
+      - link "SQL 2 queries in 880.11ms" [ref=e94] [cursor=pointer]:
+        - /url: "#"
+    - listitem [ref=e95]:
+      - checkbox "Disable for next and successive requests" [checked] [ref=e96]
+      - link "Static files 22 files used" [ref=e97] [cursor=pointer]:
+        - /url: "#"
+    - listitem [ref=e98]:
+      - checkbox "Disable for next and successive requests" [checked] [ref=e99]
+      - link "Templates account/login.html" [ref=e100] [cursor=pointer]:
+        - /url: "#"
+    - listitem [ref=e101]:
+      - checkbox "Disable for next and successive requests" [checked] [ref=e102]
+      - link "Alerts" [ref=e103] [cursor=pointer]:
+        - /url: "#"
+    - listitem [ref=e104]:
+      - checkbox "Disable for next and successive requests" [checked] [ref=e105]
+      - link "Cache 0 calls in 0.00ms" [ref=e106] [cursor=pointer]:
+        - /url: "#"
+    - listitem [ref=e107]:
+      - checkbox "Disable for next and successive requests" [checked] [ref=e108]
+      - link "Signals 67 receivers of 15 signals" [ref=e109] [cursor=pointer]:
+        - /url: "#"
+    - listitem [ref=e110]:
+      - checkbox "Disable for next and successive requests" [checked] [ref=e111]
+      - link "Community" [ref=e112] [cursor=pointer]:
+        - /url: "#"
+    - listitem [ref=e113]:
+      - checkbox "Enable for next and successive requests" [ref=e114]
+      - generic [ref=e115]: Intercept redirects
+    - listitem [ref=e116]:
+      - checkbox "Enable for next and successive requests" [ref=e117]
+      - generic [ref=e118]: Profiling

@@ -7,33 +7,32 @@
       <p class="text-muted mb-3">
         {% blocktrans %}
           The financial year will be created automatically based on your
-          selection in the previous step. Review the available options below
-          and confirm to proceed.
+          selection in the previous step. Review the details below and
+          confirm to proceed.
         {% endblocktrans %}
       </p>
 
-      {% if fy_options %}
+      {% if selected_fy %}
         <div class="alert alert-info" role="alert">
           <i class="fas fa-info-circle me-2"></i>
-          {% blocktrans count counter=fy_options|length %}
-            {{ counter }} financial year option is available.
-          {% plural %}
-            {{ counter }} financial year options are available.
-          {% endblocktrans %}
+          {% trans "The following financial year will be created:" %}
         </div>
 
-        <ul class="list-group mb-3">
-          {% for option in fy_options %}
-            <li class="list-group-item d-flex align-items-center">
-              <i class="fas fa-calendar-alt me-3 text-primary"></i>
-              <strong>{{ option }}</strong>
-            </li>
-          {% endfor %}
-        </ul>
+        <div class="card mb-3">
+          <div class="card-body">
+            <div class="d-flex align-items-center">
+              <i class="fas fa-calendar-alt fa-2x me-3 text-primary"></i>
+              <div>
+                <h5 class="mb-1">{% trans "Financial Year" %}</h5>
+                <strong class="text-primary fs-4">{{ selected_fy }}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
       {% else %}
         <div class="alert alert-warning" role="alert">
           <i class="fas fa-exclamation-triangle me-2"></i>
-          {% trans "No financial year options are available. Please go back and select a financial year pattern." %}
+          {% trans "No financial year selected. Please go back and select an accounting start year." %}
         </div>
       {% endif %}
 
@@ -42,7 +41,7 @@
         {% csrf_token %}
         <div class="form-actions">
           <button type="submit" class="btn btn-primary"
-                  {% if not fy_options %}disabled{% endif %}>
+                  {% if not selected_fy %}disabled{% endif %}>
             <i class="fas fa-check me-1"></i>{% trans "Create Financial Year & Continue" %}
           </button>
           <a href="{% url 'onboarding:wizard-step' wizard.id 4 %}"

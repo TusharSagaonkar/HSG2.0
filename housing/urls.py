@@ -15,6 +15,7 @@ from housing.views import receipt_post_view
 from housing.views import reminder_schedule_view
 from housing.views import resend_verification_email_view
 from housing.views import update_membership_view
+from housing.views import society_admin_redirect_view
 from housing.views import society_admin_view
 from housing.views import society_profile_update_view
 from housing.views import society_settings_update_view
@@ -38,6 +39,7 @@ urlpatterns = [
     path("", view=RedirectView.as_view(pattern_name="home", permanent=False), name="dashboard"),
     path("societies/add/", view=society_create_view, name="society-add"),
     path("societies/", view=society_list_view, name="society-list"),
+    path("societies/admin/", view=society_admin_redirect_view, name="society-admin-redirect"),
     path("societies/<int:pk>/", view=society_detail_view, name="society-detail"),
     path("societies/<int:pk>/admin/", view=society_admin_view, name="society-admin"),
     path("societies/<int:pk>/admin/settings/", view=society_settings_update_view, name="society-settings-update"),

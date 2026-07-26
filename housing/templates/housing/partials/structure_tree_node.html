@@ -1,0 +1,132 @@
+{% load i18n %}
+<div class="structure-node" data-structure-node data-structure-id="{{ structure.id }}">
+  <div class="structure-node__header">
+    <button class="structure-node__toggle" 
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#structure-{{ structure.id }}"
+            aria-expanded="true"
+            aria-controls="structure-{{ structure.id }}">
+      <i class="fas fa-chevron-right structure-node__icon"></i>
+    </button>
+    <div class="structure-node__content">
+      <span class="structure-node__name">{{ structure.name }}</span>
+      <span class="structure-node__type">{{ structure.get_structure_type_display }}</span>
+      {% if structure.children.all|length > 0 %}
+        <span class="structure-node__badge">{{ structure.children.all|length }}</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if structure.children.all %}
+    <div id="structure-{{ structure.id }}" class="collapse show">
+      <div class="structure-node__children">
+        {% for child in structure.children.all %}
+          {% include "housing/partials/structure_tree_node.html" with structure=child %}
+        {% endfor %}
+      </div>
+    </div>
+  {% endif %}
+</div>
+
+<style scoped>
+  .structure-node {
+    padding: 0.5rem 0;
+    border-left: 2px solid transparent;
+    transition: border-color 0.2s ease;
+  }
+
+  .structure-node:hover {
+    border-left-color: var(--bs-primary);
+  }
+
+  .structure-node__header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    cursor: pointer;
+    border-radius: 0.25rem;
+    transition: background-color 0.2s ease;
+  }
+
+  .structure-node__header:hover {
+    background-color: var(--bs-secondary-bg);
+  }
+
+  .structure-node__toggle {
+    background: none;
+    border: none;
+    padding: 0;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: var(--bs-primary);
+    transition: transform 0.2s ease;
+  }
+
+  .structure-node__toggle[aria-expanded="true"] .structure-node__icon {
+    transform: rotate(90deg);
+  }
+
+  .structure-node__icon {
+    font-size: 0.875rem;
+    transition: transform 0.2s ease;
+  }
+
+  .structure-node__content {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .structure-node__name {
+    font-weight: 500;
+    color: var(--bs-body-color);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .structure-node__type {
+    font-size: 0.75rem;
+    background-color: var(--bs-primary);
+    color: white;
+    padding: 0.25rem 0.5rem;
+    border-radius: 0.2rem;
+    white-space: nowrap;
+  }
+
+  .structure-node__badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    background-color: var(--bs-info);
+    color: white;
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: 600;
+    flex-shrink: 0;
+  }
+
+  .structure-node__children {
+    margin-left: 1.5rem;
+    padding-left: 0.75rem;
+    border-left: 1px solid var(--bs-border-color);
+  }
+
+  .collapse {
+    display: block;
+  }
+
+  .collapse:not(.show) {
+    display: none;
+  }
+</style>

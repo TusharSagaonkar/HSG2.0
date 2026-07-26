@@ -1,0 +1,220 @@
+- generic [active] [ref=f6e1]:
+  - link "Skip to main content" [ref=f6e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=f6e3]:
+    - generic [ref=f6e4]:
+      - generic [ref=f6e5]:
+        - link "Housynk Home" [ref=f6e6] [cursor=pointer]:
+          - /url: /
+          - img "Housynk" [ref=f6e8]
+        - button "Toggle sidebar" [expanded] [ref=f6e10] [cursor=pointer]
+      - navigation "Main Navigation" [ref=f6e15]:
+        - listitem [ref=f6e16]:
+          - text: 
+          - heading [level=4] [ref=f6e17]: Main
+        - listitem [ref=f6e18]:
+          - link "Dashboard" [ref=f6e19] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f6e20]: 
+            - paragraph [ref=f6e21]: Dashboard
+        - listitem [ref=f6e22]:
+          - link "Societies" [ref=f6e23] [cursor=pointer]:
+            - /url: /housing/societies/admin/
+            - generic [ref=f6e24]: 
+            - paragraph [ref=f6e25]: Societies
+        - listitem [ref=f6e26]:
+          - link "Structure & Units" [ref=f6e27] [cursor=pointer]:
+            - /url: /housing/structures-units/
+            - generic [ref=f6e28]: 
+            - paragraph [ref=f6e29]: Structure & Units
+        - listitem [ref=f6e30]:
+          - link "Members" [ref=f6e31] [cursor=pointer]:
+            - /url: /housing/members/
+            - generic [ref=f6e32]: 
+            - paragraph [ref=f6e33]: Members
+        - listitem [ref=f6e34]:
+          - link "Shares" [ref=f6e35] [cursor=pointer]:
+            - /url: /shares/
+            - generic [ref=f6e36]: 
+            - paragraph [ref=f6e37]: Shares
+        - listitem [ref=f6e38]:
+          - heading [level=4] [ref=f6e39]: Core Operations
+        - listitem [ref=f6e40]:
+          - link "Accounting" [ref=f6e41] [cursor=pointer]:
+            - /url: /accounting/
+            - generic [ref=f6e42]: 
+            - paragraph [ref=f6e43]: Accounting
+        - listitem [ref=f6e44]:
+          - link "Parking" [ref=f6e45] [cursor=pointer]:
+            - /url: /parking/
+            - generic [ref=f6e46]: 
+            - paragraph [ref=f6e47]: Parking
+        - listitem [ref=f6e48]:
+          - link "Gate Management" [ref=f6e49] [cursor=pointer]:
+            - /url: /gateops/
+            - generic [ref=f6e50]: 
+            - paragraph [ref=f6e51]: Gate Management
+        - listitem [ref=f6e52]:
+          - heading [level=4] [ref=f6e53]: Financial Management
+        - listitem [ref=f6e54]:
+          - link "Finance Hub" [ref=f6e55] [cursor=pointer]:
+            - /url: /housing/finance/
+            - generic [ref=f6e56]: 
+            - paragraph [ref=f6e57]: Finance Hub
+        - listitem [ref=f6e58]:
+          - link "Reconciliation" [ref=f6e59] [cursor=pointer]:
+            - /url: /reconciliation/
+            - generic [ref=f6e60]: 
+            - paragraph [ref=f6e61]: Reconciliation
+        - listitem [ref=f6e62]:
+          - link "Reports" [ref=f6e63] [cursor=pointer]:
+            - /url: /reports/
+            - generic [ref=f6e64]: 
+            - paragraph [ref=f6e65]: Reports
+        - listitem [ref=f6e66]:
+          - heading [level=4] [ref=f6e67]: Administration
+        - listitem [ref=f6e68]:
+          - link "Reminders" [ref=f6e69] [cursor=pointer]:
+            - /url: /notifications/reminders/
+            - generic [ref=f6e70]: 
+            - paragraph [ref=f6e71]: Reminders
+    - generic [ref=f6e82]:
+      - navigation "Top Navigation" [ref=f6e84]:
+        - generic [ref=f6e85]:
+          - heading "Accounting Setup" [level=3] [ref=f6e87]
+          - list [ref=f6e88]:
+            - listitem [ref=f6e89]:
+              - group "Tenant Context Selection" [ref=f6e90]:
+                - generic [ref=f6e91]:
+                  - generic [ref=f6e92]: Tenant Context
+                  - generic [ref=f6e93]: Owner
+                - form "Society and Financial Year Selection" [ref=f6e95]:
+                  - generic [ref=f6e96]: Society
+                  - combobox "Select Society" [ref=f6e97]:
+                    - option "Dhanashre Society" [selected]
+                  - generic [ref=f6e98]: FY
+                  - combobox "Select Financial Year" [ref=f6e99]:
+                    - option "FY 2026-27" [selected]
+                    - option "FY 2024-25"
+                    - option "FY 2023-24"
+            - listitem [ref=f6e100]:
+              - button "View Accounting Periods" [ref=f6e101] [cursor=pointer]:
+                - generic [ref=f6e102]: 
+                - text: Periods (12)
+            - listitem [ref=f6e103]:
+              - button "View keyboard shortcuts" [ref=f6e104] [cursor=pointer]:
+                - generic [ref=f6e105]: 
+                - text: Shortcuts
+            - listitem [ref=f6e106]:
+              - generic [ref=f6e107]:
+                - link "View Profile for tushar.sagaonkar@gmail.com" [ref=f6e108] [cursor=pointer]:
+                  - /url: /users/5/
+                  - generic [ref=f6e109]: 
+                  - text: tushar.sagaonkar@gmail.com
+                - button "Sign Out" [ref=f6e110] [cursor=pointer]:
+                  - generic [ref=f6e111]: 
+                  - text: Sign Out
+      - generic [ref=f6e112]:
+        - generic [ref=f6e114]:
+          - paragraph [ref=f6e115]: Step 9 of 28 — Dhanashre Society
+          - generic [ref=f6e116]:
+            - generic [ref=f6e117]:
+              - generic [ref=f6e118]:
+                - link "" [ref=f6e119] [cursor=pointer]:
+                  - /url: /onboarding/22/step/1/
+                - link "" [ref=f6e122] [cursor=pointer]:
+                  - /url: /onboarding/22/step/2/
+                - link "" [ref=f6e125] [cursor=pointer]:
+                  - /url: /onboarding/22/step/3/
+                - link "" [ref=f6e128] [cursor=pointer]:
+                  - /url: /onboarding/22/step/4/
+                - link "" [ref=f6e131] [cursor=pointer]:
+                  - /url: /onboarding/22/step/5/
+                - link "" [ref=f6e134] [cursor=pointer]:
+                  - /url: /onboarding/22/step/6/
+                - link "" [ref=f6e137] [cursor=pointer]:
+                  - /url: /onboarding/22/step/7/
+                - link "" [ref=f6e140] [cursor=pointer]:
+                  - /url: /onboarding/22/step/8/
+                - link "9" [ref=f6e143] [cursor=pointer]:
+                  - /url: /onboarding/22/step/9/
+                - link "10" [ref=f6e145]:
+                  - /url: /onboarding/22/step/10/
+                - link "11" [ref=f6e147]:
+                  - /url: /onboarding/22/step/11/
+                - link "12" [ref=f6e149]:
+                  - /url: /onboarding/22/step/12/
+                - link "13" [ref=f6e151]:
+                  - /url: /onboarding/22/step/13/
+                - link "14" [ref=f6e153]:
+                  - /url: /onboarding/22/step/14/
+                - link "15" [ref=f6e155]:
+                  - /url: /onboarding/22/step/15/
+                - link "16" [ref=f6e157]:
+                  - /url: /onboarding/22/step/16/
+                - link "17" [ref=f6e159]:
+                  - /url: /onboarding/22/step/17/
+                - link "18" [ref=f6e161]:
+                  - /url: /onboarding/22/step/18/
+                - link "19" [ref=f6e163]:
+                  - /url: /onboarding/22/step/19/
+                - link "20" [ref=f6e165]:
+                  - /url: /onboarding/22/step/20/
+                - link "21" [ref=f6e167]:
+                  - /url: /onboarding/22/step/21/
+                - link "22" [ref=f6e169]:
+                  - /url: /onboarding/22/step/22/
+                - link "23" [ref=f6e171]:
+                  - /url: /onboarding/22/step/23/
+                - link "24" [ref=f6e173]:
+                  - /url: /onboarding/22/step/24/
+                - link "25" [ref=f6e175]:
+                  - /url: /onboarding/22/step/25/
+                - link "26" [ref=f6e177]:
+                  - /url: /onboarding/22/step/26/
+                - link "27" [ref=f6e179]:
+                  - /url: /onboarding/22/step/27/
+                - link "28" [ref=f6e181]:
+                  - /url: /onboarding/22/step/28/
+              - generic [ref=f6e182]:
+                - generic [ref=f6e183]:
+                  - generic [ref=f6e184]: Step 9 of 28
+                  - strong [ref=f6e185]: Accounting Setup
+                - generic [ref=f6e186]:
+                  - link " Previous" [ref=f6e187] [cursor=pointer]:
+                    - /url: /onboarding/22/step/8/
+                    - generic [ref=f6e188]: 
+                    - text: Previous
+                  - button "Next " [disabled]:
+                    - text: Next
+                    - generic: 
+                - generic [ref=f6e189]:
+                  - generic [ref=f6e190]: 
+                  - text: Existing society — full accounting migration is required.
+              - progressbar [ref=f6e192]
+            - generic [ref=f6e195]:
+              - paragraph [ref=f6e196]: Standard chart of accounts and account mappings will be created automatically for your society. This sets up the accounting foundation before the migration steps.
+              - alert [ref=f6e197]:
+                - generic [ref=f6e198]: 
+                - text: Society
+                - strong [ref=f6e199]: Dhanashre Society
+                - text: has been created successfully.
+              - generic [ref=f6e200]:
+                - term [ref=f6e201]: Society Name
+                - definition [ref=f6e202]: Dhanashre Society
+                - term [ref=f6e203]: Registration Number
+                - definition [ref=f6e204]: "1234"
+                - term [ref=f6e205]: PAN
+                - definition [ref=f6e206]: "-"
+              - generic [ref=f6e208]:
+                - button " Set Up Accounting & Continue" [ref=f6e209] [cursor=pointer]:
+                  - generic [ref=f6e210]: 
+                  - text: Set Up Accounting & Continue
+                - link " Back" [ref=f6e211] [cursor=pointer]:
+                  - /url: /onboarding/22/step/8/
+                  - generic [ref=f6e212]: 
+                  - text: Back
+        - text:             
+        - alert
+        - text: 
+        - generic "Show toolbar" [ref=f6e214]: DJDT

@@ -13,6 +13,7 @@ from accounting.models import AccountingPeriod
 from accounting.models import Voucher
 from billing.models import Bill
 from billing.models import ChargeTemplate
+from gateops.models import GateEvent
 from housing_accounting.selection import get_selected_scope
 from members.models import Member
 from members.models import Structure
@@ -66,6 +67,7 @@ class HomeDashboardView(LoginRequiredMixin, TemplateView):
         vehicles_qs = Vehicle.objects.select_related("society", "unit")
         permits_qs = ParkingPermit.objects.select_related("society", "vehicle", "slot", "unit")
         rotation_apps_qs = ParkingRotationApplication.objects.select_related("cycle", "unit", "vehicle")
+        gate_events_qs = GateEvent.objects.select_related("society", "gate", "person")
 
         if selected_society:
             societies_qs = societies_qs.filter(pk=selected_society.pk)
@@ -82,6 +84,7 @@ class HomeDashboardView(LoginRequiredMixin, TemplateView):
             vehicles_qs = vehicles_qs.filter(society=selected_society)
             permits_qs = permits_qs.filter(society=selected_society)
             rotation_apps_qs = rotation_apps_qs.filter(cycle__society=selected_society)
+            gate_events_qs = gate_events_qs.filter(society=selected_society)
 
         if selected_financial_year:
             bills_qs = self._filter_date_range(
@@ -136,6 +139,7 @@ class HomeDashboardView(LoginRequiredMixin, TemplateView):
                 "finance_dashboard_url": reverse("housing:finance-dashboard"),
                 "accounting_dashboard_url": reverse("accounting:dashboard"),
                 "reconciliation_dashboard_url": reverse("reconciliation:dashboard"),
+                "gateops_dashboard_url": reverse("gateops:dashboard"),
                 "total_societies": societies_qs.count(),
                 "total_structures": structures_qs.count(),
                 "total_units": total_units,
@@ -165,6 +169,10 @@ class HomeDashboardView(LoginRequiredMixin, TemplateView):
                 "active_permits": permits_qs.filter(status=ParkingPermit.Status.ACTIVE).count(),
                 "pending_rotation_applications": rotation_apps_qs.filter(
                     application_status=ParkingRotationApplication.ApplicationStatus.PENDING
+                ).count(),
+                "gate_visitors_inside": gate_events_qs.filter(status=GateEvent.Status.ENTERED).count(),
+                "gate_events_awaiting_action": gate_events_qs.filter(
+                    status__in=[GateEvent.Status.ARRIVED, GateEvent.Status.APPROVED]
                 ).count(),
                 "queued_reminders": reminders_qs.filter(status=ReminderLog.ReminderStatus.QUEUED).count(),
                 "failed_reminders": reminders_qs.filter(status=ReminderLog.ReminderStatus.FAILED).count(),

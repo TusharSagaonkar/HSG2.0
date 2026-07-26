@@ -93,18 +93,21 @@
     </div>
   </section>
 
-  <section class="row g-3 mb-4">
-    <div class="col-sm-6 col-xl-3">
+  <section class="row row-cols-1 row-cols-sm-2 row-cols-xl-5 g-3 mb-4" aria-label="{% translate 'Application modules' %}">
+    <div class="col">
       {% include "components/stat_card.html" with href=structure_dashboard_url icon="fas fa-city" label=_("Housing") value=total_structures|default:0 subtitle=_("Societies and units") color="primary" %}
     </div>
-    <div class="col-sm-6 col-xl-3">
+    <div class="col">
       {% include "components/stat_card.html" with href=finance_dashboard_url icon="fas fa-file-invoice-dollar" label=_("Finance Hub") value=total_billed|default:0 subtitle=_("Bills, receipts, and outstanding") color="success" %}
     </div>
-    <div class="col-sm-6 col-xl-3">
+    <div class="col">
       {% include "components/stat_card.html" with href=accounting_dashboard_url icon="fas fa-calculator" label=_("Accounting") value=draft_vouchers|default:0 subtitle=_("Vouchers and ledgers") color="info" %}
     </div>
-    <div class="col-sm-6 col-xl-3">
+    <div class="col">
       {% include "components/stat_card.html" with href=reconciliation_dashboard_url icon="fas fa-balance-scale" label=_("Reconciliation") value=failed_reminders|default:0 subtitle=_("Bank matching") color="warning" %}
+    </div>
+    <div class="col">
+      {% include "components/stat_card.html" with href=gateops_dashboard_url icon="fas fa-shield-alt" label=_("Gate Operations") value=gate_visitors_inside|default:0 subtitle=_("Visitors currently inside") color="secondary" %}
     </div>
   </section>
   <section class="row g-4">
@@ -158,6 +161,30 @@
                   <div>
                     <div class="fw-semibold">{% translate "Accounting" %}</div>
                     <div class="small text-muted">{% translate "Vouchers and ledgers" %}</div>
+                  </div>
+                </div>
+              </a>
+            </div>
+            <div class="col-12 col-md-6">
+              <a href="{% url 'gateops:event-create' %}" class="card border h-100 text-decoration-none text-reset">
+                <div class="card-body d-flex align-items-center gap-3">
+                  <i class="fas fa-user-plus text-success fa-lg"></i>
+                  <div>
+                    <div class="fw-semibold">{% translate "Record Gate Entry" %}</div>
+                    <div class="small text-muted">{% translate "Register an arrival or invitation" %}</div>
+                  </div>
+                </div>
+              </a>
+            </div>
+            <div class="col-12 col-md-6">
+              <a href="{% url 'gateops:currently-inside' %}" class="card border h-100 text-decoration-none text-reset">
+                <div class="card-body d-flex align-items-center gap-3">
+                  <i class="fas fa-person-walking-arrow-right text-warning fa-lg"></i>
+                  <div>
+                    <div class="fw-semibold">{% translate "Gate Watchlist" %}</div>
+                    <div class="small text-muted">
+                      {% blocktranslate count counter=gate_events_awaiting_action|default:0 %}{{ counter }} event awaiting action{% plural %}{{ counter }} events awaiting action{% endblocktranslate %}
+                    </div>
                   </div>
                 </div>
               </a>

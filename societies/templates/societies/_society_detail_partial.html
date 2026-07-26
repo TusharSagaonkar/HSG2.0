@@ -1,0 +1,56 @@
+<!-- Partial template for inline society detail view (used in list view) -->
+{% load i18n %}
+
+<div class="card border-primary mb-3">
+  <div class="card-header bg-primary text-white">
+    <h5 class="mb-0">
+      <i class="fas fa-building me-2"></i>{{ society.name }}
+    </h5>
+  </div>
+  <div class="card-body">
+    <div class="row">
+      <div class="col-md-4">
+        <p class="mb-2">
+          <strong><i class="fas fa-id-card me-1"></i>Registration:</strong>
+          {% if society.registration_number %}
+            <span class="badge bg-info">{{ society.registration_number }}</span>
+          {% else %}
+            <span class="text-muted">Not provided</span>
+          {% endif %}
+        </p>
+      </div>
+      <div class="col-md-4">
+        <p class="mb-2">
+          <strong><i class="fas fa-user me-1"></i>Created by:</strong>
+          {% if society.created_by %}
+            {{ society.created_by.get_full_name }}
+          {% else %}
+            <span class="text-muted">System</span>
+          {% endif %}
+        </p>
+      </div>
+      <div class="col-md-4">
+        <p class="mb-2">
+          <strong><i class="fas fa-calendar me-1"></i>Created:</strong>
+          {{ society.created_at|date:"M d, Y" }}
+        </p>
+      </div>
+    </div>
+    
+    {% if society.address %}
+    <div class="mt-2">
+      <strong><i class="fas fa-map-marker-alt me-1"></i>Address:</strong>
+      <p class="mb-0 ms-3">{{ society.address }}</p>
+    </div>
+    {% endif %}
+    
+    <div class="mt-3">
+      <a href="{% url 'societies:society-detail' society.pk %}" class="btn btn-sm btn-primary">
+        <i class="fas fa-eye me-1"></i>View Full Details
+      </a>
+      <a href="{% url 'societies:society-update' society.pk %}" class="btn btn-sm btn-outline-secondary">
+        <i class="fas fa-edit me-1"></i>Edit
+      </a>
+    </div>
+  </div>
+</div>

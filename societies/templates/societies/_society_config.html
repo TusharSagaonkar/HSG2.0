@@ -1,0 +1,102 @@
+{% load i18n %}
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="config-item">
+      <label class="config-label">
+        <i class="fas fa-coins me-1"></i>Share Value
+      </label>
+      <div class="config-value">₹{{ society.share_config.share_value }}</div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="config-item">
+      <label class="config-label">
+        <i class="fas fa-hashtag me-1"></i>Default Share Count
+      </label>
+      <div class="config-value">{{ society.share_config.default_share_count }}</div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="config-item">
+      <label class="config-label">
+        <i class="fas fa-door-open me-1"></i>Entrance Fee
+      </label>
+      <div class="config-value">₹{{ society.share_config.entrance_fee }}</div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="config-item">
+      <label class="config-label">
+        <i class="fas fa-exchange-alt me-1"></i>Transfer Fee
+      </label>
+      <div class="config-value">₹{{ society.share_config.transfer_fee }}</div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="config-item">
+      <label class="config-label">
+        <i class="fas fa-star me-1"></i>Premium Amount
+      </label>
+      <div class="config-value">₹{{ society.share_config.premium_amount }}</div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="config-item">
+      <label class="config-label">
+        <i class="fas fa-users me-1"></i>Multiple Nominees
+      </label>
+      <div class="config-value">
+        {% if society.share_config.allow_multiple_nominees %}
+          <span class="badge bg-success"><i class="fas fa-check"></i> Allowed</span>
+        {% else %}
+          <span class="badge bg-secondary"><i class="fas fa-times"></i> Not Allowed</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="config-item">
+      <label class="config-label">
+        <i class="fas fa-check-circle me-1"></i>Require Approval
+      </label>
+      <div class="config-value">
+        {% if society.share_config.require_approval %}
+          <span class="badge bg-warning"><i class="fas fa-lock"></i> Required</span>
+        {% else %}
+          <span class="badge bg-success"><i class="fas fa-unlock"></i> Not Required</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+  .config-item {
+    padding: 0.75rem;
+    background: #ffffff;
+    border: 1px solid #e9ecef;
+    border-radius: 0.375rem;
+    height: 100%;
+  }
+
+  .config-label {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+    display: block;
+  }
+
+  .config-value {
+    font-size: 1.125rem;
+    color: #212529;
+    font-weight: 600;
+  }
+</style>

@@ -1,0 +1,27 @@
+{% load i18n %}
+<nav class="gateops-nav mb-3" aria-label="{% translate 'Gate Operations workspace' %}">
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    <span class="small text-uppercase fw-bold text-muted me-1">{% translate "GateOps" %}</span>
+    <a href="{% url 'gateops:dashboard' %}" class="btn btn-sm {% if request.resolver_match.url_name == 'dashboard' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+      <i class="fas fa-shield-alt me-1"></i>{% translate "Overview" %}
+    </a>
+    <a href="{% url 'gateops:event-list' %}" class="btn btn-sm {% if request.resolver_match.url_name|slice:':5' == 'event' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+      <i class="fas fa-door-open me-1"></i>{% translate "Events" %}
+    </a>
+    <a href="{% url 'gateops:currently-inside' %}" class="btn btn-sm {% if request.resolver_match.url_name == 'currently-inside' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+      <i class="fas fa-users me-1"></i>{% translate "Inside" %}
+    </a>
+    <a href="{% url 'gateops:pass-list' %}" class="btn btn-sm {% if request.resolver_match.url_name|slice:':4' == 'pass' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+      <i class="fas fa-id-card me-1"></i>{% translate "Passes" %}
+    </a>
+    <a href="{% url 'gateops:vehicle-list' %}" class="btn btn-sm {% if request.resolver_match.url_name|slice:':7' == 'vehicle' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+      <i class="fas fa-car me-1"></i>{% translate "Vehicles" %}
+    </a>
+    <a href="{% url 'gateops:contractor-dashboard' %}" class="btn btn-sm {% if request.resolver_match.url_name|slice:':10' == 'contractor' or request.resolver_match.url_name|slice:':8' == 'contract' or request.resolver_match.url_name|slice:':6' == 'worker' or request.resolver_match.url_name|slice:':11' == 'work-permit' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+      <i class="fas fa-hard-hat me-1"></i>{% translate "Contractors" %}
+    </a>
+    <a href="{% url 'gateops:analytics-dashboard' %}" class="btn btn-sm {% if request.resolver_match.url_name|slice:':9' == 'analytics' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+      <i class="fas fa-chart-pie me-1"></i>{% translate "Analytics" %}
+    </a>
+  </div>
+</nav>

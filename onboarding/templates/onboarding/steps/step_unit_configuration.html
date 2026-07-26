@@ -6,14 +6,109 @@
     <div class="content-card__body">
       <p class="text-muted mb-3">
         {% blocktrans %}
-          Configure the units within your society structures. Add units
-          to the grid below — each unit needs an identifier, building,
-          type, and area. The grid data is submitted as JSON when you save.
+          Configure units within any structure (building, wing, block, tower,
+          or floor). Add rows manually or bulk-generate with continuous or
+          floor-based numbering. Each unit needs an identifier and structure.
         {% endblocktrans %}
       </p>
 
+      {% if not structure_options %}
+        <div class="alert alert-warning" role="alert">
+          <i class="fas fa-exclamation-triangle me-1"></i>
+          {% blocktrans %}
+            No structures found. Please complete
+            <strong>Step 6 (Structure)</strong> and add at least one
+            structure before configuring units.
+          {% endblocktrans %}
+        </div>
+      {% endif %}
+
+      {% if unit_summary %}
+        <div class="border rounded p-3 mb-3 bg-light">
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-2">
+            <h6 class="mb-0">
+              <i class="fas fa-list-ul me-2 text-success"></i>
+              {% trans "Units Already Added" %}
+            </h6>
+            <span class="badge bg-success-subtle text-success-emphasis">
+              {% blocktrans count counter=unit_summary_total %}
+                {{ counter }} unit total
+              {% plural %}
+                {{ counter }} units total
+              {% endblocktrans %}
+            </span>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-sm table-bordered bg-white mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 35%;">{% trans "Structure Hierarchy" %}</th>
+                  <th style="width: 100px;">{% trans "Type" %}</th>
+                  <th class="text-center" style="width: 90px;">{% trans "Units" %}</th>
+                  <th>{% trans "Sample Identifiers" %}</th>
+                  <th class="text-center" style="width: 110px;">{% trans "Actions" %}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for s in unit_summary %}
+                  <tr>
+                    <td>
+                      <div class="d-flex align-items-center gap-1" style="padding-left: {% widthratio s.depth 1 18 %}px;">
+                        {% if s.depth %}
+                          <i class="fas fa-level-up-alt fa-rotate-90 text-muted"></i>
+                        {% else %}
+                          <i class="fas fa-sitemap text-primary"></i>
+                        {% endif %}
+                        <strong>{{ s.name }}</strong>
+                      </div>
+                      <div class="small text-muted mt-1">
+                        <i class="fas fa-route me-1"></i>{{ s.path_label }}
+                      </div>
+                    </td>
+                    <td><span class="badge text-bg-light">{{ s.type_label }}</span></td>
+                    <td class="text-center">
+                      <span class="badge text-bg-primary">{{ s.total }}</span>
+                    </td>
+                    <td class="text-muted small">
+                      {% if s.sample %}
+                        {{ s.sample|join:", " }}
+                        {% if s.total > 5 %}
+                          <span class="text-secondary">+ {{ s.total|add:"-5" }} {% trans "more" %}</span>
+                        {% endif %}
+                      {% else %}
+                        <span class="text-secondary">{% trans "No units yet" %}</span>
+                      {% endif %}
+                    </td>
+                    <td class="text-center">
+                      {% if s.total > 0 %}
+                        <form method="post"
+                              action="{% url 'onboarding:wizard-units-delete' wizard.id s.id %}"
+                              class="d-inline"
+                              onsubmit="return confirm('{% blocktrans with name=s.name count=s.total %}Delete all {{ count }} unit(s) on {{ name }}? This cannot be undone.{% endblocktrans %}');">
+                          {% csrf_token %}
+                          <button type="submit" class="btn btn-sm btn-outline-danger" title="{% trans 'Delete units on this structure' %}">
+                            <i class="fas fa-trash me-1"></i>{% trans "Delete" %}
+                          </button>
+                        </form>
+                      {% else %}
+                        <span class="text-muted small">—</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+          <div class="text-muted small mt-2">
+            <i class="fas fa-info-circle me-1"></i>
+            {% trans "An identifier that already exists on the same structure will be rejected. Delete removes all units on that structure only." %}
+          </div>
+        </div>
+      {% endif %}
+
       <form method="post"
-            action="{% url 'onboarding:wizard-step-save' wizard.id step_number %}">
+            action="{% url 'onboarding:wizard-step-save' wizard.id step_number %}"
+            id="unitForm">
         {% csrf_token %}
 
         {% if form.non_field_errors %}
@@ -22,29 +117,557 @@
           </div>
         {% endif %}
 
-        {# units_json is a HiddenInput — the JS grid populates it #}
         {{ form.units_json }}
         {% for error in form.units_json.errors %}
           <div class="invalid-feedback d-block">{{ error }}</div>
         {% endfor %}
 
-        <div id="unit-grid" class="border rounded p-3 mb-3 bg-light">
-          <p class="text-muted text-center mb-0 py-4">
-            <i class="fas fa-th me-2"></i>
-            {% trans "Unit configuration grid will be rendered here." %}
-          </p>
+        <div class="border rounded p-3 mb-3">
+          <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
+            <h6 class="mb-0">
+              <i class="fas fa-th me-2 text-primary"></i>{% trans "Unit Configuration Grid" %}
+            </h6>
+            <div class="d-flex gap-2">
+              <button type="button" class="btn btn-sm btn-outline-primary" id="addRowBtn">
+                <i class="fas fa-plus me-1"></i>{% trans "Add Unit" %}
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-primary" id="bulkAddBtn"
+                      data-bs-toggle="modal" data-bs-target="#bulkGenerateModal">
+                <i class="fas fa-layer-group me-1"></i>{% trans "Bulk Generate" %}
+              </button>
+              <button type="button" class="btn btn-sm btn-outline-secondary" id="clearRowsBtn">
+                <i class="fas fa-trash me-1"></i>{% trans "Clear All" %}
+              </button>
+            </div>
+          </div>
+
+          <div class="table-responsive" style="max-height: 450px; overflow-y: auto;">
+            <table class="table table-sm table-bordered align-middle mb-0" id="unitTable">
+              <thead class="table-light sticky-top">
+                <tr>
+                  <th style="width: 40px;">#</th>
+                  <th style="width: 120px;">{% trans "Identifier" %} <span class="text-danger">*</span></th>
+                  <th style="width: 200px;">{% trans "Structure" %} <span class="text-danger">*</span></th>
+                  <th style="width: 80px;">{% trans "Floor" %}</th>
+                  <th style="width: 120px;">{% trans "Unit Type" %}</th>
+                  <th style="width: 120px;">{% trans "Usage Type" %}</th>
+                  <th style="width: 100px;">{% trans "Area (sqft)" %}</th>
+                  <th style="width: 100px;">{% trans "Parking" %}</th>
+                  <th style="width: 40px;"></th>
+                </tr>
+              </thead>
+              <tbody id="unitTableBody"></tbody>
+            </table>
+          </div>
+
+          <div id="unitEmpty" class="text-center text-muted py-4">
+            <i class="fas fa-th fa-2x mb-2 d-block"></i>
+            <p class="mb-0">{% trans "No units added yet. Click \"Add Unit\" or use \"Bulk Generate\"." %}</p>
+          </div>
+
+          <div class="text-muted small mt-2 d-flex flex-wrap align-items-center gap-2">
+            <span>
+              <i class="fas fa-info-circle me-1"></i>
+              <span id="unitCount">0</span> {% trans "units configured" %}
+            </span>
+            <span id="dupCount" class="badge text-bg-danger" style="display:none;"
+                  title="{% trans 'Duplicate identifiers on the same structure' %}">
+              <i class="fas fa-exclamation-circle me-1"></i>
+              <span id="dupCountLabel">{% trans "0 duplicates" %}</span>
+            </span>
+          </div>
         </div>
 
-        <div class="form-actions mt-4">
-          <button type="submit" class="btn btn-primary">
-            <i class="fas fa-check me-1"></i>{% trans "Save & Continue" %}
-          </button>
+        <div class="modal fade" id="bulkGenerateModal" tabindex="-1">
+          <div class="modal-dialog modal-dialog-centered modal-lg">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">
+                  <i class="fas fa-layer-group me-2"></i>{% trans "Bulk Generate Units" %}
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+              </div>
+              <div class="modal-body">
+                <p class="text-muted small">
+                  {% trans "Attach generated units to any structure. Choose continuous or floor-based numbering." %}
+                </p>
+                <div class="row g-3">
+                  <div class="col-12 col-md-6">
+                    <label class="form-label">{% trans "Structure" %} <span class="text-danger">*</span></label>
+                    <select class="form-select" id="bulkStructure">
+                      {% for s in structure_options %}
+                        <option value="{{ s.id }}" data-name="{{ s.name }}">{{ s.label }}</option>
+                      {% endfor %}
+                    </select>
+                    {% if not structure_options %}
+                      <div class="form-text text-danger">{% trans "No structures available — add one in Step 6 first." %}</div>
+                    {% endif %}
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <label class="form-label">{% trans "Numbering style" %}</label>
+                    <select class="form-select" id="bulkNumberingStyle">
+                      <option value="continuous">{% trans "Continuous" %}</option>
+                      <option value="floor_based" selected>{% trans "Floor based" %}</option>
+                    </select>
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <label class="form-label">{% trans "Starting number" %}</label>
+                    <input type="number" class="form-control" id="bulkStartingNumber" value="1" min="1">
+                    <div class="form-text">{% trans "Used for continuous numbering." %}</div>
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <label class="form-label">{% trans "From Floor" %}</label>
+                    <input type="number" class="form-control" id="bulkFloorFrom" value="1" min="0">
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <label class="form-label">{% trans "To Floor" %}</label>
+                    <input type="number" class="form-control" id="bulkFloorTo" value="7" min="0">
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <label class="form-label">{% trans "Units / Floor" %}</label>
+                    <input type="number" class="form-control" id="bulkUnitsPerFloor" value="4" min="1">
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <label class="form-label">{% trans "Prefix" %}</label>
+                    <input type="text" class="form-control" id="bulkPrefix" placeholder="e.g. F">
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <label class="form-label">{% trans "Unit Type" %}</label>
+                    <select class="form-select" id="bulkUnitType">
+                      <option value="FLAT">{% trans "Flat" %}</option>
+                      <option value="SHOP">{% trans "Shop" %}</option>
+                      <option value="OFFICE">{% trans "Office" %}</option>
+                      <option value="PLOT">{% trans "Plot" %}</option>
+                      <option value="GARAGE">{% trans "Garage" %}</option>
+                      <option value="OTHER">{% trans "Other" %}</option>
+                    </select>
+                  </div>
+                  <div class="col-6 col-md-3">
+                    <label class="form-label">{% trans "Area (sqft)" %}</label>
+                    <input type="number" class="form-control" id="bulkArea" value="800" min="0" step="0.01">
+                  </div>
+                </div>
+                <div class="alert alert-info mt-3 mb-0 small">
+                  <i class="fas fa-info-circle me-1"></i>
+                  {% trans "This will generate" %} <strong id="bulkPreview">0</strong> {% trans "units." %}
+                  <span class="d-block mt-1 text-muted">
+                    {% trans "Floor based:" %} 101, 102… · {% trans "Continuous:" %} 1, 2, 3…
+                  </span>
+                </div>
+              </div>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
+                <button type="button" class="btn btn-primary" id="bulkGenerateConfirm">
+                  <i class="fas fa-check me-1"></i>{% trans "Generate" %}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="form-actions mt-4 d-flex flex-wrap gap-2">
           <a href="{% url 'onboarding:wizard-step' wizard.id 6 %}"
              class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left me-1"></i>{% trans "Back" %}
           </a>
+          <button type="submit" class="btn btn-primary" name="save_units" id="saveBtn" value="1">
+            <i class="fas fa-save me-1"></i>{% trans "Save Units" %}
+          </button>
+          <button type="submit" class="btn btn-success" name="continue_wizard" id="continueBtn" value="1">
+            <i class="fas fa-arrow-right me-1"></i>{% trans "Continue" %}
+          </button>
         </div>
       </form>
     </div>
   </div>
 {% endblock wizard_content %}
+
+{% block modal %}{% endblock modal %}
+
+{% block inline_javascript %}
+<script>
+(function () {
+  "use strict";
+
+  var jsonInput = document.getElementById("{{ form.units_json.id_for_label }}");
+  var tbody = document.getElementById("unitTableBody");
+  var emptyMsg = document.getElementById("unitEmpty");
+  var countLabel = document.getElementById("unitCount");
+  var addRowBtn = document.getElementById("addRowBtn");
+  var clearRowsBtn = document.getElementById("clearRowsBtn");
+  var saveBtn = document.getElementById("saveBtn");
+  var continueBtn = document.getElementById("continueBtn");
+  var hasExistingUnits = {{ unit_summary_total|default:0 }};
+
+  var UNIT_TYPES = ["FLAT", "SHOP", "OFFICE", "PLOT", "GARAGE", "OTHER"];
+  var USAGE_TYPES = ["RESIDENTIAL", "COMMERCIAL", "MIXED"];
+
+  var STRUCTURES = [
+    {% for s in structure_options %}
+    {id: {{ s.id }}, name: "{{ s.name|escapejs }}", label: "{{ s.label|escapejs }}", type: "{{ s.type|escapejs }}"}{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  ];
+  var DEFAULT_STRUCTURE_ID = STRUCTURES.length ? STRUCTURES[0].id : null;
+
+  var EXISTING_UNITS = {
+    {% for s in unit_summary %}
+    "{{ s.id }}": [{% for id in s.identifiers %}"{{ id|escapejs }}"{% if not forloop.last %}, {% endif %}{% endfor %}]{% if not forloop.last %},{% endif %}
+    {% endfor %}
+  };
+  var EXISTING_SETS = {};
+  Object.keys(EXISTING_UNITS).forEach(function (k) {
+    EXISTING_SETS[k] = {};
+    EXISTING_UNITS[k].forEach(function (id) { EXISTING_SETS[k][id] = true; });
+  });
+
+  var rows = [];
+
+  function structureById(id) {
+    for (var i = 0; i < STRUCTURES.length; i++) {
+      if (String(STRUCTURES[i].id) === String(id)) return STRUCTURES[i];
+    }
+    return null;
+  }
+
+  function loadData() {
+    var raw = jsonInput.value;
+    if (!raw) return;
+    try {
+      var data = JSON.parse(raw);
+      if (!Array.isArray(data)) return;
+      rows = data.map(function (r) {
+        var sid = r.structure_id || null;
+        if (sid && !structureById(sid)) sid = DEFAULT_STRUCTURE_ID;
+        if (!sid) sid = DEFAULT_STRUCTURE_ID;
+        var s = structureById(sid);
+        return {
+          flat_number: r.flat_number || r.identifier || "",
+          structure_id: sid,
+          building: s ? s.name : (r.building || ""),
+          floor: r.floor || "",
+          unit_type: r.unit_type || "FLAT",
+          usage_type: r.usage_type || "RESIDENTIAL",
+          area: r.area || "",
+          parking_allocation: r.parking_allocation || ""
+        };
+      });
+    } catch (e) {
+      console.warn("Could not parse existing units_json:", e);
+    }
+  }
+
+  function serialize() {
+    return JSON.stringify(rows.map(function (r) {
+      var s = structureById(r.structure_id);
+      return {
+        flat_number: r.flat_number,
+        structure_id: r.structure_id,
+        building: s ? s.name : (r.building || ""),
+        wing: "",
+        floor: r.floor === "" || r.floor === null ? null : parseInt(r.floor, 10),
+        unit_type: r.unit_type,
+        usage_type: r.usage_type,
+        area: r.area === "" || r.area === null ? null : parseFloat(r.area),
+        parking_allocation: r.parking_allocation
+      };
+    }));
+  }
+
+  function syncHidden() {
+    jsonInput.value = serialize();
+    countLabel.textContent = rows.length;
+    emptyMsg.style.display = rows.length === 0 ? "" : "none";
+  }
+
+  var dupCountBadge = document.getElementById("dupCount");
+  var dupCountLabel = document.getElementById("dupCountLabel");
+  function markDuplicates() {
+    var seen = {};
+    var dupCount = 0;
+    var inputs = tbody.querySelectorAll('input[data-role="unit-identifier"]');
+    rows.forEach(function (r, idx) {
+      var id = (r.flat_number || "").trim();
+      var sid = String(r.structure_id || "");
+      var key = sid + "|" + id;
+      var isDupInGrid = id !== "" && seen[key];
+      var isDupInDb = id !== "" && EXISTING_SETS[sid] && EXISTING_SETS[sid][id];
+      if (id !== "" && !isDupInGrid) seen[key] = true;
+      var isDup = isDupInGrid || isDupInDb;
+      if (isDup) dupCount++;
+      var input = inputs[idx];
+      if (input) {
+        if (isDup) {
+          input.classList.add("is-invalid");
+          input.title = isDupInDb
+            ? "{% trans 'Already exists on this structure' %}"
+            : "{% trans 'Duplicate within the grid' %}";
+        } else {
+          input.classList.remove("is-invalid");
+          input.title = "";
+        }
+      }
+    });
+    if (dupCountBadge) dupCountBadge.style.display = dupCount > 0 ? "" : "none";
+    if (dupCountLabel) {
+      dupCountLabel.textContent = dupCount + " "
+        + (dupCount === 1 ? "{% trans 'duplicate' %}" : "{% trans 'duplicates' %}");
+    }
+  }
+
+  function makeInput(type, value, cls, onChange, step) {
+    var input = document.createElement("input");
+    input.type = type;
+    input.className = cls;
+    input.value = value !== null && value !== undefined ? value : "";
+    if (step) input.step = step;
+    input.addEventListener("input", function () {
+      onChange(this.value);
+      syncHidden();
+    });
+    return input;
+  }
+
+  function makeSelect(options, value, cls, onChange) {
+    var select = document.createElement("select");
+    select.className = cls;
+    options.forEach(function (opt) {
+      var o = document.createElement("option");
+      o.value = opt;
+      o.textContent = opt === opt.toUpperCase() && opt !== opt.toLowerCase()
+        ? opt.charAt(0) + opt.slice(1).toLowerCase()
+        : opt;
+      if (opt === value) o.selected = true;
+      select.appendChild(o);
+    });
+    select.addEventListener("change", function () {
+      onChange(this.value);
+      syncHidden();
+    });
+    return select;
+  }
+
+  function makeStructureSelect(value, onChange) {
+    var select = document.createElement("select");
+    select.className = "form-select form-select-sm";
+    STRUCTURES.forEach(function (s) {
+      var o = document.createElement("option");
+      o.value = s.id;
+      o.textContent = s.label;
+      if (String(s.id) === String(value)) o.selected = true;
+      select.appendChild(o);
+    });
+    select.addEventListener("change", function () {
+      onChange(parseInt(this.value, 10));
+      syncHidden();
+    });
+    return select;
+  }
+
+  function createRowElement(row, idx) {
+    var tr = document.createElement("tr");
+
+    var tdIdx = document.createElement("td");
+    tdIdx.className = "text-center text-muted";
+    tdIdx.textContent = idx + 1;
+    tr.appendChild(tdIdx);
+
+    var tdId = document.createElement("td");
+    var idInput = makeInput("text", row.flat_number, "form-control form-control-sm", function (v) {
+      row.flat_number = v;
+      markDuplicates();
+    });
+    idInput.placeholder = "e.g. 101";
+    idInput.dataset.role = "unit-identifier";
+    tdId.appendChild(idInput);
+    tr.appendChild(tdId);
+
+    var tdStruct = document.createElement("td");
+    if (STRUCTURES.length) {
+      tdStruct.appendChild(makeStructureSelect(row.structure_id, function (v) {
+        row.structure_id = v;
+        var s = structureById(v);
+        row.building = s ? s.name : "";
+        markDuplicates();
+      }));
+    } else {
+      var disabled = makeInput("text", "", "form-control form-control-sm", function () {});
+      disabled.placeholder = "{% trans 'Add structure in Step 6' %}";
+      disabled.disabled = true;
+      tdStruct.appendChild(disabled);
+    }
+    tr.appendChild(tdStruct);
+
+    var tdFloor = document.createElement("td");
+    tdFloor.appendChild(makeInput("number", row.floor, "form-control form-control-sm", function (v) { row.floor = v; }));
+    tr.appendChild(tdFloor);
+
+    var tdType = document.createElement("td");
+    tdType.appendChild(makeSelect(UNIT_TYPES, row.unit_type, "form-select form-select-sm", function (v) { row.unit_type = v; }));
+    tr.appendChild(tdType);
+
+    var tdUsage = document.createElement("td");
+    tdUsage.appendChild(makeSelect(USAGE_TYPES, row.usage_type, "form-select form-select-sm", function (v) { row.usage_type = v; }));
+    tr.appendChild(tdUsage);
+
+    var tdArea = document.createElement("td");
+    tdArea.appendChild(makeInput("number", row.area, "form-control form-control-sm", function (v) { row.area = v; }, "0.01"));
+    tr.appendChild(tdArea);
+
+    var tdPark = document.createElement("td");
+    tdPark.appendChild(makeInput("text", row.parking_allocation, "form-control form-control-sm", function (v) { row.parking_allocation = v; }));
+    tr.appendChild(tdPark);
+
+    var tdDel = document.createElement("td");
+    tdDel.className = "text-center";
+    var delBtn = document.createElement("button");
+    delBtn.type = "button";
+    delBtn.className = "btn btn-sm btn-outline-danger py-0 px-1";
+    delBtn.innerHTML = '<i class="fas fa-times"></i>';
+    delBtn.addEventListener("click", function () {
+      rows.splice(idx, 1);
+      render();
+    });
+    tdDel.appendChild(delBtn);
+    tr.appendChild(tdDel);
+
+    return tr;
+  }
+
+  function render() {
+    tbody.innerHTML = "";
+    rows.forEach(function (row, idx) {
+      tbody.appendChild(createRowElement(row, idx));
+    });
+    syncHidden();
+    markDuplicates();
+  }
+
+  function addRow() {
+    var s = structureById(DEFAULT_STRUCTURE_ID);
+    rows.push({
+      flat_number: "",
+      structure_id: DEFAULT_STRUCTURE_ID,
+      building: s ? s.name : "",
+      floor: "",
+      unit_type: "FLAT",
+      usage_type: "RESIDENTIAL",
+      area: "",
+      parking_allocation: ""
+    });
+    render();
+  }
+
+  function bulkGenerate() {
+    var structureSel = document.getElementById("bulkStructure");
+    var structureId = structureSel ? parseInt(structureSel.value, 10) : null;
+    var s = structureById(structureId);
+    var floorFrom = parseInt(document.getElementById("bulkFloorFrom").value, 10) || 1;
+    var floorTo = parseInt(document.getElementById("bulkFloorTo").value, 10) || 1;
+    var unitsPerFloor = parseInt(document.getElementById("bulkUnitsPerFloor").value, 10) || 1;
+    var prefix = document.getElementById("bulkPrefix").value.trim();
+    var unitType = document.getElementById("bulkUnitType").value;
+    var area = document.getElementById("bulkArea").value;
+    var numberingStyle = document.getElementById("bulkNumberingStyle").value;
+    var startingNumber = parseInt(document.getElementById("bulkStartingNumber").value, 10) || 1;
+
+    if (!structureId || !s) {
+      alert("{% trans 'Please select a structure.' %}");
+      return;
+    }
+    if (floorTo < floorFrom) {
+      alert("{% trans 'To Floor must be >= From Floor.' %}");
+      return;
+    }
+
+    var continuousNum = startingNumber;
+    for (var f = floorFrom; f <= floorTo; f++) {
+      for (var u = 1; u <= unitsPerFloor; u++) {
+        var identifier;
+        if (numberingStyle === "continuous") {
+          identifier = (prefix ? prefix : "") + continuousNum;
+          continuousNum += 1;
+        } else {
+          // Floor-based: floor + zero-padded unit index (101, 102, … 201)
+          identifier = (prefix ? prefix : "") + f + (u < 10 ? "0" + u : String(u));
+        }
+        rows.push({
+          flat_number: identifier,
+          structure_id: structureId,
+          building: s.name,
+          floor: f,
+          unit_type: unitType,
+          usage_type: "RESIDENTIAL",
+          area: area,
+          parking_allocation: ""
+        });
+      }
+    }
+    render();
+  }
+
+  addRowBtn.addEventListener("click", addRow);
+
+  clearRowsBtn.addEventListener("click", function () {
+    if (confirm("{% trans 'Remove all units?' %}")) {
+      rows = [];
+      render();
+    }
+  });
+
+  function validateBeforeSubmit(e, requireRows) {
+    syncHidden();
+    markDuplicates();
+    if (requireRows && rows.length === 0) {
+      e.preventDefault();
+      alert("{% trans 'Please add at least one unit before saving.' %}");
+      return false;
+    }
+    if (!requireRows && rows.length === 0 && !hasExistingUnits) {
+      e.preventDefault();
+      alert("{% trans 'Please add and save at least one unit before continuing.' %}");
+      return false;
+    }
+    if (rows.length > 0 && dupCountBadge && dupCountBadge.style.display !== "none") {
+      e.preventDefault();
+      alert("{% trans 'Please fix the highlighted duplicate units before saving.' %}");
+      return false;
+    }
+    return true;
+  }
+
+  if (saveBtn) {
+    saveBtn.addEventListener("click", function (e) {
+      validateBeforeSubmit(e, true);
+    });
+  }
+  if (continueBtn) {
+    continueBtn.addEventListener("click", function (e) {
+      validateBeforeSubmit(e, false);
+    });
+  }
+
+  var bulkModalEl = document.getElementById("bulkGenerateModal");
+  var bulkConfirmBtn = document.getElementById("bulkGenerateConfirm");
+  bulkConfirmBtn.addEventListener("click", function () {
+    bulkGenerate();
+    var modal = bootstrap.Modal.getInstance(bulkModalEl);
+    if (modal) modal.hide();
+  });
+
+  function updateBulkPreview() {
+    var floorFrom = parseInt(document.getElementById("bulkFloorFrom").value, 10) || 0;
+    var floorTo = parseInt(document.getElementById("bulkFloorTo").value, 10) || 0;
+    var unitsPerFloor = parseInt(document.getElementById("bulkUnitsPerFloor").value, 10) || 0;
+    document.getElementById("bulkPreview").textContent =
+      Math.max(0, floorTo - floorFrom + 1) * unitsPerFloor;
+  }
+  ["bulkFloorFrom", "bulkFloorTo", "bulkUnitsPerFloor"].forEach(function (id) {
+    document.getElementById(id).addEventListener("input", updateBulkPreview);
+  });
+
+  loadData();
+  render();
+  updateBulkPreview();
+})();
+</script>
+{% endblock inline_javascript %}

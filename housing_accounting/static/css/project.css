@@ -855,13 +855,7 @@
   color: #7a879e;
 }
 
-.dashboard-content-card.card {
-  border-radius: 18px;
-  border: 1px solid #e3eaf4;
-  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.05);
-  margin-bottom: 1.5rem;
-  overflow: hidden;
-}
+/* .dashboard-content-card.card rule removed - #workspace is now a flat wrapper */
 
 .quick-card {
   height: 100%;
@@ -1120,7 +1114,7 @@
 }
 
 .page-inner .table > :not(caption) > * > * {
-  padding: 0.85rem 0.95rem;
+  padding: 0.7rem 0.8rem;
 }
 
 .page-inner .table thead th {
@@ -1149,8 +1143,21 @@
 }
 
 .page-inner {
-  padding-top: 0.75rem;
-  padding-bottom: 1.25rem;
+  padding-top: 0.5rem;
+  padding-bottom: 0.75rem;
+  padding-left: var(--space-md);
+  padding-right: var(--space-md);
+}
+
+.workspace {
+  padding: 0;
+}
+
+.page-subtitle {
+  margin: 0 0 var(--space-sm);
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-normal);
 }
 
 body.ka-body {

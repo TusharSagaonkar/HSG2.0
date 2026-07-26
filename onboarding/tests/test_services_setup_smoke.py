@@ -227,5 +227,6 @@ class FinancialYearSetupServiceTest(TestCase):
         opts = FinancialYearSetupService.get_fy_options(
             "APRIL_MARCH", reference_year=2026
         )
-        self.assertEqual(len(opts), 5)
-        self.assertIn("2026-27", opts)
+        self.assertEqual(len(opts), 11)
+        self.assertEqual(opts[0], "2026-27")
+        self.assertEqual(opts[-1], "2016-17")

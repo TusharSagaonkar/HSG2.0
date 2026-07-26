@@ -2,63 +2,357 @@
 {% load i18n %}
 
 {% block wizard_content %}
-  <div class="content-card">
-    <div class="content-card__body">
-      <p class="text-muted mb-3">
-        {% blocktrans %}
-          Define the physical structure of your society — buildings, wings,
-          and floors. Use the structure builder below to add nodes. The tree
-          is submitted as JSON when you save.
-        {% endblocktrans %}
-      </p>
-
-      <form method="post"
-            action="{% url 'onboarding:wizard-step-save' wizard.id step_number %}">
-        {% csrf_token %}
-
-        {% if form.non_field_errors %}
-          <div class="alert alert-danger" role="alert">
-            {{ form.non_field_errors }}
-          </div>
-        {% endif %}
-
-        <div class="form-group mb-3">
-          <label for="{{ form.topology_mode.id_for_label }}" class="form-label">
-            {{ form.topology_mode.label }}
-            <span class="text-danger">*</span>
-          </label>
-          {{ form.topology_mode }}
-          {% if form.topology_mode.help_text %}
-            <small class="form-text text-muted">{{ form.topology_mode.help_text }}</small>
+  <div class="row g-4">
+    <!-- Left Column: Structure Tree -->
+    <div class="col-12 col-lg-5">
+      <div class="content-card h-100">
+        <div class="content-card__header d-flex justify-content-between align-items-center">
+          <h5 class="mb-0">
+            <i class="fas fa-sitemap me-2"></i>{% translate "Structure Hierarchy" %}
+          </h5>
+          <span class="badge text-bg-primary">{{ existing_structures|length }}</span>
+        </div>
+        <div class="content-card__body">
+          {% if wizard.society %}
+            <div class="society-info mb-3 p-2 bg-light rounded">
+              <small class="text-muted d-block">{% translate "Society" %}</small>
+              <strong>{{ wizard.society.name }}</strong>
+            </div>
           {% endif %}
-          {% for error in form.topology_mode.errors %}
-            <div class="invalid-feedback d-block">{{ error }}</div>
-          {% endfor %}
-        </div>
 
-        {# structures_json is a HiddenInput — the JS builder populates it #}
-        {{ form.structures_json }}
-        {% for error in form.structures_json.errors %}
-          <div class="invalid-feedback d-block">{{ error }}</div>
-        {% endfor %}
-
-        <div id="structure-builder" class="border rounded p-3 mb-3 bg-light">
-          <p class="text-muted text-center mb-0 py-4">
-            <i class="fas fa-sitemap me-2"></i>
-            {% trans "Structure builder will be rendered here." %}
-          </p>
+          <div class="structure-tree-container">
+            {% if existing_structures %}
+              <div class="structure-tree">
+                {% for structure in existing_structures %}
+                  {% include "housing/partials/structure_tree_item.html" with structure=structure level=0 %}
+                {% endfor %}
+              </div>
+            {% else %}
+              <div class="empty-state text-center py-5">
+                <i class="fas fa-sitemap fa-3x text-muted opacity-50 mb-3"></i>
+                <p class="text-muted mb-1">{% translate "No structures created yet" %}</p>
+                <small class="text-muted">{% translate "Use the form to add your first structure" %}</small>
+              </div>
+            {% endif %}
+          </div>
         </div>
+      </div>
+    </div>
 
-        <div class="form-actions mt-4">
-          <button type="submit" class="btn btn-primary">
-            <i class="fas fa-check me-1"></i>{% trans "Save & Continue" %}
-          </button>
-          <a href="{% url 'onboarding:wizard-step' wizard.id 5 %}"
-             class="btn btn-outline-secondary">
-            <i class="fas fa-arrow-left me-1"></i>{% trans "Back" %}
-          </a>
+    <!-- Right Column: Create Form -->
+    <div class="col-12 col-lg-7">
+      <div class="content-card">
+        <div class="content-card__header">
+          <h5 class="mb-0">
+            <i class="fas fa-plus-circle me-2"></i>{% translate "Add Structure" %}
+          </h5>
         </div>
-      </form>
+        <div class="content-card__body">
+          <form method="post" 
+                action="{% url 'onboarding:wizard-step-save' wizard.id step_number %}"
+                novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger mb-3" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                {% for error in form.non_field_errors %}
+                  <div>{{ error }}</div>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            <div class="row g-2">
+              <!-- 1. Society Display Field (First) -->
+              <div class="col-12">
+                <div class="form-group">
+                  <label class="form-label">
+                    <i class="fas fa-building me-2"></i>{{ form.society_display.label }}
+                  </label>
+                  {{ form.society_display }}
+                  {% if form.society_display.help_text %}
+                    <div class="form-text">{{ form.society_display.help_text }}</div>
+                  {% endif %}
+                  {% for error in form.society_display.errors %}
+                    <div class="form-error">{{ error }}</div>
+                  {% endfor %}
+                </div>
+              </div>
+
+              <!-- Hidden society field -->
+              {{ form.society }}
+
+              <!-- 2. Structure Type -->
+              <div class="col-12">
+                <div class="form-group">
+                  <label class="form-label" for="{{ form.structure_type.id_for_label }}">
+                    <i class="fas fa-layer-group me-2"></i>{{ form.structure_type.label }}
+                    {% if form.structure_type.field.required %}
+                      <span class="text-danger">*</span>
+                    {% endif %}
+                  </label>
+                  {{ form.structure_type }}
+                  {% if form.structure_type.help_text %}
+                    <div class="form-text">{{ form.structure_type.help_text }}</div>
+                  {% endif %}
+                  {% for error in form.structure_type.errors %}
+                    <div class="form-error">{{ error }}</div>
+                  {% endfor %}
+                </div>
+              </div>
+
+              <!-- 3. Name -->
+              <div class="col-12">
+                <div class="form-group">
+                  <label class="form-label" for="{{ form.name.id_for_label }}">
+                    <i class="fas fa-tag me-2"></i>{{ form.name.label }}
+                    {% if form.name.field.required %}
+                      <span class="text-danger">*</span>
+                    {% endif %}
+                  </label>
+                  {{ form.name }}
+                  {% if form.name.help_text %}
+                    <div class="form-text">{{ form.name.help_text }}</div>
+                  {% endif %}
+                  {% for error in form.name.errors %}
+                    <div class="form-error">{{ error }}</div>
+                  {% endfor %}
+                </div>
+              </div>
+
+              <!-- 4. Parent Structure -->
+              <div class="col-12">
+                <div class="form-group">
+                  <label class="form-label" for="{{ form.parent.id_for_label }}">
+                    <i class="fas fa-sitemap me-2"></i>{{ form.parent.label }}
+                    <span class="text-muted small">(optional)</span>
+                  </label>
+                  {{ form.parent }}
+                  {% if form.parent.help_text %}
+                    <div class="form-text">{{ form.parent.help_text }}</div>
+                  {% endif %}
+                  {% for error in form.parent.errors %}
+                    <div class="form-error">{{ error }}</div>
+                  {% endfor %}
+                </div>
+              </div>
+
+              <!-- 5. Display Order -->
+              <div class="col-12">
+                <div class="form-group">
+                  <label class="form-label" for="{{ form.display_order.id_for_label }}">
+                    <i class="fas fa-sort-numeric-up me-2"></i>{{ form.display_order.label }}
+                  </label>
+                  {{ form.display_order }}
+                  {% if form.display_order.help_text %}
+                    <div class="form-text">{{ form.display_order.help_text }}</div>
+                  {% endif %}
+                  {% for error in form.display_order.errors %}
+                    <div class="form-error">{{ error }}</div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+
+            <!-- Form Actions for Onboarding Context -->
+            <div class="form-actions mt-3">
+              <a href="{% url 'onboarding:wizard-step' wizard.id 5 %}"
+                 class="btn-action btn-action--secondary">
+                <i class="fas fa-arrow-left me-1"></i>{% translate "Previous Step" %}
+              </a>
+              <button type="submit" class="btn-action btn-action--primary" name="add_structure">
+                <i class="fas fa-plus me-1"></i>{% translate "Add Structure" %}
+              </button>
+              {% if existing_structures %}
+                <button type="submit" class="btn-action btn-action--success" name="continue_wizard">
+                  <i class="fas fa-arrow-right me-1"></i>{% translate "Continue to Next Step" %}
+                </button>
+              {% endif %}
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Help Card -->
+      <div class="content-card mt-3 bg-light">
+        <div class="content-card__header">
+          <h6 class="mb-0">
+            <i class="fas fa-info-circle me-2 text-info"></i>{% translate "Structure Hierarchy Guide" %}
+          </h6>
+        </div>
+        <div class="content-card__body">
+          <div class="row g-2">
+            <div class="col-12 col-sm-4">
+              <div class="hierarchy-step">
+                <span class="hierarchy-number">1</span>
+                <div>
+                  <strong>{% translate "Building" %}</strong>
+                  <small class="d-block text-muted">{% translate "Root level structure" %}</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-sm-4">
+              <div class="hierarchy-step">
+                <span class="hierarchy-number">2</span>
+                <div>
+                  <strong>{% translate "Wing/Block" %}</strong>
+                  <small class="d-block text-muted">{% translate "Within buildings" %}</small>
+                </div>
+              </div>
+            </div>
+            <div class="col-12 col-sm-4">
+              <div class="hierarchy-step">
+                <span class="hierarchy-number">3</span>
+                <div>
+                  <strong>{% translate "Floor" %}</strong>
+                  <small class="d-block text-muted">{% translate "Within wings" %}</small>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
+
+  <style>
+    .structure-tree-container {
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid var(--bs-border-color);
+      border-radius: 0.375rem;
+      padding: 0.75rem;
+    }
+
+    .structure-tree {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    .society-info {
+      background-color: var(--bs-light) !important;
+      border: 1px solid var(--bs-border-color);
+    }
+
+    .empty-state {
+      color: var(--bs-secondary);
+    }
+
+    .form-group {
+      margin-bottom: 0.75rem;
+    }
+
+    .form-label {
+      font-weight: 500;
+      margin-bottom: 0.25rem;
+      display: block;
+    }
+
+    .form-label i {
+      color: var(--bs-primary);
+    }
+
+    .form-error {
+      color: var(--bs-danger);
+      font-size: 0.875rem;
+      margin-top: 0.25rem;
+    }
+
+    .form-text {
+      font-size: 0.875rem;
+      color: var(--bs-secondary);
+      margin-top: 0.25rem;
+    }
+
+    .form-actions {
+      display: flex;
+      gap: 1rem;
+      padding-top: 1rem;
+      border-top: 1px solid var(--bs-border-color);
+      flex-wrap: wrap;
+    }
+
+    .btn-action {
+      display: inline-flex;
+      align-items: center;
+      padding: 0.4rem 1rem;
+      border-radius: 0.375rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      border: none;
+      cursor: pointer;
+    }
+
+    .btn-action--primary {
+      background-color: var(--bs-primary);
+      color: white;
+    }
+
+    .btn-action--primary:hover {
+      opacity: 0.9;
+      color: white;
+    }
+
+    .btn-action--secondary {
+      background-color: var(--bs-secondary);
+      color: white;
+    }
+
+    .btn-action--secondary:hover {
+      opacity: 0.9;
+      color: white;
+    }
+
+    .btn-action--success {
+      background-color: var(--bs-success);
+      color: white;
+    }
+
+    .btn-action--success:hover {
+      opacity: 0.9;
+      color: white;
+    }
+
+    .hierarchy-step {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      padding: 0.5rem;
+    }
+
+    .hierarchy-number {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      background-color: var(--bs-primary);
+      color: white;
+      border-radius: 50%;
+      font-size: 0.875rem;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .bg-light {
+      background-color: var(--bs-light) !important;
+    }
+
+    @media (max-width: 991.98px) {
+      .structure-tree-container {
+        max-height: 250px;
+      }
+
+      .form-actions {
+        justify-content: center;
+      }
+
+      .btn-action {
+        flex: 1;
+        justify-content: center;
+        min-width: 140px;
+      }
+    }
+  </style>
 {% endblock wizard_content %}

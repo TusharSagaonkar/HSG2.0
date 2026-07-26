@@ -61,6 +61,7 @@ from gateops.forms import (
 )
 from gateops.models import (
     ApprovalType,
+    Contractor,
     Gate,
     GateEvent,
     GateEventApproval,
@@ -86,6 +87,7 @@ from gateops.models import (
     ShiftHandover,
     VehicleCategory,
     VisitorCategory,
+    WorkPermit,
 )
 from gateops.services.contractor_service import ContractorService
 from gateops.services.exit_management_service import ExitManagementService
@@ -199,11 +201,12 @@ def _base_context(request, **context):
 
 
 def _render_missing_society(request):
+    status = 200 if request.headers.get("HX-Request") == "true" else 404
     return render(
         request,
         "gateops/missing_society.html",
         _base_context(request),
-        status=404,
+        status=status,
     )
 
 
@@ -328,6 +331,123 @@ def _object_values(obj):
     return values
 
 
+def _dashboard_counts(society):
+    events = GateEvent.objects.filter(society=society)
+    return {
+        "gate_events": events.count(),
+        "currently_inside": events.filter(status=GateEvent.Status.ENTERED).count(),
+        "passes": Pass.objects.filter(society=society).count(),
+        "gate_vehicles": GateVehicle.objects.filter(society=society).count(),
+        "materials": MaterialMovement.objects.filter(society=society).count(),
+        "parcels": Parcel.objects.filter(society=society).count(),
+        "contractors": Contractor.objects.filter(society=society).count(),
+        "work_permits": WorkPermit.objects.filter(society=society).count(),
+        "handovers": ShiftHandover.objects.filter(society=society).count(),
+    }
+
+
+def _dashboard_module_cards(society, bootstrap_rows, totals, counts):
+    setup_total = sum(row["count"] for row in bootstrap_rows)
+    return [
+        {
+            "title": "Setup & Settings",
+            "href": reverse("gateops:setup-index"),
+            "icon": "fas fa-cog",
+            "count": setup_total,
+            "color": "primary",
+            "subtitle": "Maintain GateOps foundational configuration.",
+        },
+        {
+            "title": "Rules",
+            "href": reverse("gateops:rule-list"),
+            "icon": "fas fa-scroll",
+            "count": totals["rules"],
+            "color": "success",
+            "subtitle": "View and manage rule definitions.",
+        },
+        {
+            "title": "Gate Events",
+            "href": reverse("gateops:event-list"),
+            "icon": "fas fa-door-open",
+            "count": counts["gate_events"],
+            "color": "info",
+            "subtitle": "Track visitor and vehicle gate activity.",
+        },
+        {
+            "title": "Currently Inside",
+            "href": reverse("gateops:currently-inside"),
+            "icon": "fas fa-user-check",
+            "count": counts["currently_inside"],
+            "color": "warning",
+            "subtitle": "See who is still on site now.",
+        },
+        {
+            "title": "Passes",
+            "href": reverse("gateops:pass-list"),
+            "icon": "fas fa-id-card",
+            "count": counts["passes"],
+            "color": "secondary",
+            "subtitle": "Manage issued and active passes.",
+        },
+        {
+            "title": "Gate Vehicles",
+            "href": reverse("gateops:vehicle-list"),
+            "icon": "fas fa-truck",
+            "count": counts["gate_vehicles"],
+            "color": "dark",
+            "subtitle": "Review non-resident vehicle records.",
+        },
+        {
+            "title": "Materials",
+            "href": reverse("gateops:material-list"),
+            "icon": "fas fa-boxes",
+            "count": counts["materials"],
+            "color": "info",
+            "subtitle": "Monitor inbound and outbound items.",
+        },
+        {
+            "title": "Parcels",
+            "href": reverse("gateops:parcel-list"),
+            "icon": "fas fa-box",
+            "count": counts["parcels"],
+            "color": "primary",
+            "subtitle": "Track parcel deliveries and pickups.",
+        },
+        {
+            "title": "Contractors",
+            "href": reverse("gateops:contractor-list"),
+            "icon": "fas fa-hard-hat",
+            "count": counts["contractors"],
+            "color": "success",
+            "subtitle": "Manage contractor profiles and assignments.",
+        },
+        {
+            "title": "Work Permits",
+            "href": reverse("gateops:work-permit-list"),
+            "icon": "fas fa-file-contract",
+            "count": counts["work_permits"],
+            "color": "warning",
+            "subtitle": "Control permission for site work.",
+        },
+        {
+            "title": "Handovers",
+            "href": reverse("gateops:handover-list"),
+            "icon": "fas fa-handshake",
+            "count": counts["handovers"],
+            "color": "secondary",
+            "subtitle": "Review guard shift change notes.",
+        },
+        {
+            "title": "Analytics",
+            "href": reverse("gateops:analytics-dashboard"),
+            "icon": "fas fa-chart-pie",
+            "count": totals["evaluations"],
+            "color": "info",
+            "subtitle": "Drill into gate operations insights.",
+        },
+    ]
+
+
 def _bootstrap_rows(society):
     checks = [
         ("Config", GateOpsSocietyConfig.objects.filter(society=society), "Expected one society-level configuration row."),
@@ -362,16 +482,20 @@ def gateops_dashboard_view(request):
     if missing:
         return missing
     rules = _rule_queryset(society)
+    bootstrap_rows = _bootstrap_rows(society)
+    totals = {
+        "rules": rules.count(),
+        "active_rules": rules.filter(is_active=True).count(),
+        "evaluations": RuleEvaluation.objects.filter(society=society).count(),
+        "audit_logs": GateOpsAuditLog.objects.filter(society=society).count(),
+    }
+    counts = _dashboard_counts(society)
     context = _base_context(
         request,
         society=society,
-        bootstrap_rows=_bootstrap_rows(society),
-        totals={
-            "rules": rules.count(),
-            "active_rules": rules.filter(is_active=True).count(),
-            "evaluations": RuleEvaluation.objects.filter(society=society).count(),
-            "audit_logs": GateOpsAuditLog.objects.filter(society=society).count(),
-        },
+        bootstrap_rows=bootstrap_rows,
+        totals=totals,
+        dashboard_cards=_dashboard_module_cards(society, bootstrap_rows, totals, counts),
         latest_evaluations=RuleEvaluation.objects.filter(society=society).select_related("rule").order_by("-evaluated_at", "-id")[:5],
         setup_rows=_setup_rows(society),
         latest_audit_logs=GateOpsAuditLog.objects.filter(society=society).order_by("-created_at", "-id")[:5],

@@ -1,0 +1,24 @@
+[    1880ms] [LOG] Loaded 18 keyboard shortcuts @ http://127.0.0.1:8000/static/js/shortcut_engine.js:109
+[    1881ms] [LOG] Shortcut engine initialized @ http://127.0.0.1:8000/static/js/shortcut_engine.js:368
+[    1926ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://127.0.0.1:8000/onboarding/22/step/9/:0
+[   58149ms] [LOG] Loaded 18 keyboard shortcuts @ http://127.0.0.1:8000/static/js/shortcut_engine.js:109
+[   58149ms] [LOG] Shortcut engine initialized @ http://127.0.0.1:8000/static/js/shortcut_engine.js:368
+[   58260ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://127.0.0.1:8000/onboarding/22/step/10/:0
+[  308958ms] Identifier 'ComponentManager' has already been declared
+[  308959ms] Identifier 'ToastManager' has already been declared
+[  308962ms] Identifier 'SHORTCUTS' has already been declared
+[  308976ms] Identifier 'handleSocietySelection' has already been declared
+[  308990ms] Cannot use import statement outside a module
+[  309265ms] [WARNING] jQuery.Deferred exception: e.scrollbar is not a function TypeError: e.scrollbar is not a function
+    at HTMLDocument.<anonymous> (http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/kaiadmin.min.js:1:1958)
+    at e (http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/core/jquery-3.7.1.min.js:2:27028)
+    at t (http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/core/jquery-3.7.1.min.js:2:27330) undefined @ http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/core/jquery-3.7.1.min.js:1
+[  309321ms] TypeError: e.scrollbar is not a function
+    at HTMLDocument.<anonymous> (http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/kaiadmin.min.js:1:1958)
+    at e (http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/core/jquery-3.7.1.min.js:2:27028)
+    at t (http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/core/jquery-3.7.1.min.js:2:27330)
+[  311353ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[  360983ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[  375397ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[  449220ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[  521837ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349

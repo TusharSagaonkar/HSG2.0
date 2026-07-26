@@ -27,6 +27,7 @@ from typing import Any
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.utils import timezone
 
 from accounting.models import FinancialYear
 from onboarding.models import MigrationAuditLog, OnboardingWizard
@@ -232,26 +233,36 @@ class FinancialYearSetupService:
 
     @staticmethod
     def get_fy_options(fy_pattern=FY_PATTERN_APRIL_MARCH, reference_year=None) -> list[str]:
-        """Generate a list of FY labels for the pattern (current year ± 2).
+        """Generate the current FY label followed by the previous ten years.
 
         Parameters
         ----------
         fy_pattern : str
             One of ``APRIL_MARCH``, ``JAN_DEC``, ``JUL_JUN``.
         reference_year : int, optional
-            The reference calendar year. Defaults to the current year.
+            The current FY's start year. When omitted, it is derived from
+            today's date and the configured financial-year start month.
 
         Returns
         -------
         list[str]
-            List of FY labels, e.g. ``["2024-25", "2025-26", "2026-27", ...]``.
+            Eleven labels in descending order, e.g. ``["2026-27", ...,
+            "2016-17"]``.
         """
+        if fy_pattern not in VALID_FY_PATTERNS:
+            raise ValidationError(
+                f"Invalid FY pattern '{fy_pattern}'. "
+                f"Must be one of {sorted(VALID_FY_PATTERNS)}."
+            )
+
         if reference_year is None:
-            reference_year = date.today().year
+            today = timezone.localdate()
+            start_month = _FY_PATTERN_MONTHS[fy_pattern][0]
+            reference_year = today.year if today.month >= start_month else today.year - 1
 
         labels = []
-        for offset in range(-2, 3):  # current year ± 2
-            start_year = reference_year + offset
+        for offset in range(11):
+            start_year = reference_year - offset
             end_year_short = str(start_year + 1)[-2:]
             labels.append(f"{start_year}-{end_year_short}")
         return labels

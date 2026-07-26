@@ -1,0 +1,64 @@
+[    3598ms] [LOG] Loaded 18 keyboard shortcuts @ http://127.0.0.1:8000/static/js/shortcut_engine.js:109
+[    3598ms] [LOG] Shortcut engine initialized @ http://127.0.0.1:8000/static/js/shortcut_engine.js:368
+[    3732ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://127.0.0.1:8000/onboarding/22/step/8/:0
+[   94790ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[  165085ms] Identifier 'ComponentManager' has already been declared
+[  165097ms] Identifier 'ToastManager' has already been declared
+[  165100ms] Identifier 'handleSocietySelection' has already been declared
+[  165100ms] Identifier 'SHORTCUTS' has already been declared
+[  165106ms] Cannot use import statement outside a module
+[  165112ms] [WARNING] jQuery.Deferred exception: e.scrollbar is not a function TypeError: e.scrollbar is not a function
+    at HTMLDocument.<anonymous> (http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/kaiadmin.min.js:1:1958)
+    at e (http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/core/jquery-3.7.1.min.js:2:27028)
+    at t (http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/core/jquery-3.7.1.min.js:2:27330) undefined @ http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/core/jquery-3.7.1.min.js:1
+[  165114ms] TypeError: e.scrollbar is not a function
+    at HTMLDocument.<anonymous> (http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/kaiadmin.min.js:1:1958)
+    at e (http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/core/jquery-3.7.1.min.js:2:27028)
+    at t (http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/core/jquery-3.7.1.min.js:2:27330)
+[  182943ms] TypeError: Cannot set properties of null (setting 'innerHTML')
+    at renderStructures (<anonymous>:79:22)
+    at init (<anonymous>:386:3)
+    at <anonymous>:392:5
+    at <anonymous>:394:3
+    at At (https://unpkg.com/htmx.org@1.9.12:1:23203)
+    at https://unpkg.com/htmx.org@1.9.12:1:23365
+    at oe (https://unpkg.com/htmx.org@1.9.12:1:4866)
+    at Nt (https://unpkg.com/htmx.org@1.9.12:1:23336)
+    at https://unpkg.com/htmx.org@1.9.12:1:10571
+    at https://unpkg.com/htmx.org@1.9.12:1:29037
+[  183063ms] Identifier 'ToastManager' has already been declared
+[  183064ms] Identifier 'ComponentManager' has already been declared
+[  183064ms] Identifier 'handleSocietySelection' has already been declared
+[  183065ms] Identifier 'SHORTCUTS' has already been declared
+[  183065ms] Cannot use import statement outside a module
+[  184103ms] TypeError: Cannot set properties of null (setting 'innerHTML')
+    at renderStructures (<anonymous>:79:22)
+    at init (<anonymous>:386:3)
+    at <anonymous>:392:5
+    at <anonymous>:394:3
+    at At (https://unpkg.com/htmx.org@1.9.12:1:23203)
+    at https://unpkg.com/htmx.org@1.9.12:1:23365
+    at oe (https://unpkg.com/htmx.org@1.9.12:1:4866)
+    at Nt (https://unpkg.com/htmx.org@1.9.12:1:23336)
+    at https://unpkg.com/htmx.org@1.9.12:1:10571
+    at https://unpkg.com/htmx.org@1.9.12:1:29037
+[  184212ms] Identifier 'ToastManager' has already been declared
+[  184216ms] Identifier 'ComponentManager' has already been declared
+[  184216ms] Identifier 'handleSocietySelection' has already been declared
+[  184216ms] Identifier 'SHORTCUTS' has already been declared
+[  184216ms] Cannot use import statement outside a module
+[  229642ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[  309963ms] [ERROR] Failed to load resource: the server responded with a status of 404 (Not Found) @ http://127.0.0.1:8000/onboarding/22/step/8/api/members/55/delete/:0
+[  315455ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[  316006ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[  342914ms] [LOG] Loaded 18 keyboard shortcuts @ http://127.0.0.1:8000/static/js/shortcut_engine.js:109
+[  342914ms] [LOG] Shortcut engine initialized @ http://127.0.0.1:8000/static/js/shortcut_engine.js:368
+[  342935ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://127.0.0.1:8000/onboarding/22/step/8/:0
+[  354735ms] [LOG] Loaded 18 keyboard shortcuts @ http://127.0.0.1:8000/static/js/shortcut_engine.js:109
+[  354735ms] [LOG] Shortcut engine initialized @ http://127.0.0.1:8000/static/js/shortcut_engine.js:368
+[  354813ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://127.0.0.1:8000/onboarding/22/complete/:0
+[  358534ms] Identifier 'ComponentManager' has already been declared
+[  358539ms] Identifier 'ToastManager' has already been declared
+[  358542ms] Identifier 'handleSocietySelection' has already been declared
+[  358548ms] Identifier 'SHORTCUTS' has already been declared
+[  358549ms] Cannot use import statement outside a module

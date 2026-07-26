@@ -16,10 +16,14 @@ from http import HTTPStatus
 
 import pytest
 from django.urls import reverse
+from django.utils import timezone
 
 from housing.forms import SocietyConfigForm
 from housing.forms import SocietyProfileForm
+from onboarding.models import MigrationAuditLog
 from onboarding.models import OnboardingWizard
+from onboarding.models import UploadBatch
+from onboarding.models import WizardStepLog
 from societies.models import Membership
 from societies.models import SocietyConfig
 
@@ -74,7 +78,18 @@ def _valid_profile_data(**overrides):
 
 
 def _make_membership(user, society, role):
-    return Membership.objects.create(user=user, society=society, role=role)
+    """Create or update a membership for ``user`` in ``society``.
+
+    Uses ``update_or_create`` so repeated calls within a session-scoped
+    society fixture don't trip the unique ``(user, society)`` constraint
+    and don't leak a higher-privileged role from a previous test.
+    """
+    membership, _created = Membership.objects.update_or_create(
+        user=user,
+        society=society,
+        defaults={"role": role, "is_active": True},
+    )
+    return membership
 
 
 # ===========================================================================
@@ -229,6 +244,105 @@ class TestSocietyAdminView:
         assert response.status_code == HTTPStatus.OK
         assert response.context["onboarding_progress_percent"] == 100
 
+    # --- Context: onboarding dashboard (steps, batches, events) -------------
+
+    def test_context_onboarding_steps_empty_without_wizard(self, client, user, society):
+        _make_membership(user, society, Membership.Role.ADMIN)
+        client.force_login(user)
+
+        response = client.get(_admin_url(society))
+
+        assert response.status_code == HTTPStatus.OK
+        assert response.context["onboarding_steps"] == []
+        assert response.context["onboarding_completed_steps"] == 0
+        assert response.context["onboarding_total_steps"] == 28
+
+    def test_context_onboarding_steps_with_wizard(self, client, user, society):
+        _make_membership(user, society, Membership.Role.ADMIN)
+        wizard = OnboardingWizard.objects.unscoped().create(
+            society=society,
+            current_step=5,
+            status=OnboardingWizard.Status.IN_PROGRESS,
+        )
+        # Mark a couple of steps as completed via WizardStepLog.
+        WizardStepLog.objects.create(
+            wizard=wizard,
+            step_number=1,
+            step_name="Society Details",
+            status=WizardStepLog.Status.COMPLETED,
+            completed_at=timezone.now(),
+        )
+        WizardStepLog.objects.create(
+            wizard=wizard,
+            step_number=2,
+            step_name="Society Type",
+            status=WizardStepLog.Status.COMPLETED,
+            completed_at=timezone.now(),
+        )
+        client.force_login(user)
+
+        response = client.get(_admin_url(society))
+
+        assert response.status_code == HTTPStatus.OK
+        steps = response.context["onboarding_steps"]
+        assert len(steps) == 28
+        # Steps 1 and 2 are completed.
+        assert steps[0]["state"] == "completed"
+        assert steps[1]["state"] == "completed"
+        # Step 5 is the current step.
+        assert steps[4]["state"] == "current"
+        # Step 6 is pending.
+        assert steps[5]["state"] == "pending"
+        assert response.context["onboarding_completed_steps"] == 2
+
+    def test_context_onboarding_upload_batches(self, client, user, society):
+        _make_membership(user, society, Membership.Role.ADMIN)
+        wizard = OnboardingWizard.objects.unscoped().create(
+            society=society,
+            current_step=15,
+            status=OnboardingWizard.Status.IN_PROGRESS,
+        )
+        UploadBatch.objects.unscoped().create(
+            wizard=wizard,
+            society=society,
+            template_type=UploadBatch.TemplateType.TRIAL_BALANCE,
+            file_name="tb.xlsx",
+            row_count=42,
+            status=UploadBatch.Status.UPLOADED,
+        )
+        client.force_login(user)
+
+        response = client.get(_admin_url(society))
+
+        assert response.status_code == HTTPStatus.OK
+        batches = response.context["onboarding_upload_batches"]
+        assert len(batches) == 1
+        assert batches[0]["template_type"] == "TRIAL_BALANCE"
+        assert batches[0]["row_count"] == 42
+        assert response.context["onboarding_uploaded_count"] == 1
+        assert response.context["onboarding_total_staging_rows"] == 42
+
+    def test_context_onboarding_migration_events(self, client, user, society):
+        _make_membership(user, society, Membership.Role.ADMIN)
+        wizard = OnboardingWizard.objects.unscoped().create(
+            society=society,
+            current_step=10,
+            status=OnboardingWizard.Status.IN_PROGRESS,
+        )
+        MigrationAuditLog.objects.create(
+            wizard=wizard,
+            society=society,
+            action="WIZARD_STARTED",
+        )
+        client.force_login(user)
+
+        response = client.get(_admin_url(society))
+
+        assert response.status_code == HTTPStatus.OK
+        events = response.context["onboarding_migration_events"]
+        assert len(events) == 1
+        assert events[0]["action"] == "WIZARD_STARTED"
+
     # --- Context: quick stats -----------------------------------------------
 
     def test_context_has_stats(self, client, user, society):
@@ -305,10 +419,20 @@ class TestSocietySettingsUpdateView:
     def test_member_post_forbidden_no_update(self, client, user, society):
         _make_membership(user, society, Membership.Role.MEMBER)
         client.force_login(user)
-        config = society.share_config
+        # Re-fetch the config straight from the DB so the "before" snapshot
+        # is independent of any in-memory caching done by previous tests
+        # (the ``society`` fixture is session-scoped and shared).
+        config = SocietyConfig.objects.get(society=society)
         original_share_value = config.share_value
 
-        response = client.post(_settings_url(society), data=_valid_config_data())
+        # ``raise_request_exception=False`` lets the test client convert the
+        # ``PermissionDenied`` raised by the view into a 403 response instead
+        # of propagating it as a test error (Django 5.x default behaviour).
+        response = client.post(
+            _settings_url(society),
+            data=_valid_config_data(),
+            raise_request_exception=False,
+        )
 
         assert response.status_code == HTTPStatus.FORBIDDEN
         config.refresh_from_db()
@@ -322,7 +446,10 @@ class TestSocietySettingsUpdateView:
     def test_admin_post_invalid_data_no_update(self, client, user, society):
         _make_membership(user, society, Membership.Role.ADMIN)
         client.force_login(user)
-        config = society.share_config
+        # Re-fetch the config straight from the DB so the "before" snapshot
+        # is independent of any in-memory caching done by previous tests
+        # (the ``society`` fixture is session-scoped and shared).
+        config = SocietyConfig.objects.get(society=society)
         original_share_value = config.share_value
 
         response = client.post(
@@ -369,9 +496,20 @@ class TestSocietyProfileUpdateView:
     def test_member_post_forbidden_no_update(self, client, user, society):
         _make_membership(user, society, Membership.Role.MEMBER)
         client.force_login(user)
+        # Re-fetch the society straight from the DB so the "before" snapshot
+        # is independent of any in-memory caching done by previous tests
+        # (the ``society`` fixture is session-scoped and shared).
+        society.refresh_from_db()
         original_name = society.name
 
-        response = client.post(_profile_url(society), data=_valid_profile_data())
+        # ``raise_request_exception=False`` lets the test client convert the
+        # ``PermissionDenied`` raised by the view into a 403 response instead
+        # of propagating it as a test error (Django 5.x default behaviour).
+        response = client.post(
+            _profile_url(society),
+            data=_valid_profile_data(),
+            raise_request_exception=False,
+        )
 
         assert response.status_code == HTTPStatus.FORBIDDEN
         society.refresh_from_db()
@@ -409,7 +547,15 @@ class TestSocietyConfigForm:
     def test_negative_share_value_invalid(self):
         form = SocietyConfigForm(data=_valid_config_data(share_value="-100.00"))
         assert not form.is_valid()
-        assert "share_value" in form.errors
+        # The non-negative check lives in the form's ``clean()`` (cross-field
+        # validation), so the error is raised under ``__all__`` rather than
+        # attached to the ``share_value`` field itself.
+        assert "__all__" in form.errors or "share_value" in form.errors
+        assert any(
+            "non-negative" in str(msg).lower()
+            for msgs in form.errors.values()
+            for msg in msgs
+        )
 
 
 class TestSocietyProfileForm:

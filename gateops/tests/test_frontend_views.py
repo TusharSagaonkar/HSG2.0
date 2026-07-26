@@ -1,6 +1,7 @@
 """Server-rendered GateOps frontend tests for selected-society scoping."""
 
 from django.test import TestCase
+from django.template.loader import get_template
 from django.urls import reverse
 from django.utils import timezone
 
@@ -36,6 +37,14 @@ class GateOpsFrontendViewTest(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertContains(response, "No society selected", status_code=404)
         self.assertContains(response, "Select a society to use Gate Operations.", status_code=404)
+
+    def test_missing_selected_society_htmx_request_returns_page(self):
+        response = self.client.get(reverse("gateops:dashboard"), HTTP_HX_REQUEST="true")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "No society selected")
+        self.assertContains(response, "Select a society to use Gate Operations.")
+        self.assertContains(response, reverse("housing:society-list"))
 
     def test_dashboard_renders_bootstrap_sections_for_selected_society(self):
         society = self._create_accessible_society("Alpha Heights")
@@ -74,6 +83,34 @@ class GateOpsFrontendViewTest(TestCase):
         self.assertContains(response, "Setup & Settings")
         self.assertNotContains(response, 'id="gateops-nav"')
         self.assertNotContains(response, 'aria-expanded="true"')
+
+    def test_main_dashboard_links_to_gate_operations_workflows(self):
+        self._select_society(self._create_accessible_society("Alpha Heights"))
+
+        response = self.client.get(reverse("home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Gate Operations")
+        self.assertContains(response, reverse("gateops:dashboard"))
+        self.assertContains(response, reverse("gateops:event-create"))
+        self.assertContains(response, reverse("gateops:currently-inside"))
+        self.assertContains(response, "Visitors currently inside")
+
+    def test_contractor_dashboard_renders_workspace_navigation(self):
+        society = self._create_accessible_society("Alpha Heights")
+        self._select_society(society)
+
+        response = self.client.get(reverse("gateops:contractor-dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Contractor Dashboard")
+        self.assertContains(response, reverse("gateops:worker-list"))
+        self.assertContains(response, reverse("gateops:work-permit-list"))
+
+    def test_contract_detail_template_compiles(self):
+        template = get_template("gateops/contract_detail.html")
+
+        self.assertEqual(template.template.name, "gateops/contract_detail.html")
 
     def test_gate_management_navigation_marks_rules_active_without_submenu(self):
         self._select_society(self._create_accessible_society("Alpha Heights"))

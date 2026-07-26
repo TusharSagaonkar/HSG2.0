@@ -72,7 +72,7 @@
       <div class="content-card mb-3">
         <div class="content-card__header">
           <h3 class="content-card__title">Workers ({{ workers|length }})</h3>
-          <a href="{% url 'gateops:worker-register' %}?contract={{ contract.pk %}" class="btn btn-sm btn-outline-success"><i class="fas fa-user-plus me-1"></i>Register</a>
+          <a href="{% url 'gateops:worker-register' %}?contract={{ contract.pk }}" class="btn btn-sm btn-outline-success"><i class="fas fa-user-plus me-1"></i>Register</a>
         </div>
         <div class="content-card__body p-0">
           {% if workers %}
@@ -104,7 +104,7 @@
             <div class="p-4 text-center text-muted">
               <i class="fas fa-users fa-2x mb-2 d-block opacity-50"></i>
               <p class="mb-2">No workers registered on this contract yet.</p>
-              <a href="{% url 'gateops:worker-register' %}?contract={{ contract.pk %}" class="btn btn-sm btn-outline-success"><i class="fas fa-user-plus me-1"></i>Register Worker</a>
+              <a href="{% url 'gateops:worker-register' %}?contract={{ contract.pk }}" class="btn btn-sm btn-outline-success"><i class="fas fa-user-plus me-1"></i>Register Worker</a>
             </div>
           {% endif %}
         </div>
@@ -113,7 +113,7 @@
       <div class="content-card">
         <div class="content-card__header">
           <h3 class="content-card__title">Work Permits ({{ work_permits|length }})</h3>
-          <a href="{% url 'gateops:work-permit-issue' %}?contract={{ contract.pk %}" class="btn btn-sm btn-outline-success"><i class="fas fa-id-card me-1"></i>Issue</a>
+          <a href="{% url 'gateops:work-permit-issue' %}?contract={{ contract.pk }}" class="btn btn-sm btn-outline-success"><i class="fas fa-id-card me-1"></i>Issue</a>
         </div>
         <div class="content-card__body p-0">
           {% if work_permits %}
@@ -151,7 +151,7 @@
             <div class="p-4 text-center text-muted">
               <i class="fas fa-id-card fa-2x mb-2 d-block opacity-50"></i>
               <p class="mb-2">No work permits issued for this contract yet.</p>
-              <a href="{% url 'gateops:work-permit-issue' %}?contract={{ contract.pk %}" class="btn btn-sm btn-outline-success"><i class="fas fa-id-card me-1"></i>Issue Permit</a>
+              <a href="{% url 'gateops:work-permit-issue' %}?contract={{ contract.pk }}" class="btn btn-sm btn-outline-success"><i class="fas fa-id-card me-1"></i>Issue Permit</a>
             </div>
           {% endif %}
         </div>

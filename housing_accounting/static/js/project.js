@@ -1,13 +1,6 @@
 /* Project specific Javascript goes here. */
 
-/**
- * Handle society selection from top bar dropdown - update session and navigate to society dashboard
- * @param {HTMLSelectElement} selectElement - The society selector dropdown
- */
-const handleSocietySelection = (selectElement) => {
-  // Keep user on the current page while only updating session selection.
-  selectElement.form.submit();
-};
+
 
 const initShortcutHelpTrigger = () => {
   const triggers = Array.from(document.querySelectorAll("[data-shortcut-help-trigger]"));

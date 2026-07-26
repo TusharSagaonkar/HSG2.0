@@ -1,0 +1,3 @@
+[    1503ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://127.0.0.1:8000/accounts/login/?next=/onboarding/22/step/3/:0
+[    1530ms] [LOG] Loaded 18 keyboard shortcuts @ http://127.0.0.1:8000/static/js/shortcut_engine.js:109
+[    1531ms] [LOG] Shortcut engine initialized @ http://127.0.0.1:8000/static/js/shortcut_engine.js:368

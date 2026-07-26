@@ -226,6 +226,14 @@ VoucherTemplateRowFormSet = inlineformset_factory(
 
 
 class StructureForm(BootstrapModelForm):
+    society_display = forms.CharField(
+        label=_("Society"),
+        required=False,
+        disabled=True,
+        widget=forms.TextInput(attrs={"readonly": "readonly"}),
+        help_text=_("The society is automatically determined based on your current context."),
+    )
+
     class Meta:
         model = Structure
         fields = ["society", "parent", "structure_type", "name", "display_order"]
@@ -233,10 +241,31 @@ class StructureForm(BootstrapModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         society_id = self.initial.get("society")
+        
+        # Hide the actual society field
+        if "society" in self.fields:
+            self.fields["society"].widget = forms.HiddenInput()
+        
         if society_id:
+            # Get the society name for display
+            try:
+                society = Society.objects.get(id=society_id)
+                self.fields["society_display"].initial = society.name
+            except Society.DoesNotExist:
+                self.fields["society_display"].initial = ""
+            
+            self.fields["society"].queryset = Society.objects.filter(id=society_id)
             self.fields["parent"].queryset = Structure.objects.filter(
                 society_id=society_id
             )
+        else:
+            self.fields["society_display"].initial = ""
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        # Remove society_display from cleaned data as it's not a model field
+        cleaned_data.pop("society_display", None)
+        return cleaned_data
 
 
 class UnitForm(BootstrapModelForm):

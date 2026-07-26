@@ -75,8 +75,8 @@
   flex-wrap: wrap;
   gap: var(--space-sm);
   align-items: center;
-  margin-bottom: var(--space-lg);
-  padding: var(--space-md);
+  margin-bottom: var(--space-sm);
+  padding: var(--space-sm) var(--space-md);
   background: var(--color-bg-primary);
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-md);
@@ -182,7 +182,7 @@
 }
 
 .content-card__body {
-  padding: 1rem 1.1rem 1.1rem;
+  padding: 0.85rem 0.95rem 0.9rem;
 }
 
 .content-card__footer {
@@ -200,7 +200,7 @@
   gap: 0.9rem;
   align-items: center;
   height: 100%;
-  padding: 1rem 1.05rem;
+  padding: 0.85rem 0.9rem;
   background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
   border: 1px solid var(--color-border-default);
   border-radius: var(--radius-lg);

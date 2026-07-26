@@ -343,6 +343,266 @@ class WizardStepViewTest(OnboardingViewTestBase):
         )
         self.assertEqual(response["Location"], expected)
 
+    def test_module_selection_has_bulk_selection_controls(self):
+        """Step 3 provides accessible select-all and clear controls."""
+        self.wizard.current_step = 3
+        self.wizard.save(update_fields=["current_step"])
+
+        response = self.client.get(
+            reverse(
+                "onboarding:wizard-step",
+                kwargs={"wizard_id": self.wizard.pk, "step_number": 3},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="selectAllModules"')
+        self.assertContains(response, 'id="clearModuleSelection"')
+        self.assertContains(response, 'id="moduleSelectionCount"')
+
+    def test_accounting_start_year_renders_as_select_list(self):
+        """Step 4 renders the available financial years in a select element."""
+        self.wizard.current_step = 4
+        self.wizard.save(update_fields=["current_step"])
+
+        response = self.client.get(
+            reverse(
+                "onboarding:wizard-step",
+                kwargs={"wizard_id": self.wizard.pk, "step_number": 4},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            '<select name="accounting_start_year"',
+            html=False,
+        )
+        self.assertContains(response, "Select a financial year")
+        self.assertEqual(
+            len(response.context["form"].fields["accounting_start_year"].choices),
+            12,
+        )
+
+    def test_accounting_setup_has_processing_feedback(self):
+        self.wizard.current_step = 9
+        self.wizard.save(update_fields=["current_step"])
+
+        response = self.client.get(
+            reverse(
+                "onboarding:wizard-step",
+                kwargs={"wizard_id": self.wizard.pk, "step_number": 9},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'id="accountingSetupForm"')
+        self.assertContains(response, 'id="accountingSetupButton"')
+        self.assertContains(response, "Setting up accounting...")
+
+    def test_saving_completed_step_does_not_skip_current_step(self):
+        self.wizard.current_step = 10
+        self.wizard.save(update_fields=["current_step"])
+
+        response = self.client.post(
+            reverse(
+                "onboarding:wizard-step-save",
+                kwargs={"wizard_id": self.wizard.pk, "step_number": 9},
+            )
+        )
+
+        self.assertRedirects(
+            response,
+            reverse(
+                "onboarding:wizard-step",
+                kwargs={"wizard_id": self.wizard.pk, "step_number": 10},
+            ),
+            fetch_redirect_response=False,
+        )
+        self.wizard.refresh_from_db()
+        self.assertEqual(self.wizard.current_step, 10)
+
+
+# --------------------------------------------------------------------------- #
+# Step 8 member assignment CRUD
+# --------------------------------------------------------------------------- #
+
+
+class WizardMemberCrudViewTest(OnboardingViewTestBase):
+    """Tests for Step 8's structure/unit member management interface."""
+
+    @classmethod
+    def setUpTestData(cls):
+        super().setUpTestData()
+        from members.models import Structure, Unit
+
+        cls.structure = Structure.objects.create(
+            society=cls.society,
+            structure_type=Structure.StructureType.BUILDING,
+            name="Tower A",
+        )
+        cls.unit = Unit.objects.create(
+            structure=cls.structure,
+            unit_type=Unit.UnitType.FLAT,
+            identifier="101",
+            area_sqft="1000.00",
+        )
+
+    def setUp(self):
+        super().setUp()
+        self.wizard.current_step = 8
+        self.wizard.save(update_fields=["current_step"])
+
+    def test_step_8_renders_structure_units_and_modal(self):
+        response = self.client.get(
+            reverse(
+                "onboarding:wizard-step",
+                kwargs={"wizard_id": self.wizard.pk, "step_number": 8},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Tower A")
+        self.assertContains(response, 'id="memberModal"')
+        self.assertContains(response, 'id="structureList"')
+        self.assertNotIn("form", response.context)
+
+    def test_step_8_refresh_includes_existing_members_by_unit(self):
+        from members.models import Member
+
+        member = Member.objects.create(
+            society=self.society,
+            unit=self.unit,
+            full_name="Existing Resident",
+            role=Member.MemberRole.OWNER,
+            status=Member.MemberStatus.ACTIVE,
+        )
+
+        response = self.client.get(
+            reverse(
+                "onboarding:wizard-step",
+                kwargs={"wizard_id": self.wizard.pk, "step_number": 8},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["members_by_unit"][str(self.unit.pk)][0]["id"],
+            member.pk,
+        )
+        self.assertContains(response, "Existing Resident")
+
+    def test_create_update_and_delete_member_with_lifecycle_cleanup(self):
+        from members.models import Member, UnitOccupancy, UnitOwnership
+
+        create_response = self.client.post(
+            reverse(
+                "onboarding:wizard-member-create-api",
+                kwargs={"wizard_id": self.wizard.pk},
+            ),
+            {
+                "unit_id": self.unit.pk,
+                "full_name": "Alex Owner",
+                "role": Member.MemberRole.OWNER,
+                "status": Member.MemberStatus.ACTIVE,
+                "email": "alex.owner@example.com",
+                "phone": "9999999999",
+                "start_date": "2026-07-01",
+            },
+        )
+
+        self.assertEqual(create_response.status_code, 201)
+        member_id = create_response.json()["member"]["id"]
+        member = Member.objects.get(pk=member_id)
+        self.assertTrue(
+            UnitOwnership.objects.filter(
+                unit=self.unit, owner__email=member.email, end_date__isnull=True
+            ).exists()
+        )
+        self.assertTrue(
+            UnitOccupancy.objects.filter(
+                unit=self.unit,
+                occupant__email=member.email,
+                end_date__isnull=True,
+            ).exists()
+        )
+
+        update_response = self.client.post(
+            reverse(
+                "onboarding:wizard-member-update-api",
+                kwargs={
+                    "wizard_id": self.wizard.pk,
+                    "member_id": member_id,
+                },
+            ),
+            {
+                "full_name": "Alex Owner",
+                "role": Member.MemberRole.OWNER,
+                "status": Member.MemberStatus.ACTIVE,
+                "email": "alex.owner@example.com",
+                "phone": "8888888888",
+                "start_date": "2026-07-01",
+            },
+        )
+
+        self.assertEqual(update_response.status_code, 200)
+        member.refresh_from_db()
+        self.assertEqual(member.phone, "8888888888")
+        self.assertEqual(
+            UnitOccupancy.objects.filter(
+                unit=self.unit,
+                occupant__email=member.email,
+                end_date__isnull=True,
+            ).count(),
+            1,
+        )
+
+        delete_response = self.client.post(
+            reverse(
+                "onboarding:wizard-member-delete-api",
+                kwargs={
+                    "wizard_id": self.wizard.pk,
+                    "member_id": member_id,
+                },
+            )
+        )
+
+        self.assertEqual(delete_response.status_code, 200)
+        self.assertFalse(Member.objects.filter(pk=member_id).exists())
+        self.assertFalse(
+            UnitOwnership.objects.filter(
+                unit=self.unit,
+                owner__email="alex.owner@example.com",
+                end_date__isnull=True,
+            ).exists()
+        )
+        self.assertFalse(
+            UnitOccupancy.objects.filter(
+                unit=self.unit,
+                occupant__email="alex.owner@example.com",
+                end_date__isnull=True,
+            ).exists()
+        )
+
+    def test_continue_requires_an_active_member(self):
+        response = self.client.post(
+            reverse(
+                "onboarding:wizard-step-save",
+                kwargs={"wizard_id": self.wizard.pk, "step_number": 8},
+            )
+        )
+
+        self.assertRedirects(
+            response,
+            reverse(
+                "onboarding:wizard-step",
+                kwargs={"wizard_id": self.wizard.pk, "step_number": 8},
+            ),
+            fetch_redirect_response=False,
+        )
+        self.wizard.refresh_from_db()
+        self.assertEqual(self.wizard.current_step, 8)
+
 
 # --------------------------------------------------------------------------- #
 # staging_view
@@ -636,3 +896,71 @@ class WizardCompleteViewTest(OnboardingViewTestBase):
         self.assertEqual(response.status_code, 200)
         self.assertIn("wizard", response.context)
         self.assertIn("finalization_summary", response.context)
+
+
+# --------------------------------------------------------------------------- #
+# template_download
+# --------------------------------------------------------------------------- #
+
+
+class TemplateDownloadViewTest(OnboardingViewTestBase):
+    """Tests for the template_download view (CSV template generator)."""
+
+    def test_download_requires_login(self):
+        """Anonymous users are redirected to the login page."""
+        self.client.logout()
+        response = self.client.get(
+            reverse(
+                "onboarding:template-download",
+                kwargs={"template_type": "TRIAL_BALANCE"},
+            )
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertIn("/accounts/login/", response["Location"])
+
+    def test_download_returns_csv(self):
+        """GET returns a CSV file with the expected columns as headers."""
+        response = self.client.get(
+            reverse(
+                "onboarding:template-download",
+                kwargs={"template_type": "TRIAL_BALANCE"},
+            )
+        )
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv")
+        self.assertIn("attachment", response["Content-Disposition"])
+        self.assertIn("trial_balance_template.csv", response["Content-Disposition"])
+
+        # Parse the CSV content and verify headers.
+        import csv as csv_mod
+        import io as io_mod
+
+        reader = csv_mod.reader(io_mod.StringIO(response.content.decode("utf-8")))
+        rows = list(reader)
+        self.assertEqual(rows[0], ["account_code", "account_name", "debit", "credit"])
+
+    def test_download_invalid_template_redirects(self):
+        """An invalid template_type redirects to the wizard list."""
+        response = self.client.get(
+            reverse(
+                "onboarding:template-download",
+                kwargs={"template_type": "INVALID_TYPE"},
+            )
+        )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("onboarding:wizard-list"))
+
+    def test_download_all_template_types(self):
+        """Every canonical template type produces a valid CSV download."""
+        from onboarding.services.staging_service import ALL_TEMPLATE_TYPES
+
+        for template_type in ALL_TEMPLATE_TYPES:
+            response = self.client.get(
+                reverse(
+                    "onboarding:template-download",
+                    kwargs={"template_type": template_type},
+                )
+            )
+            self.assertEqual(response.status_code, 200, f"Failed for {template_type}")
+            self.assertEqual(response["Content-Type"], "text/csv")
+            self.assertIn("attachment", response["Content-Disposition"])

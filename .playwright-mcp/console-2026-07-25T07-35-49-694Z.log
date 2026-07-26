@@ -1,0 +1,21 @@
+[    2446ms] [LOG] Loaded 18 keyboard shortcuts @ http://127.0.0.1:8000/static/js/shortcut_engine.js:109
+[    2446ms] [LOG] Shortcut engine initialized @ http://127.0.0.1:8000/static/js/shortcut_engine.js:368
+[    2578ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://127.0.0.1:8000/accounts/login/?next=/onboarding/22/step/8/:0
+[   61069ms] [LOG] Loaded 18 keyboard shortcuts @ http://127.0.0.1:8000/static/js/shortcut_engine.js:109
+[   61069ms] [LOG] Shortcut engine initialized @ http://127.0.0.1:8000/static/js/shortcut_engine.js:368
+[   61129ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://127.0.0.1:8000/accounts/login/:0
+[   70681ms] [LOG] Loaded 18 keyboard shortcuts @ http://127.0.0.1:8000/static/js/shortcut_engine.js:109
+[   70681ms] [LOG] Shortcut engine initialized @ http://127.0.0.1:8000/static/js/shortcut_engine.js:368
+[   70816ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://127.0.0.1:8000/accounts/login/:0
+[   92246ms] ReferenceError: bootstrap is not defined
+    at http://127.0.0.1:8000/onboarding/22/step/8/:1253:16
+    at http://127.0.0.1:8000/onboarding/22/step/8/:1595:3
+[   92564ms] [LOG] Loaded 18 keyboard shortcuts @ http://127.0.0.1:8000/static/js/shortcut_engine.js:109
+[   92564ms] [LOG] Shortcut engine initialized @ http://127.0.0.1:8000/static/js/shortcut_engine.js:368
+[   92873ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://127.0.0.1:8000/onboarding/22/step/8/:0
+[  106111ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[  127206ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[  127258ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[  149789ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[  197709ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[  199132ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349

@@ -36,10 +36,11 @@
       {% endif %}
 
       <form method="post"
-            action="{% url 'onboarding:wizard-step-save' wizard.id step_number %}">
+            action="{% url 'onboarding:wizard-step-save' wizard.id step_number %}"
+            id="accountingSetupForm">
         {% csrf_token %}
         <div class="form-actions">
-          <button type="submit" class="btn btn-primary"
+          <button type="submit" class="btn btn-primary" id="accountingSetupButton"
                   {% if not society %}disabled{% endif %}>
             <i class="fas fa-cogs me-1"></i>{% trans "Set Up Accounting & Continue" %}
           </button>
@@ -52,3 +53,20 @@
     </div>
   </div>
 {% endblock wizard_content %}
+
+{% block inline_javascript %}
+  <script>
+    (function () {
+      var form = document.getElementById("accountingSetupForm");
+      var button = document.getElementById("accountingSetupButton");
+      if (!form || !button) return;
+
+      form.addEventListener("submit", function () {
+        if (button.disabled) return;
+        button.disabled = true;
+        button.setAttribute("aria-busy", "true");
+        button.innerHTML = '<span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>{% trans "Setting up accounting..." %}';
+      });
+    })();
+  </script>
+{% endblock inline_javascript %}

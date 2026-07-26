@@ -1,0 +1,21 @@
+[    1111ms] [LOG] Loaded 18 keyboard shortcuts @ http://127.0.0.1:8000/static/js/shortcut_engine.js:109
+[    1111ms] [LOG] Shortcut engine initialized @ http://127.0.0.1:8000/static/js/shortcut_engine.js:368
+[    1589ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://127.0.0.1:8000/onboarding/22/step/8/:0
+[  166087ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[  166372ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[  186417ms] Identifier 'ComponentManager' has already been declared
+[  186429ms] Identifier 'ToastManager' has already been declared
+[  186441ms] Identifier 'handleSocietySelection' has already been declared
+[  186453ms] Identifier 'SHORTCUTS' has already been declared
+[  186460ms] Cannot use import statement outside a module
+[  186471ms] [WARNING] jQuery.Deferred exception: e.scrollbar is not a function TypeError: e.scrollbar is not a function
+    at HTMLDocument.<anonymous> (http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/kaiadmin.min.js:1:1958)
+    at e (http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/core/jquery-3.7.1.min.js:2:27028)
+    at t (http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/core/jquery-3.7.1.min.js:2:27330) undefined @ http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/core/jquery-3.7.1.min.js:1
+[  186497ms] TypeError: e.scrollbar is not a function
+    at HTMLDocument.<anonymous> (http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/kaiadmin.min.js:1:1958)
+    at e (http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/core/jquery-3.7.1.min.js:2:27028)
+    at t (http://127.0.0.1:8000/static/vendor/kaiadmin-lite/assets/js/core/jquery-3.7.1.min.js:2:27330)
+[  195730ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[  196404ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[  229485ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349

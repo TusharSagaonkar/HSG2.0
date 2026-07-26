@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+{% load i18n %}
+
+{% block title %}{{ society.name }} | Housing Accounting System{% endblock title %}
+{% block dashboard_title %}{{ society.name }}{% endblock dashboard_title %}
+{% block dashboard_subtitle %}Society Details{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div id="messages-container">
+    {% include "societies/_messages.html" %}
+  </div>
+
+  <div class="action-bar action-bar--responsive mb-3">
+    <div class="d-flex gap-2 flex-wrap">
+      <a href="{% url 'societies:society-list' %}" class="btn-action btn-action--secondary">
+        <i class="fas fa-arrow-left me-1"></i>Back to List
+      </a>
+      <a href="{% url 'societies:society-update' society.pk %}" class="btn-action btn-action--primary">
+        <i class="fas fa-edit me-1"></i>Edit Society
+      </a>
+      <button 
+        type="button"
+        class="btn-action btn-action--danger"
+        onclick="confirmDelete({{ society.id }}, '{{ society.name|escapejs }}')">
+        <i class="fas fa-trash me-1"></i>Delete
+      </button>
+    </div>
+  </div>
+
+  <div class="row g-3">
+    <!-- Main Details Card -->
+    <div class="col-12 col-lg-8">
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">
+            <i class="fas fa-building me-2"></i>Society Information
+          </h3>
+          <span class="badge bg-success">Active</span>
+        </div>
+        <div class="content-card__body">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <div class="detail-group">
+                <label class="detail-label">
+                  <i class="fas fa-building me-1"></i>Society Name
+                </label>
+                <div class="detail-value">{{ society.name }}</div>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="detail-group">
+                <label class="detail-label">
+                  <i class="fas fa-id-card me-1"></i>Registration Number
+                </label>
+                <div class="detail-value">
+                  {% if society.registration_number %}
+                    <span class="badge bg-info">{{ society.registration_number }}</span>
+                  {% else %}
+                    <span class="text-muted">Not provided</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <div class="col-12">
+              <div class="detail-group">
+                <label class="detail-label">
+                  <i class="fas fa-map-marker-alt me-1"></i>Address
+                </label>
+                <div class="detail-value">
+                  {% if society.address %}
+                    {{ society.address|linebreaks }}
+                  {% else %}
+                    <span class="text-muted">No address provided</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="detail-group">
+                <label class="detail-label">
+                  <i class="fas fa-user me-1"></i>Created By
+                </label>
+                <div class="detail-value">
+                  {% if society.created_by %}
+                    {{ society.created_by.get_full_name }}
+                    <small class="text-muted">({{ society.created_by.email }})</small>
+                  {% else %}
+                    <span class="text-muted">System</span>
+                  {% endif %}
+                </div>
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <div class="detail-group">
+                <label class="detail-label">
+                  <i class="fas fa-calendar me-1"></i>Created At
+                </label>
+                <div class="detail-value">
+                  {{ society.created_at|date:"F d, Y - g:i A" }}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Configuration Card with HTMX -->
+      <div class="content-card mt-3">
+        <div class="content-card__header">
+          <h3 class="content-card__title">
+            <i class="fas fa-cog me-2"></i>Society Configuration
+          </h3>
+          <button 
+            class="btn btn-sm btn-outline-primary"
+            hx-get="{% url 'societies:society-config' society.pk %}"
+            hx-target="#config-container"
+            hx-swap="innerHTML"
+            hx-indicator="#config-spinner">
+            <span id="config-spinner" class="spinner-border spinner-border-sm me-1 htmx-indicator" role="status" aria-hidden="true"></span>
+            <i class="fas fa-sync-alt me-1"></i>Refresh
+          </button>
+        </div>
+        <div class="content-card__body">
+          <div id="config-container">
+            {% include "societies/_society_config.html" %}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Stats & Quick Actions Sidebar -->
+    <div class="col-12 col-lg-4">
+      <!-- Statistics Card -->
+      <div class="content-card mb-3">
+        <div class="content-card__header">
+          <h3 class="content-card__title">
+            <i class="fas fa-chart-bar me-2"></i>Statistics
+          </h3>
+        </div>
+        <div class="content-card__body">
+          <div class="stat-item mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+              <span><i class="fas fa-users text-primary me-2"></i>Total Members</span>
+              <span class="badge bg-primary" id="member-count"
+                hx-get="{% url 'societies:society-stats' society.pk %}?stat=members"
+                hx-trigger="load"
+                hx-swap="innerHTML">
+                <span class="spinner-border spinner-border-sm" role="status"></span>
+              </span>
+            </div>
+          </div>
+
+          <div class="stat-item mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+              <span><i class="fas fa-home text-success me-2"></i>Total Units</span>
+              <span class="badge bg-success" id="unit-count"
+                hx-get="{% url 'societies:society-stats' society.pk %}?stat=units"
+                hx-trigger="load"
+                hx-swap="innerHTML">
+                <span class="spinner-border spinner-border-sm" role="status"></span>
+              </span>
+            </div>
+          </div>
+
+          <div class="stat-item">
+            <div class="d-flex justify-content-between align-items-center">
+              <span><i class="fas fa-money-bill text-info me-2"></i>Active Shares</span>
+              <span class="badge bg-info" id="share-count"
+                hx-get="{% url 'societies:society-stats' society.pk %}?stat=shares"
+                hx-trigger="load"
+                hx-swap="innerHTML">
+                <span class="spinner-border spinner-border-sm" role="status"></span>
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Quick Actions Card -->
+      <div class="content-card">
+        <div class="content-card__header">
+          <h3 class="content-card__title">
+            <i class="fas fa-bolt me-2"></i>Quick Actions
+          </h3>
+        </div>
+        <div class="content-card__body">
+          <div class="d-grid gap-2">
+            <a href="#" class="btn btn-outline-primary">
+              <i class="fas fa-user-plus me-2"></i>Add Member
+            </a>
+            <a href="#" class="btn btn-outline-success">
+              <i class="fas fa-home me-2"></i>Add Unit
+            </a>
+            <a href="#" class="btn btn-outline-info">
+              <i class="fas fa-cog me-2"></i>Configure Settings
+            </a>
+            <a href="#" class="btn btn-outline-warning">
+              <i class="fas fa-file-invoice me-2"></i>Generate Reports
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity Timeline -->
+      <div class="content-card mt-3">
+        <div class="content-card__header">
+          <h3 class="content-card__title">
+            <i class="fas fa-clock me-2"></i>Recent Activity
+          </h3>
+        </div>
+        <div class="content-card__body">
+          <div id="activity-timeline"
+            hx-get="{% url 'societies:society-activity' society.pk %}"
+            hx-trigger="load"
+            hx-swap="innerHTML">
+            <div class="text-center py-3">
+              <span class="spinner-border spinner-border-sm" role="status"></span>
+              <span class="ms-2">Loading activity...</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Delete Confirmation Modal -->
+  <div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="deleteModalLabel">
+            <i class="fas fa-exclamation-triangle text-warning me-2"></i>Confirm Deletion
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <p>Are you sure you want to delete <strong id="delete-society-name"></strong>?</p>
+          <div class="alert alert-danger mb-0" role="alert">
+            <i class="fas fa-exclamation-circle me-1"></i>
+            <strong>Warning:</strong> This action cannot be undone. All related members, units, and financial records will be permanently removed.
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button 
+            type="button" 
+            class="btn btn-danger" 
+            id="confirm-delete-btn"
+            hx-delete="{% url 'societies:society-delete' society.pk %}"
+            hx-confirm="Type DELETE to confirm"
+            data-bs-dismiss="modal">
+            <i class="fas fa-trash me-1"></i>Delete Society
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function confirmDelete(societyId, societyName) {
+      document.getElementById('delete-society-name').textContent = societyName;
+      const deleteModal = new bootstrap.Modal(document.getElementById('deleteModal'));
+      deleteModal.show();
+    }
+
+    document.body.addEventListener('htmx:afterRequest', function(evt) {
+      if (evt.detail.xhr.status === 204 && evt.detail.pathInfo.requestPath.includes('delete')) {
+        window.location.href = "{% url 'societies:society-list' %}";
+      }
+    });
+  </script>
+
+  <style>
+    .detail-group {
+      padding: 0.75rem;
+      background: #f8f9fa;
+      border-radius: 0.375rem;
+      height: 100%;
+    }
+
+    .detail-label {
+      font-size: 0.875rem;
+      font-weight: 600;
+      color: #6c757d;
+      margin-bottom: 0.5rem;
+      display: block;
+    }
+
+    .detail-value {
+      font-size: 1rem;
+      color: #212529;
+      font-weight: 500;
+    }
+
+    .stat-item {
+      padding: 0.75rem;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .stat-item:last-child {
+      border-bottom: none;
+    }
+  </style>
+{% endblock content %}

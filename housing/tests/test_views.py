@@ -39,13 +39,64 @@ class TestHousingDashboardView:
 
 class TestSocietyViews:
     def test_society_list_view(self, client, user, society):
+        # The list view only shows societies the user has an active
+        # membership in, so grant one before fetching.
+        from societies.models import Membership
+        Membership.objects.update_or_create(
+            user=user,
+            society=society,
+            defaults={"role": Membership.Role.ADMIN, "is_active": True},
+        )
         client.force_login(user)
 
         response = client.get(reverse("housing:society-list"))
 
         assert response.status_code == HTTPStatus.OK
         assert "housing/society_list.html" in [t.name for t in response.templates]
-        assert response.context["societies"].count() == 1
+        # ``get_queryset`` returns a materialised list, so use ``len()``.
+        assert len(response.context["societies"]) == 1
+        # Summary stats context keys should be present.
+        assert response.context["total_societies"] == 1
+
+    def test_society_admin_redirect_requires_login(self, client):
+        # Anonymous users are bounced to the login page.
+        response = client.get(reverse("housing:society-admin-redirect"))
+
+        assert response.status_code == HTTPStatus.FOUND
+        assert response.url.startswith(reverse("account_login"))
+
+    def test_society_admin_redirect_to_selected_society(self, client, user, society):
+        # Grant an active membership so the society is accessible, then
+        # mark it as the selected scope in the session.
+        from societies.models import Membership
+        Membership.objects.update_or_create(
+            user=user,
+            society=society,
+            defaults={"role": Membership.Role.ADMIN, "is_active": True},
+        )
+        client.force_login(user)
+        session = client.session
+        session["selected_society_id"] = society.pk
+        session.save()
+
+        response = client.get(reverse("housing:society-admin-redirect"))
+
+        assert response.status_code == HTTPStatus.FOUND
+        assert response.url == reverse(
+            "housing:society-admin", kwargs={"pk": society.pk}
+        )
+
+    def test_society_admin_redirect_no_society_goes_to_onboarding(
+        self, client, user
+    ):
+        # A user with no accessible society (and none selected) is sent to
+        # the onboarding wizard list to create a new society.
+        client.force_login(user)
+
+        response = client.get(reverse("housing:society-admin-redirect"))
+
+        assert response.status_code == HTTPStatus.FOUND
+        assert response.url == reverse("onboarding:wizard-list")
 
     def test_society_detail_view(self, client, user, society):
         structure = Structure.objects.create(

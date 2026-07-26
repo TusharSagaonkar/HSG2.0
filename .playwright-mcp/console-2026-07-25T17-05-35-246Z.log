@@ -1,0 +1,26 @@
+[    7814ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://127.0.0.1:8000/onboarding/22/step/8/:0
+[    8199ms] [LOG] Loaded 18 keyboard shortcuts @ http://127.0.0.1:8000/static/js/shortcut_engine.js:109
+[    8199ms] [LOG] Shortcut engine initialized @ http://127.0.0.1:8000/static/js/shortcut_engine.js:368
+[   61609ms] Identifier 'ComponentManager' has already been declared
+[   61616ms] Identifier 'ToastManager' has already been declared
+[   61617ms] Cannot use import statement outside a module
+[   61619ms] Identifier 'SHORTCUTS' has already been declared
+[   61620ms] Identifier 'handleSocietySelection' has already been declared
+[   78390ms] [LOG] Browser shortcut blocked: F6 @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[   79512ms] [LOG] Browser shortcut blocked: F5 @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[   80287ms] [LOG] Browser shortcut blocked: F5 @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[   83555ms] [LOG] Loaded 18 keyboard shortcuts @ http://127.0.0.1:8000/static/js/shortcut_engine.js:109
+[   83555ms] [LOG] Shortcut engine initialized @ http://127.0.0.1:8000/static/js/shortcut_engine.js:368
+[   83735ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://127.0.0.1:8000/onboarding/22/step/8/:0
+[   93810ms] [LOG] Browser shortcut blocked: ALT @ http://127.0.0.1:8000/static/js/shortcut_engine.js:349
+[   95413ms] [LOG] Loaded 18 keyboard shortcuts @ http://127.0.0.1:8000/static/js/shortcut_engine.js:109
+[   95415ms] [LOG] Shortcut engine initialized @ http://127.0.0.1:8000/static/js/shortcut_engine.js:368
+[   95520ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://127.0.0.1:8000/onboarding/22/staging/CHART_OF_ACCOUNTS/:0
+[  106286ms] Identifier 'ComponentManager' has already been declared
+[  106287ms] Identifier 'ToastManager' has already been declared
+[  106287ms] Identifier 'handleSocietySelection' has already been declared
+[  106292ms] Cannot use import statement outside a module
+[  106293ms] Identifier 'SHORTCUTS' has already been declared
+[  142699ms] [LOG] Loaded 18 keyboard shortcuts @ http://127.0.0.1:8000/static/js/shortcut_engine.js:109
+[  142699ms] [LOG] Shortcut engine initialized @ http://127.0.0.1:8000/static/js/shortcut_engine.js:368
+[  142799ms] [INFO] Banner not shown: beforeinstallpromptevent.preventDefault() called. The page must call beforeinstallpromptevent.prompt() to show the banner. @ http://127.0.0.1:8000/onboarding/22/step/7/save/:0

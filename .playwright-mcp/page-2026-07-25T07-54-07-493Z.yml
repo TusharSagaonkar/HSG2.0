@@ -1,0 +1,242 @@
+- generic [active] [ref=f10e1]:
+  - link "Skip to main content" [ref=f10e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=f10e3]:
+    - generic [ref=f10e4]:
+      - generic [ref=f10e5]:
+        - link "Housynk Home" [ref=f10e6] [cursor=pointer]:
+          - /url: /
+          - img "Housynk" [ref=f10e8]
+        - button "Toggle sidebar" [expanded] [ref=f10e10] [cursor=pointer]
+      - navigation "Main Navigation" [ref=f10e15]:
+        - listitem [ref=f10e16]:
+          - text: 
+          - heading [level=4] [ref=f10e17]: Main
+        - listitem [ref=f10e18]:
+          - link "Dashboard" [ref=f10e19] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f10e20]: 
+            - paragraph [ref=f10e21]: Dashboard
+        - listitem [ref=f10e22]:
+          - link "Societies" [ref=f10e23] [cursor=pointer]:
+            - /url: /housing/societies/admin/
+            - generic [ref=f10e24]: 
+            - paragraph [ref=f10e25]: Societies
+        - listitem [ref=f10e26]:
+          - link "Structure & Units" [ref=f10e27] [cursor=pointer]:
+            - /url: /housing/structures-units/
+            - generic [ref=f10e28]: 
+            - paragraph [ref=f10e29]: Structure & Units
+        - listitem [ref=f10e30]:
+          - link "Members" [ref=f10e31] [cursor=pointer]:
+            - /url: /housing/members/
+            - generic [ref=f10e32]: 
+            - paragraph [ref=f10e33]: Members
+        - listitem [ref=f10e34]:
+          - link "Shares" [ref=f10e35] [cursor=pointer]:
+            - /url: /shares/
+            - generic [ref=f10e36]: 
+            - paragraph [ref=f10e37]: Shares
+        - listitem [ref=f10e38]:
+          - heading [level=4] [ref=f10e39]: Core Operations
+        - listitem [ref=f10e40]:
+          - link "Accounting" [ref=f10e41] [cursor=pointer]:
+            - /url: /accounting/
+            - generic [ref=f10e42]: 
+            - paragraph [ref=f10e43]: Accounting
+        - listitem [ref=f10e44]:
+          - link "Parking" [ref=f10e45] [cursor=pointer]:
+            - /url: /parking/
+            - generic [ref=f10e46]: 
+            - paragraph [ref=f10e47]: Parking
+        - listitem [ref=f10e48]:
+          - link "Gate Management" [ref=f10e49] [cursor=pointer]:
+            - /url: /gateops/
+            - generic [ref=f10e50]: 
+            - paragraph [ref=f10e51]: Gate Management
+        - listitem [ref=f10e52]:
+          - heading [level=4] [ref=f10e53]: Financial Management
+        - listitem [ref=f10e54]:
+          - link "Finance Hub" [ref=f10e55] [cursor=pointer]:
+            - /url: /housing/finance/
+            - generic [ref=f10e56]: 
+            - paragraph [ref=f10e57]: Finance Hub
+        - listitem [ref=f10e58]:
+          - link "Reconciliation" [ref=f10e59] [cursor=pointer]:
+            - /url: /reconciliation/
+            - generic [ref=f10e60]: 
+            - paragraph [ref=f10e61]: Reconciliation
+        - listitem [ref=f10e62]:
+          - link "Reports" [ref=f10e63] [cursor=pointer]:
+            - /url: /reports/
+            - generic [ref=f10e64]: 
+            - paragraph [ref=f10e65]: Reports
+        - listitem [ref=f10e66]:
+          - heading [level=4] [ref=f10e67]: Administration
+        - listitem [ref=f10e68]:
+          - link "Reminders" [ref=f10e69] [cursor=pointer]:
+            - /url: /notifications/reminders/
+            - generic [ref=f10e70]: 
+            - paragraph [ref=f10e71]: Reminders
+    - generic [ref=f10e82]:
+      - navigation "Top Navigation" [ref=f10e84]:
+        - generic [ref=f10e85]:
+          - heading "Member Assignment" [level=3] [ref=f10e87]
+          - list [ref=f10e88]:
+            - listitem [ref=f10e89]:
+              - group "Tenant Context Selection" [ref=f10e90]:
+                - generic [ref=f10e91]:
+                  - generic [ref=f10e92]: Tenant Context
+                  - generic [ref=f10e93]: Owner
+                - form "Society and Financial Year Selection" [ref=f10e95]:
+                  - generic [ref=f10e96]: Society
+                  - combobox "Select Society" [ref=f10e97]:
+                    - option "Dhanashre Society" [selected]
+                  - generic [ref=f10e98]: FY
+                  - combobox "Select Financial Year" [ref=f10e99]:
+                    - option "FY 2026-27" [selected]
+                    - option "FY 2024-25"
+                    - option "FY 2023-24"
+            - listitem [ref=f10e100]:
+              - button "View Accounting Periods" [ref=f10e101] [cursor=pointer]:
+                - generic [ref=f10e102]: 
+                - text: Periods (12)
+            - listitem [ref=f10e103]:
+              - button "View keyboard shortcuts" [ref=f10e104] [cursor=pointer]:
+                - generic [ref=f10e105]: 
+                - text: Shortcuts
+            - listitem [ref=f10e106]:
+              - generic [ref=f10e107]:
+                - link "View Profile for tushar.sagaonkar@gmail.com" [ref=f10e108] [cursor=pointer]:
+                  - /url: /users/5/
+                  - generic [ref=f10e109]: 
+                  - text: tushar.sagaonkar@gmail.com
+                - button "Sign Out" [ref=f10e110] [cursor=pointer]:
+                  - generic [ref=f10e111]: 
+                  - text: Sign Out
+      - generic [ref=f10e112]:
+        - generic [ref=f10e114]:
+          - paragraph [ref=f10e115]: Step 8 of 28 — Dhanashre Society
+          - generic [ref=f10e116]:
+            - generic [ref=f10e117]:
+              - generic [ref=f10e118]:
+                - link "" [ref=f10e119] [cursor=pointer]:
+                  - /url: /onboarding/22/step/1/
+                - link "" [ref=f10e122] [cursor=pointer]:
+                  - /url: /onboarding/22/step/2/
+                - link "" [ref=f10e125] [cursor=pointer]:
+                  - /url: /onboarding/22/step/3/
+                - link "" [ref=f10e128] [cursor=pointer]:
+                  - /url: /onboarding/22/step/4/
+                - link "" [ref=f10e131] [cursor=pointer]:
+                  - /url: /onboarding/22/step/5/
+                - link "" [ref=f10e134] [cursor=pointer]:
+                  - /url: /onboarding/22/step/6/
+                - link "" [ref=f10e137] [cursor=pointer]:
+                  - /url: /onboarding/22/step/7/
+                - link "8" [ref=f10e140] [cursor=pointer]:
+                  - /url: /onboarding/22/step/8/
+                - link "9" [ref=f10e142]:
+                  - /url: /onboarding/22/step/9/
+                - link "10" [ref=f10e144]:
+                  - /url: /onboarding/22/step/10/
+                - link "11" [ref=f10e146]:
+                  - /url: /onboarding/22/step/11/
+                - link "12" [ref=f10e148]:
+                  - /url: /onboarding/22/step/12/
+                - link "13" [ref=f10e150]:
+                  - /url: /onboarding/22/step/13/
+                - link "14" [ref=f10e152]:
+                  - /url: /onboarding/22/step/14/
+                - link "15" [ref=f10e154]:
+                  - /url: /onboarding/22/step/15/
+                - link "16" [ref=f10e156]:
+                  - /url: /onboarding/22/step/16/
+                - link "17" [ref=f10e158]:
+                  - /url: /onboarding/22/step/17/
+                - link "18" [ref=f10e160]:
+                  - /url: /onboarding/22/step/18/
+                - link "19" [ref=f10e162]:
+                  - /url: /onboarding/22/step/19/
+                - link "20" [ref=f10e164]:
+                  - /url: /onboarding/22/step/20/
+                - link "21" [ref=f10e166]:
+                  - /url: /onboarding/22/step/21/
+                - link "22" [ref=f10e168]:
+                  - /url: /onboarding/22/step/22/
+                - link "23" [ref=f10e170]:
+                  - /url: /onboarding/22/step/23/
+                - link "24" [ref=f10e172]:
+                  - /url: /onboarding/22/step/24/
+                - link "25" [ref=f10e174]:
+                  - /url: /onboarding/22/step/25/
+                - link "26" [ref=f10e176]:
+                  - /url: /onboarding/22/step/26/
+                - link "27" [ref=f10e178]:
+                  - /url: /onboarding/22/step/27/
+                - link "28" [ref=f10e180]:
+                  - /url: /onboarding/22/step/28/
+              - generic [ref=f10e181]:
+                - generic [ref=f10e182]:
+                  - generic [ref=f10e183]: Step 8 of 28
+                  - strong [ref=f10e184]: Member Assignment
+                - generic [ref=f10e185]:
+                  - link " Previous" [ref=f10e186] [cursor=pointer]:
+                    - /url: /onboarding/22/step/7/
+                    - generic [ref=f10e187]: 
+                    - text: Previous
+                  - button "Next " [disabled]:
+                    - text: Next
+                    - generic: 
+                - generic [ref=f10e188]:
+                  - generic [ref=f10e189]: 
+                  - text: Existing society — full accounting migration is required.
+              - progressbar [ref=f10e191]
+            - generic [ref=f10e192]:
+              - generic [ref=f10e194]:
+                - paragraph [ref=f10e195]:
+                  - text: Pick a structure on the left to see its units. Each unit lists its members — add, edit, or remove them inline. Every save writes immediately. Click
+                  - strong [ref=f10e196]: Save & Continue
+                  - text: when you're done to move to the next step.
+                - generic [ref=f10e197]:
+                  - generic [ref=f10e199]:
+                    - heading " Structures" [level=6] [ref=f10e201]:
+                      - generic [ref=f10e202]: 
+                      - text: Structures
+                    - generic [ref=f10e203]:
+                      - button "2 Wing · 0 units" [ref=f10e204] [cursor=pointer]:
+                        - generic [ref=f10e205]: "2"
+                        - generic [ref=f10e206]: Wing · 0 units
+                      - button "L01 Building · 0 units" [ref=f10e207] [cursor=pointer]:
+                        - generic [ref=f10e208]: L01
+                        - generic [ref=f10e209]: Building · 0 units
+                      - button "— A Wing · 0 units" [ref=f10e210] [cursor=pointer]:
+                        - generic [ref=f10e211]: — A
+                        - generic [ref=f10e212]: Wing · 0 units
+                      - button "A Block · 20 units" [ref=f10e213] [cursor=pointer]:
+                        - generic [ref=f10e214]: A
+                        - generic [ref=f10e215]: Block · 20 units
+                      - button "l3 Building · 28 units" [ref=f10e216] [cursor=pointer]:
+                        - generic [ref=f10e217]: l3
+                        - generic [ref=f10e218]: Building · 28 units
+                    - text: 
+                  - generic [ref=f10e220]:
+                    - heading " 2 (Wing)" [level=6] [ref=f10e222]:
+                      - generic [ref=f10e223]: 
+                      - text: 2 (Wing)
+                    - generic [ref=f10e225]:
+                      - generic [ref=f10e226]: 
+                      - paragraph [ref=f10e227]: No units on this structure. Add units in Step 7.
+                - generic [ref=f10e228]:
+                  - button " Save & Continue" [ref=f10e229] [cursor=pointer]:
+                    - generic [ref=f10e230]: 
+                    - text: Save & Continue
+                  - link " Back" [ref=f10e231] [cursor=pointer]:
+                    - /url: /onboarding/22/step/7/
+                    - generic [ref=f10e232]: 
+                    - text: Back
+              - text:   
+        - text:             
+        - alert
+        - text: 
+        - generic "Show toolbar" [ref=f10e234]: DJDT

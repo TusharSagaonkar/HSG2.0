@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.contrib.messages.views import SuccessMessageMixin
@@ -27,6 +28,7 @@ from django.views.generic import FormView
 from django.views import View
 from django.shortcuts import redirect
 from django.shortcuts import get_object_or_404
+from django.shortcuts import render
 from django.utils import timezone
 from django.http import JsonResponse
 
@@ -51,6 +53,10 @@ from societies.models import Society
 from societies.models import SocietyConfig
 from societies.models import Membership
 from onboarding.models import OnboardingWizard
+from onboarding.models import WizardStepLog
+from onboarding.models import UploadBatch
+from onboarding.models import MigrationAuditLog
+from onboarding.services.wizard_service import STEP_NAMES
 from notifications.models import EmailVerificationToken
 from members.models import Member
 from members.models import Structure
@@ -70,6 +76,7 @@ from notifications.models import GlobalEmailSettings
 from notifications.models import SocietyEmailSettings
 from housing_accounting.selection import get_selected_scope
 from societies.services import create_society
+from societies.services import get_accessible_societies_qs
 from societies.permissions import has_role_or_above
 from societies.permissions import has_permission
 from societies.roles import ROLE_ADMIN
@@ -378,26 +385,79 @@ unit_detail_view = UnitDetailView.as_view()
 
 
 class SocietyListView(LoginRequiredMixin, ListView):
+    """Lists every society the logged-in user can access.
+
+    Unlike the previous implementation (which filtered down to only the
+    currently-selected society), this shows *all* accessible societies so
+    the user can browse, compare, and switch context. Each society is
+    annotated with structure/unit/member counts, the user's role, and the
+    latest onboarding-wizard status.
+    """
+
     model = Society
     template_name = "housing/society_list.html"
     context_object_name = "societies"
 
     def get_queryset(self):
-        selected_society, _ = get_selected_scope(self.request)
-        queryset = Society.objects.annotate(
+        user = self.request.user
+        # Start from the accessible-societies queryset (security: only
+        # societies the user has an active membership in, or all for
+        # super-admins) and annotate aggregate counts in a single query
+        # to avoid N+1 per society.
+        queryset = get_accessible_societies_qs(user).annotate(
             structure_count=Count("structures", distinct=True),
             unit_count=Count("structures__units", distinct=True),
-            membership_count=Count("memberships", filter=Q(memberships__is_active=True), distinct=True),
+            membership_count=Count(
+                "memberships", filter=Q(memberships__is_active=True), distinct=True
+            ),
         ).order_by("name")
-        if selected_society:
-            queryset = queryset.filter(pk=selected_society.pk)
+
         societies = list(queryset.select_related("created_by"))
+        selected_society, _ = get_selected_scope(self.request)
+
+        # Attach per-society derived attributes without extra queries where
+        # possible. ``get_user_role`` does a single membership lookup.
         for society in societies:
-            society.current_user_role = get_user_role(self.request.user, society)
+            society.current_user_role = get_user_role(user, society)
+            society.is_active_context = bool(
+                selected_society and selected_society.id == society.id
+            )
         return societies
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        societies = context["societies"]
+        # Summary stats across all accessible societies (computed in Python
+        # from the already-fetched list — no extra DB hits).
+        context["total_societies"] = len(societies)
+        context["total_structures"] = sum(s.structure_count for s in societies)
+        context["total_units"] = sum(s.unit_count for s in societies)
+        context["total_memberships"] = sum(s.membership_count for s in societies)
+        context["selected_society"] = get_selected_scope(self.request)[0]
+        return context
 
 
 society_list_view = SocietyListView.as_view()
+
+
+@login_required
+def society_admin_redirect_view(request):
+    """Redirect to the admin panel of the currently-selected society.
+
+    This powers the navbar "Societies" entry: instead of landing on the full
+    society list, the user is taken straight to the admin panel of the
+    society chosen in the navbar scope selector. When no society is
+    selected (e.g. a brand-new user with no accessible society), the user
+    is redirected to the onboarding wizard list to create one.
+    """
+    selected_society, _selected_fy = get_selected_scope(request)
+    if selected_society is None:
+        messages.info(
+            request,
+            _("No society selected. Start onboarding to create a new society."),
+        )
+        return redirect("onboarding:wizard-list")
+    return redirect("housing:society-admin", pk=selected_society.pk)
 
 
 class SocietyDetailView(LoginRequiredMixin, DetailView):
@@ -646,30 +706,76 @@ society_create_view = SocietyCreateView.as_view()
 class StructureCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
     form_class = StructureForm
     model = Structure
-    template_name = "housing/form.html"
-    success_message = _("Structure created successfully.")
+    template_name = "housing/structure_create_with_tree.html"
+    success_message = "Structure created successfully."
 
     def get_initial(self):
         initial = super().get_initial()
         society_id = self.request.GET.get("society")
         if not society_id:
-            selected_society, _ = get_selected_scope(self.request)
-            if selected_society:
-                society_id = selected_society.pk
+            try:
+                selected_society, _ = get_selected_scope(self.request)
+                if selected_society:
+                    society_id = selected_society.pk
+            except Exception:
+                pass
         if society_id:
             initial["society"] = society_id
         return initial
 
     def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context["form_title"] = _("Add Structure")
-        context["form_subtitle"] = _("Add building/wing/block hierarchy.")
-        context["cancel_url"] = reverse("housing:structure-unit-dashboard")
-        context["cancel_label"] = _("Back to Structure & Units")
+        # Create basic context without calling super() first
+        context = {}
+        
+        # Add form manually
+        if 'form' not in kwargs:
+            context['form'] = self.get_form()
+        else:
+            context.update(kwargs)
+        
+        # Get society information
+        society_id = self.request.GET.get("society")
+        selected_society = None
+        structures = []
+        society_name = ""
+        
+        if not society_id:
+            try:
+                selected_society, _ = get_selected_scope(self.request)
+                if selected_society:
+                    society_id = selected_society.pk
+            except Exception:
+                pass
+        
+        # Get structures for the society
+        if society_id:
+            try:
+                from societies.models import Society
+                if not selected_society:
+                    selected_society = Society.objects.get(id=society_id)
+                society_name = selected_society.name
+                
+                # Get root structures with their children
+                structures = Structure.objects.filter(
+                    society_id=society_id,
+                    parent__isnull=True
+                ).prefetch_related('children').order_by('display_order', 'name')
+            except Exception:
+                pass
+        
+        context.update({
+            "form_title": "Add Structure",
+            "form_subtitle": "Add building/wing/block hierarchy.",
+            "cancel_url": "/housing/structures-units/",
+            "cancel_label": "Back to Structure & Units",
+            "structures": structures,
+            "society_id": society_id,
+            "society_name": society_name,
+        })
         return context
 
     def get_success_url(self):
-        return reverse("housing:society-detail", kwargs={"pk": self.object.society_id})
+        return f"/housing/structures/add/?society={self.object.society_id}"
 
 
 structure_create_view = StructureCreateView.as_view()
@@ -1523,8 +1629,88 @@ class SocietyAdminView(LoginRequiredMixin, DetailView):
             context['onboarding_progress_percent'] = min(
                 int((current_step / 28) * 100), 100
             )
+
+            # --- Detailed onboarding dashboard data ---
+            # Step logs: the audit trail of completed/started steps.
+            # WizardStepLog is append-only and not tenant-scoped (plain Manager),
+            # so no .unscoped() needed.
+            step_logs = list(
+                WizardStepLog.objects.filter(wizard=onboarding_wizard)
+                .order_by("step_number")
+                .values("step_number", "status", "completed_at")
+            )
+            # Build a lookup: step_number -> latest status for quick access.
+            step_status_map = {log["step_number"]: log["status"] for log in step_logs}
+            completed_steps = {
+                log["step_number"]
+                for log in step_logs
+                if log["status"] == WizardStepLog.Status.COMPLETED
+            }
+
+            # Build the full 28-step list with per-step status for the stepper UI.
+            # A step is considered:
+            #   - "completed" if it has a COMPLETED step log
+            #   - "current" if it equals the wizard's current_step and not completed
+            #   - "pending" otherwise
+            onboarding_steps = []
+            for step_num in range(1, 29):
+                step_status = step_status_map.get(step_num)
+                if step_num in completed_steps:
+                    state = "completed"
+                elif step_num == current_step and onboarding_wizard.status == OnboardingWizard.Status.IN_PROGRESS:
+                    state = "current"
+                else:
+                    state = "pending"
+                onboarding_steps.append({
+                    "number": step_num,
+                    "name": STEP_NAMES.get(step_num, f"Step {step_num}"),
+                    "state": state,
+                    "log_status": step_status,
+                })
+            context['onboarding_steps'] = onboarding_steps
+            context['onboarding_completed_steps'] = len(completed_steps)
+            context['onboarding_total_steps'] = 28
+
+            # --- Migration data status (upload batches) ---
+            # UploadBatch is tenant-scoped via TenantManager; use .unscoped()
+            # to fetch batches for this wizard regardless of the request tenant.
+            upload_batches = list(
+                UploadBatch.objects.unscoped()
+                .filter(wizard=onboarding_wizard)
+                .exclude(status=UploadBatch.Status.DELETED)
+                .order_by("template_type", "-uploaded_at")
+                .values("template_type", "file_name", "row_count", "status", "uploaded_at")
+            )
+            context['onboarding_upload_batches'] = upload_batches
+            context['onboarding_uploaded_count'] = len(upload_batches)
+            # Total staging rows across all batches.
+            context['onboarding_total_staging_rows'] = sum(
+                (b.get("row_count") or 0) for b in upload_batches
+            )
+
+            # --- Migration audit log (lifecycle events) ---
+            # MigrationAuditLog is a plain model (no TenantManager); query directly.
+            migration_events = list(
+                MigrationAuditLog.objects.filter(wizard=onboarding_wizard)
+                .select_related("actor")
+                .order_by("-timestamp")
+                .values("action", "actor__email", "timestamp")[:10]
+            )
+            context['onboarding_migration_events'] = migration_events
+
+            # --- Wizard data summary (key fields stored in wizard_data JSON) ---
+            wizard_data = onboarding_wizard.wizard_data or {}
+            context['onboarding_wizard_data'] = wizard_data
         else:
             context['onboarding_progress_percent'] = 0
+            context['onboarding_steps'] = []
+            context['onboarding_completed_steps'] = 0
+            context['onboarding_total_steps'] = 28
+            context['onboarding_upload_batches'] = []
+            context['onboarding_uploaded_count'] = 0
+            context['onboarding_total_staging_rows'] = 0
+            context['onboarding_migration_events'] = []
+            context['onboarding_wizard_data'] = {}
 
         # --- Quick stats ---
         context['total_members'] = Member.objects.filter(society=society).count()

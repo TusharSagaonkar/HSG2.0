@@ -26,6 +26,7 @@ app_name = "onboarding"
 urlpatterns = [
     path("", views.wizard_list, name="wizard-list"),
     path("start/", views.wizard_start, name="wizard-start"),
+    path("template/<str:template_type>/download/", views.template_download, name="template-download"),
     path("<int:wizard_id>/", views.wizard_detail, name="wizard-detail"),
     path(
         "<int:wizard_id>/step/<int:step_number>/",
@@ -36,6 +37,31 @@ urlpatterns = [
         "<int:wizard_id>/step/<int:step_number>/save/",
         views.wizard_step_save,
         name="wizard-step-save",
+    ),
+    path(
+        "<int:wizard_id>/units/structure/<int:structure_id>/delete/",
+        views.wizard_units_delete,
+        name="wizard-units-delete",
+    ),
+    path(
+        "<int:wizard_id>/step/8/api/members/",
+        views.wizard_member_list_api,
+        name="wizard-member-list-api",
+    ),
+    path(
+        "<int:wizard_id>/step/8/api/members/create/",
+        views.wizard_member_create_api,
+        name="wizard-member-create-api",
+    ),
+    path(
+        "<int:wizard_id>/step/8/api/members/<int:member_id>/update/",
+        views.wizard_member_update_api,
+        name="wizard-member-update-api",
+    ),
+    path(
+        "<int:wizard_id>/step/8/api/members/<int:member_id>/delete/",
+        views.wizard_member_delete_api,
+        name="wizard-member-delete-api",
     ),
     path(
         "<int:wizard_id>/upload/<str:template_type>/",

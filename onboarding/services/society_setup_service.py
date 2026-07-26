@@ -29,11 +29,13 @@ Design notes
 
 from __future__ import annotations
 
+import json
 import logging
 from decimal import Decimal
 from typing import Any
 
 from django.core.exceptions import ValidationError
+from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
 from django.utils import timezone
 
@@ -77,6 +79,11 @@ _MEMBER_TYPE_TO_ROLE: dict[str, str] = {
     # Direct MemberRole values.
     "ASSOCIATE": Member.MemberRole.OWNER,  # Associates map to OWNER role.
 }
+
+
+def _json_safe(value):
+    """Convert Django-supported values such as dates into JSON primitives."""
+    return json.loads(json.dumps(value, cls=DjangoJSONEncoder))
 
 
 class SocietySetupService:
@@ -159,10 +166,12 @@ class SocietySetupService:
         for key in _SOCIETY_EXTRA_FIELDS:
             value = society_data.get(key)
             if value is not None and value != "":
-                extra_data[key] = value
+                extra_data[key] = _json_safe(value)
         # Also store the full society_data snapshot for reference.
         extra_data["society_details"] = {
-            k: v for k, v in society_data.items() if v is not None and v != ""
+            k: _json_safe(v)
+            for k, v in society_data.items()
+            if v is not None and v != ""
         }
 
         data = dict(wizard.wizard_data) if wizard.wizard_data else {}
@@ -370,13 +379,26 @@ class SocietySetupService:
             if not flat_number:
                 continue
 
-            # Resolve the structure for this unit.
-            structure = SocietySetupService._resolve_structure(
-                society=society,
-                building_name=unit_data.get("building"),
-                wing_name=unit_data.get("wing"),
-                floor=unit_data.get("floor"),
-            )
+            # Resolve the structure for this unit. A direct ``structure_id``
+            # takes precedence and lets units be attached to ANY structure
+            # (building, wing, block, tower, floor) — not just buildings.
+            # Otherwise fall back to building/wing/floor name resolution.
+            structure_id = unit_data.get("structure_id")
+            if structure_id:
+                try:
+                    structure = Structure.objects.get(pk=structure_id, society=society)
+                except Structure.DoesNotExist:
+                    raise ValidationError(
+                        f"Structure #{structure_id} not found for society "
+                        f"'{society.name}'."
+                    )
+            else:
+                structure = SocietySetupService._resolve_structure(
+                    society=society,
+                    building_name=unit_data.get("building"),
+                    wing_name=unit_data.get("wing"),
+                    floor=unit_data.get("floor"),
+                )
 
             # Map usage_type to UnitType.
             usage_type = (unit_data.get("usage_type") or "RESIDENTIAL").upper()
@@ -400,6 +422,9 @@ class SocietySetupService:
             # Collect extra fields for wizard_data storage.
             extra = {
                 "flat_number": flat_number,
+                "structure_id": structure.id,
+                "structure_name": structure.name,
+                "structure_type": structure.structure_type,
                 "building": unit_data.get("building"),
                 "wing": unit_data.get("wing"),
                 "floor": unit_data.get("floor"),
@@ -429,6 +454,80 @@ class SocietySetupService:
             },
         )
         return created_units
+
+    @staticmethod
+    @transaction.atomic
+    def delete_units_for_structure(wizard, structure_id, user=None) -> int:
+        """Delete all units attached directly to a structure in the wizard society.
+
+        Used from onboarding Step 7 so operators can clear a mistaken bulk
+        generate and re-add units. Units that are still referenced by
+        protected relations (bills, members, receipts, ledger entries) are
+        left in place and reported via ``ValidationError``.
+
+        Returns the number of units deleted.
+        """
+        from django.db.models.deletion import ProtectedError
+
+        society = SocietySetupService._get_society(wizard)
+        actor = user or wizard.created_by
+
+        try:
+            structure = Structure.objects.get(pk=structure_id, society=society)
+        except Structure.DoesNotExist:
+            raise ValidationError(
+                f"Structure #{structure_id} not found for society '{society.name}'."
+            )
+
+        qs = Unit.objects.filter(structure=structure)
+        identifiers = list(qs.values_list("identifier", flat=True))
+        if not identifiers:
+            return 0
+
+        unit_count = len(identifiers)
+        try:
+            qs.delete()
+        except ProtectedError as exc:
+            raise ValidationError(
+                f"Cannot delete units on '{structure.name}': some units are "
+                f"linked to bills, members, or ledger entries. "
+                f"Remove those links first. ({exc})"
+            ) from exc
+
+        # Prune matching entries from wizard_data units_metadata.
+        data = dict(wizard.wizard_data) if wizard.wizard_data else {}
+        meta = data.get("units_metadata") or []
+        if isinstance(meta, list):
+            data["units_metadata"] = [
+                row
+                for row in meta
+                if not (
+                    isinstance(row, dict)
+                    and (
+                        row.get("structure_id") == structure.id
+                        or (
+                            row.get("building") == structure.name
+                            and not row.get("structure_id")
+                        )
+                    )
+                )
+            ]
+            wizard.wizard_data = data
+            wizard.save(update_fields=["wizard_data"])
+            wizard.refresh_from_db()
+
+        SocietySetupService._log_audit(
+            wizard=wizard,
+            action="DELETE_UNITS",
+            user=actor,
+            after_state={"deleted_count": unit_count, "structure_id": structure.id},
+            details={
+                "structure_id": structure.id,
+                "structure_name": structure.name,
+                "identifiers": identifiers,
+            },
+        )
+        return unit_count
 
     # ------------------------------------------------------------------ #
     # Step 8: Member assignment

@@ -1,0 +1,262 @@
+{% extends "base.html" %}
+{% load i18n %}
+{% load static %}
+
+{% block title %}
+  {% translate "Add Structure" %} | Housing Accounting System
+{% endblock title %}
+
+{% block dashboard_title %}
+  {% translate "Add Structure" %}
+{% endblock dashboard_title %}
+
+{% block dashboard_subtitle %}
+  {% translate "Add building/wing/block hierarchy." %}
+{% endblock dashboard_subtitle %}
+
+{% block content %}
+  <div class="action-bar">
+    <a href="{% url 'housing:structure-unit-dashboard' %}"
+       class="btn-action btn-action--secondary">
+      <i class="fas fa-arrow-left me-1"></i>{% translate "Back to Structure & Units" %}
+    </a>
+  </div>
+
+  <div class="row g-3">
+    <!-- Left Column: Existing Structures Tree -->
+    <div class="col-12 col-lg-6">
+      <div class="content-card">
+        <div class="content-card__header">
+          <h4 class="mb-0">
+            <i class="fas fa-sitemap me-2"></i>{% translate "Added Structures" %}
+          </h4>
+          <span class="badge text-bg-primary">{{ structures_count }}</span>
+        </div>
+        <div class="content-card__body">
+          {% if structures %}
+            <div class="structure-tree-container" style="max-height: 600px; overflow-y: auto;">
+              <ul class="structure-list list-unstyled">
+                {% for structure in structures %}
+                  {% if not structure.parent %}
+                    {% include "housing/partials/structure_tree_item.html" with structure=structure %}
+                  {% endif %}
+                {% endfor %}
+              </ul>
+            </div>
+            <div class="alert alert-info alert-sm mt-3 mb-0" role="note">
+              <small>
+                <i class="fas fa-info-circle me-1"></i>
+                {% blocktranslate count total=structures_count %}
+                  {{ total }} structure created
+                {% plural %}
+                  {{ total }} structures created
+                {% endblocktranslate %}
+              </small>
+            </div>
+          {% else %}
+            <div class="text-center py-5 text-muted">
+              <i class="fas fa-inbox fa-3x mb-3 opacity-50"></i>
+              <p>{% translate "No structures created yet." %}</p>
+              <small>{% translate "Use the form on the right to add your first structure." %}</small>
+            </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- Right Column: Add Structure Form -->
+    <div class="col-12 col-lg-6">
+      <div class="content-card">
+        <div class="content-card__header">
+          <h4 class="mb-0">
+            <i class="fas fa-plus-circle me-2"></i>{% translate "Create New Structure" %}
+          </h4>
+        </div>
+        <div class="content-card__body">
+          <form method="post" novalidate>
+            {% csrf_token %}
+
+            {% if form.non_field_errors %}
+              <div class="alert alert-danger mb-3" role="alert">
+                {% for error in form.non_field_errors %}
+                  <div>{{ error }}</div>
+                {% endfor %}
+              </div>
+            {% endif %}
+
+            <div class="row g-3">
+              <!-- Society Field -->
+              <div class="col-12">
+                <div class="form-group">
+                  <label class="form-label" for="{{ form.society.id_for_label }}">
+                    {{ form.society.label }}
+                    <span class="text-danger">*</span>
+                  </label>
+                  {{ form.society }}
+                  {% if form.society.help_text %}
+                    <div class="form-text">{{ form.society.help_text }}</div>
+                  {% endif %}
+                  {% for error in form.society.errors %}
+                    <div class="form-error">{{ error }}</div>
+                  {% endfor %}
+                </div>
+              </div>
+
+              <!-- Structure Type Field -->
+              <div class="col-12">
+                <div class="form-group">
+                  <label class="form-label" for="{{ form.structure_type.id_for_label }}">
+                    {{ form.structure_type.label }}
+                    <span class="text-danger">*</span>
+                  </label>
+                  {{ form.structure_type }}
+                  {% if form.structure_type.help_text %}
+                    <div class="form-text">{{ form.structure_type.help_text }}</div>
+                  {% endif %}
+                  {% for error in form.structure_type.errors %}
+                    <div class="form-error">{{ error }}</div>
+                  {% endfor %}
+                </div>
+              </div>
+
+              <!-- Name Field -->
+              <div class="col-12">
+                <div class="form-group">
+                  <label class="form-label" for="{{ form.name.id_for_label }}">
+                    {{ form.name.label }}
+                    <span class="text-danger">*</span>
+                  </label>
+                  {{ form.name }}
+                  {% if form.name.help_text %}
+                    <div class="form-text">{{ form.name.help_text }}</div>
+                  {% endif %}
+                  {% for error in form.name.errors %}
+                    <div class="form-error">{{ error }}</div>
+                  {% endfor %}
+                </div>
+              </div>
+
+              <!-- Parent Structure Field -->
+              <div class="col-12">
+                <div class="form-group">
+                  <label class="form-label" for="{{ form.parent.id_for_label }}">
+                    {{ form.parent.label }}
+                    <span class="text-muted">({% translate "optional" %})</span>
+                  </label>
+                  {{ form.parent }}
+                  {% if form.parent.help_text %}
+                    <div class="form-text">{{ form.parent.help_text }}</div>
+                  {% endif %}
+                  {% for error in form.parent.errors %}
+                    <div class="form-error">{{ error }}</div>
+                  {% endfor %}
+                </div>
+              </div>
+
+              <!-- Display Order Field -->
+              <div class="col-12">
+                <div class="form-group">
+                  <label class="form-label" for="{{ form.display_order.id_for_label }}">
+                    {{ form.display_order.label }}
+                  </label>
+                  {{ form.display_order }}
+                  {% if form.display_order.help_text %}
+                    <div class="form-text">{{ form.display_order.help_text }}</div>
+                  {% endif %}
+                  {% for error in form.display_order.errors %}
+                    <div class="form-error">{{ error }}</div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+
+            <!-- Form Actions -->
+            <div class="form-actions form-actions-inline mt-4">
+              <a href="{% url 'housing:structure-unit-dashboard' %}"
+                 class="btn-action btn-action--secondary">
+                <i class="fas fa-times me-1"></i>{% translate "Cancel" %}
+              </a>
+              <button type="submit" class="btn-action btn-action--primary">
+                <i class="fas fa-plus me-1"></i>{% translate "Add Structure" %}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <!-- Help Section -->
+      <div class="content-card mt-3">
+        <div class="content-card__header">
+          <h5 class="mb-0">
+            <i class="fas fa-lightbulb me-2"></i>{% translate "How to create hierarchy" %}
+          </h5>
+        </div>
+        <div class="content-card__body">
+          <ol class="small mb-0">
+            <li>{% translate "Create a Building (no parent needed)" %}</li>
+            <li>{% translate "Create Wings under Building (select Building as parent)" %}</li>
+            <li>{% translate "Create Floors under Wing (select Wing as parent)" %}</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <style>
+    .structure-tree-container {
+      border: 1px solid var(--bs-border-color);
+      border-radius: 0.375rem;
+      padding: 1rem;
+      background-color: var(--bs-body-bg);
+    }
+
+    .structure-list {
+      margin: 0;
+      padding: 0;
+    }
+
+    .structure-item {
+      padding: 0.75rem;
+      margin-bottom: 0.5rem;
+      border-left: 3px solid var(--bs-primary);
+      background-color: var(--bs-secondary-bg);
+      border-radius: 0.25rem;
+    }
+
+    .structure-item-name {
+      font-weight: 500;
+      display: block;
+      margin-bottom: 0.25rem;
+    }
+
+    .structure-item-type {
+      font-size: 0.875rem;
+      color: var(--bs-secondary);
+    }
+
+    .structure-item-indent-1 {
+      margin-left: 1.5rem;
+    }
+
+    .structure-item-indent-2 {
+      margin-left: 3rem;
+    }
+
+    .form-error {
+      color: var(--bs-danger);
+      font-size: 0.875rem;
+      margin-top: 0.25rem;
+    }
+
+    .alert-sm {
+      padding: 0.5rem 1rem;
+      margin: 0;
+    }
+
+    @media (max-width: 991.98px) {
+      .structure-tree-container {
+        max-height: 300px !important;
+      }
+    }
+  </style>
+{% endblock content %}

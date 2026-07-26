@@ -26,10 +26,11 @@ pytestmark = pytest.mark.django_db
 
 
 def _create_society_context(society):
-    fy = FinancialYear.objects.get(
+    fy, _ = FinancialYear.objects.get_or_create(
         society=society,
         start_date=date(2025, 4, 1),
         end_date=date(2026, 3, 31),
+        defaults={"name": "FY 2025-26", "is_open": True},
     )
     AccountingPeriod.objects.filter(
         society=society,
@@ -38,36 +39,48 @@ def _create_society_context(society):
         end_date=date(2025, 4, 30),
     ).update(is_open=True)
 
-    asset_cat = AccountCategory.objects.create(
+    asset_cat, _ = AccountCategory.objects.get_or_create(
         society=society,
         name="Cash and Bank",
         account_type=AccountCategory.AccountType.ASSET,
     )
-    income_cat = AccountCategory.objects.create(
+    income_cat, _ = AccountCategory.objects.get_or_create(
         society=society,
         name="Income",
         account_type=AccountCategory.AccountType.INCOME,
     )
 
-    receivable = Account.objects.create(
+    receivable, _ = Account.objects.get_or_create(
         society=society,
         name="Maintenance Receivable",
-        category=asset_cat,
+        defaults={
+            "category": asset_cat,
+            "account_type": asset_cat.account_type,
+        },
     )
-    cash_bank = Account.objects.create(
+    cash_bank, _ = Account.objects.get_or_create(
         society=society,
         name="Bank Account",
-        category=asset_cat,
+        defaults={
+            "category": asset_cat,
+            "account_type": asset_cat.account_type,
+        },
     )
-    income_main = Account.objects.create(
+    income_main, _ = Account.objects.get_or_create(
         society=society,
         name="Maintenance Income",
-        category=income_cat,
+        defaults={
+            "category": income_cat,
+            "account_type": income_cat.account_type,
+        },
     )
-    income_sinking = Account.objects.create(
+    income_sinking, _ = Account.objects.get_or_create(
         society=society,
         name="Sinking Fund Income",
-        category=income_cat,
+        defaults={
+            "category": income_cat,
+            "account_type": income_cat.account_type,
+        },
     )
 
     structure = Structure.objects.create(

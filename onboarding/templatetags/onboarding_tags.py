@@ -8,14 +8,32 @@ register = template.Library()
 def get_item(dictionary, key):
     """Return ``dictionary[key]`` safely from a template.
 
-    Django templates cannot do ``dict[key]`` lookups when the key is a
-    variable. This filter bridges that gap.
+    Django templates cannot do ``dict[key]`` lookups when the key is
+    a variable. This filter bridges that gap.
     """
     if dictionary is None:
         return None
     if isinstance(dictionary, dict):
         return dictionary.get(key)
     return None
+
+
+@register.filter
+def keys(value):
+    """Return ``list(value.keys())`` for a dict, or ``[]`` for falsy values."""
+    if not value:
+        return []
+    if isinstance(value, dict):
+        return list(value.keys())
+    return []
+
+
+@register.filter
+def split(value, separator=","):
+    """Split a string by separator into a list (mirrors Python ``str.split``)."""
+    if value is None:
+        return []
+    return str(value).split(separator)
 
 
 @register.filter

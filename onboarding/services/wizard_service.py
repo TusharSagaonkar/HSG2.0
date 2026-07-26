@@ -596,6 +596,53 @@ class WizardService:
         return wizard
 
     # ------------------------------------------------------------------ #
+    # Step navigation helpers
+    # ------------------------------------------------------------------ #
+
+    @staticmethod
+    def visible_steps(wizard) -> list[int]:
+        """Return the ordered list of step numbers that apply to this wizard.
+
+        For ``NEW`` societies, the migration steps (10–27) are skipped, so
+        only steps 1–9 and 28 are visible. For ``EXISTING`` societies (or
+        before the society type is chosen), all 28 steps are visible.
+        """
+        if wizard.society_type == OnboardingWizard.SocietyType.NEW:
+            return list(range(1, STEP_ACCOUNTING_SETUP + 1)) + [STEP_SOCIETY_READY]
+        return list(range(1, MAX_STEP + 1))
+
+    @staticmethod
+    def get_step_navigation(wizard, step_number: int) -> dict:
+        """Return the previous and next *visible* step numbers for navigation.
+
+        Returns a dict with keys:
+            ``previous_step`` — largest visible step < ``step_number`` (or ``None``)
+            ``next_step``      — smallest visible step > ``step_number`` (or ``None``)
+            ``next_step_enabled`` — ``True`` if ``next_step`` is reachable
+                (i.e. not a future step: ``next_step <= wizard.current_step``).
+
+        These values drive the Previous / Next buttons in the step progress
+        bar so users can jump back to completed steps quickly and forward
+        to the next visible step once it has been reached.
+        """
+        steps = WizardService.visible_steps(wizard)
+        previous_step = None
+        next_step = None
+        for s in steps:
+            if s < step_number and (previous_step is None or s > previous_step):
+                previous_step = s
+            elif s > step_number and (next_step is None or s < next_step):
+                next_step = s
+        next_step_enabled = bool(
+            next_step is not None and next_step <= wizard.current_step
+        )
+        return {
+            "previous_step": previous_step,
+            "next_step": next_step,
+            "next_step_enabled": next_step_enabled,
+        }
+
+    # ------------------------------------------------------------------ #
     # Internal helpers
     # ------------------------------------------------------------------ #
 

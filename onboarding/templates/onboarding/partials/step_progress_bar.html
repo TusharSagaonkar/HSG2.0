@@ -1,17 +1,19 @@
 {% load i18n %}
+{% load onboarding_tags %}
 {% comment %}
   Step progress bar — renders a horizontal indicator of all 28 steps.
   Completed steps show a green checkmark, the current step is highlighted,
   and future steps are greyed out. For NEW societies, steps 10–27 are
   shown as skipped (branch indicator).
+
+  Context expected:
+    wizard         — OnboardingWizard instance
+    step_number    — current step number (int)
+    step_names     — dict[int, str] mapping step numbers to display names
 {% endcomment %}
 
 <div class="wizard-progress mb-4">
   <div class="d-flex align-items-center flex-wrap gap-1">
-    {% for i in step_names|default_if_none:""|keys %}
-      {% if forloop.first %}{% endif %}
-    {% endfor %}
-
     {# Render steps 1–9 (common path) #}
     {% for i in "123456789"|make_list %}
       {% with step_num=i|add:"0" %}
@@ -70,14 +72,63 @@
     {% endif %}
   </div>
 
-  <div class="wizard-progress-label mt-2 text-muted small">
-    {% if wizard.society_type == "NEW" %}
-      <i class="fas fa-info-circle"></i>
-      {% trans "New society — accounting migration steps are skipped." %}
-    {% elif wizard.society_type == "EXISTING" %}
-      <i class="fas fa-info-circle"></i>
-      {% trans "Existing society — full accounting migration is required." %}
-    {% endif %}
+  {# Current step label #}
+  <div class="wizard-progress-label mt-2 d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <div>
+      <span class="badge bg-primary fs-6">
+        {% blocktrans with step=step_number total=total_steps %}
+          Step {{ step }} of {{ total }}
+        {% endblocktrans %}
+      </span>
+      <strong class="ms-2">{{ step_names|get_item:step_number|default:step_name }}</strong>
+    </div>
+    <div class="d-flex align-items-center gap-2">
+      {# Previous step button — go back to the previous visible step #}
+      {% if previous_step %}
+        <a href="{% url 'onboarding:wizard-step' wizard.id previous_step %}"
+           class="btn btn-sm btn-outline-secondary"
+           title="{{ step_names|get_item:previous_step|default:'' }}">
+          <i class="fas fa-arrow-left me-1"></i>{% trans "Previous" %}
+        </a>
+      {% else %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" disabled>
+          <i class="fas fa-arrow-left me-1"></i>{% trans "Previous" %}
+        </button>
+      {% endif %}
+
+      {# Next step button — only enabled if next step is visible/completed #}
+      {% if next_step and next_step_enabled %}
+        <a href="{% url 'onboarding:wizard-step' wizard.id next_step %}"
+           class="btn btn-sm btn-primary"
+           title="{{ step_names|get_item:next_step|default:'' }}">
+          {% trans "Next" %}<i class="fas fa-arrow-right ms-1"></i>
+        </a>
+      {% else %}
+        <button type="button" class="btn btn-sm btn-outline-secondary" disabled title="{% trans 'Complete this step to continue' %}">
+          {% trans "Next" %}<i class="fas fa-arrow-right ms-1"></i>
+        </button>
+      {% endif %}
+    </div>
+    <div class="text-muted small">
+      {% if wizard.society_type == "NEW" %}
+        <i class="fas fa-info-circle"></i>
+        {% trans "New society — accounting migration steps are skipped." %}
+      {% elif wizard.society_type == "EXISTING" %}
+        <i class="fas fa-info-circle"></i>
+        {% trans "Existing society — full accounting migration is required." %}
+      {% endif %}
+    </div>
+  </div>
+
+  {# Progress bar #}
+  <div class="progress mt-2" style="height: 6px;">
+    <div class="progress-bar bg-success"
+         role="progressbar"
+         style="width: {% widthratio step_number total_steps 100 %}%;"
+         aria-valuenow="{{ step_number }}"
+         aria-valuemin="0"
+         aria-valuemax="{{ total_steps }}">
+    </div>
   </div>
 </div>
 
@@ -96,6 +147,11 @@
     background: #f8f9fa;
     color: #6c757d;
     transition: all 0.2s ease;
+    flex-shrink: 0;
+  }
+  .wizard-step-badge:hover {
+    transform: scale(1.1);
+    text-decoration: none;
   }
   .wizard-step-badge--completed {
     background: #28a745;
@@ -124,6 +180,7 @@
     width: 16px;
     height: 2px;
     background: #dee2e6;
+    flex-shrink: 0;
   }
   @media (max-width: 768px) {
     .wizard-step-badge { width: 26px; height: 26px; font-size: 0.65rem; }

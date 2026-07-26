@@ -117,36 +117,17 @@
                     </a>
                   </li>
 
-                  <li class="nav-item {% if current_namespace == 'housing' and current_url_name == 'structure-unit-dashboard' or current_namespace == 'housing' and current_url_name == 'structure-add' or current_namespace == 'housing' and current_url_name == 'unit-add' or current_namespace == 'housing' and current_url_name == 'unit-bulk-add' or current_namespace == 'housing' and current_url_name == 'ownership-add' or current_namespace == 'housing' and current_url_name == 'occupancy-add' %}active{% endif %}">
-                    <a href="{% url 'housing:structure-unit-dashboard' %}" aria-label="Structure & Units" data-workspace-link hx-get="{% url 'housing:structure-unit-dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
-                      <i class="fas fa-sitemap"></i>
-                      <p>{% translate "Structure & Units" %}</p>
-                    </a>
-                  </li>
-
-                <li class="nav-section" aria-hidden="true">
-                  <span class="sidebar-mini-icon"><i class="fa fa-rectangle-landscape"></i></span>
-                  <h4 class="text-section">{% translate "Core Operations" %}</h4>
-                </li>
-
-                  <li class="nav-item {% if current_namespace == 'housing' and current_url_name == 'society-list' or current_namespace == 'housing' and current_url_name == 'society-detail' or current_namespace == 'housing' and current_url_name == 'society-admin' or current_namespace == 'housing' and current_url_name == 'society-add' %}active{% endif %}">
-                    <a href="{% url 'housing:society-list' %}" aria-label="Societies" data-workspace-link hx-get="{% url 'housing:society-list' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
+                  <li class="nav-item {% if current_namespace == 'housing' and current_url_name == 'society-list' or current_namespace == 'housing' and current_url_name == 'society-detail' or current_namespace == 'housing' and current_url_name == 'society-admin' or current_namespace == 'housing' and current_url_name == 'society-admin-redirect' or current_namespace == 'housing' and current_url_name == 'society-add' %}active{% endif %}">
+                    <a href="{% url 'housing:society-admin-redirect' %}" aria-label="Societies" data-workspace-link hx-get="{% url 'housing:society-admin-redirect' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
                       <i class="fas fa-building"></i>
                       <p>{% translate "Societies" %}</p>
                     </a>
                   </li>
 
-                  <li class="nav-item {% if current_namespace == 'parking' %}active{% endif %}">
-                    <a href="{% url 'parking:dashboard' %}" aria-label="Parking" data-workspace-link hx-get="{% url 'parking:dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
-                      <i class="fas fa-parking"></i>
-                      <p>{% translate "Parking" %}</p>
-                    </a>
-                  </li>
-
-                  <li class="nav-item {% if current_namespace == 'gateops' %}active{% endif %}">
-                    <a href="{% url 'gateops:dashboard' %}" aria-label="Gate Management" data-workspace-link hx-get="{% url 'gateops:dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
-                      <i class="fas fa-shield-alt"></i>
-                      <p>{% translate "Gate Management" %}</p>
+                  <li class="nav-item {% if current_namespace == 'housing' and current_url_name == 'structure-unit-dashboard' or current_namespace == 'housing' and current_url_name == 'structure-add' or current_namespace == 'housing' and current_url_name == 'unit-add' or current_namespace == 'housing' and current_url_name == 'unit-bulk-add' or current_namespace == 'housing' and current_url_name == 'ownership-add' or current_namespace == 'housing' and current_url_name == 'occupancy-add' %}active{% endif %}">
+                    <a href="{% url 'housing:structure-unit-dashboard' %}" aria-label="Structure & Units" data-workspace-link hx-get="{% url 'housing:structure-unit-dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
+                      <i class="fas fa-sitemap"></i>
+                      <p>{% translate "Structure & Units" %}</p>
                     </a>
                   </li>
 
@@ -164,24 +145,36 @@
                     </a>
                   </li>
 
-                  <li class="nav-item {% if current_namespace == 'accounting' %}active{% endif %}">
-                    <a href="{% url 'accounting:dashboard' %}" aria-label="Accounting" data-workspace-link hx-get="{% url 'accounting:dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
-                      <i class="fas fa-calculator"></i>
-                      <p>{% translate "Accounting" %}</p>
-                    </a>
-                  </li>
+                <li class="nav-section" aria-hidden="true">
+                  <span class="sidebar-mini-icon"><i class="fa fa-rectangle-landscape"></i></span>
+                  <h4 class="text-section">{% translate "Core Operations" %}</h4>
+                </li>
+
+                    <li class="nav-item {% if current_namespace == 'accounting' %}active{% endif %}">
+                      <a href="{% url 'accounting:dashboard' %}" aria-label="Accounting" data-workspace-link hx-get="{% url 'accounting:dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
+                        <i class="fas fa-calculator"></i>
+                        <p>{% translate "Accounting" %}</p>
+                      </a>
+                    </li>
+
+                    <li class="nav-item {% if current_namespace == 'parking' %}active{% endif %}">
+                      <a href="{% url 'parking:dashboard' %}" aria-label="Parking" data-workspace-link hx-get="{% url 'parking:dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
+                        <i class="fas fa-parking"></i>
+                        <p>{% translate "Parking" %}</p>
+                      </a>
+                    </li>
+
+                    <li class="nav-item {% if current_namespace == 'gateops' %}active{% endif %}">
+                      <a href="{% url 'gateops:dashboard' %}" aria-label="Gate Management" data-workspace-link hx-get="{% url 'gateops:dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
+                        <i class="fas fa-shield-alt"></i>
+                        <p>{% translate "Gate Management" %}</p>
+                      </a>
+                    </li>
 
                 <li class="nav-section" aria-hidden="true">
                   <span class="sidebar-mini-icon"><i class="fa fa-money"></i></span>
                   <h4 class="text-section">{% translate "Financial Management" %}</h4>
                 </li>
-
-                  <li class="nav-item {% if current_namespace == 'reports' %}active{% endif %}">
-                    <a href="{% url 'reports:index' %}" aria-label="Reports" data-workspace-link hx-get="{% url 'reports:index' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
-                      <i class="fas fa-chart-bar"></i>
-                      <p>{% translate "Reports" %}</p>
-                    </a>
-                  </li>
 
                   <li class="nav-item {% if current_namespace == 'billing' and current_url_name == 'charge-template-list' or current_namespace == 'billing' and current_url_name == 'bill-list' or current_namespace == 'billing' and current_url_name == 'bill-detail' or current_namespace == 'receipts' and current_url_name == 'receipt-list' or current_namespace == 'receipts' and current_url_name == 'receipt-detail' or current_namespace == 'housing' and current_url_name == 'finance-dashboard' or current_namespace == 'housing' and current_url_name == 'outstanding-dashboard' or current_namespace == 'housing' and current_url_name == 'charge-template-add' or current_namespace == 'housing' and current_url_name == 'billing-generate' or current_namespace == 'housing' and current_url_name == 'receipt-post' %}active{% endif %}">
                     <a href="{% url 'housing:finance-dashboard' %}" aria-label="Finance Hub" data-workspace-link hx-get="{% url 'housing:finance-dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
@@ -194,6 +187,13 @@
                     <a href="{% url 'reconciliation:dashboard' %}" aria-label="Reconciliation" data-workspace-link hx-get="{% url 'reconciliation:dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
                       <i class="fas fa-balance-scale"></i>
                       <p>{% translate "Reconciliation" %}</p>
+                    </a>
+                  </li>
+
+                  <li class="nav-item {% if current_namespace == 'reports' %}active{% endif %}">
+                    <a href="{% url 'reports:index' %}" aria-label="Reports" data-workspace-link hx-get="{% url 'reports:index' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
+                      <i class="fas fa-chart-bar"></i>
+                      <p>{% translate "Reports" %}</p>
                     </a>
                   </li>
 
@@ -268,48 +268,59 @@
                 <ul class="navbar-nav topbar-nav ms-md-auto align-items-center">
                   {% if request.user.is_authenticated %}
                     <li class="nav-item">
-                      <div class="selection-shell" role="group" aria-label="Tenant Context Selection">
+                      <div class="selection-shell d-flex align-items-center gap-2 p-2" role="group" aria-label="Tenant Context Selection" style="background-color: var(--color-bg-secondary); border-radius: var(--radius-md);">
                         <div class="selection-shell-meta">
                           <span class="selection-shell-kicker">{% translate "Tenant Context" %}</span>
                           <div class="selection-shell-badges">
                             {% if request.user.is_super_admin %}
-                              <span class="context-badge context-badge-super">{% translate "Super Admin" %}</span>
+                              <span class="context-badge context-badge-super" style="background-color: var(--color-primary-subtle); color: var(--color-primary); padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-full); font-weight: var(--font-weight-medium);">{% translate "Super Admin" %}</span>
                             {% endif %}
                             {% if current_membership %}
-                              <span class="context-badge context-badge-role">{{ current_membership.get_role_display }}</span>
+                              <span class="context-badge context-badge-role" style="background-color: var(--color-primary-subtle); color: var(--color-primary); padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-full); font-weight: var(--font-weight-medium);">{{ current_membership.get_role_display }}</span>
                             {% elif selected_society %}
-                              <span class="context-badge context-badge-empty">{% translate "No Role" %}</span>
+                              <span class="context-badge context-badge-empty" style="background-color: var(--color-gray-100); color: var(--color-gray-600); padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-full); font-weight: var(--font-weight-medium);">{% translate "No Role" %}</span>
                             {% endif %}
                           </div>
                         </div>
-                        <form method="post" action="{% url 'users:selection-update' %}" class="selection-form" id="societySelectionForm" aria-label="Society and Financial Year Selection" hx-boost="false">
+                        <form method="post" action="{% url 'users:selection-update' %}" class="selection-form d-flex align-items-center gap-2" id="societySelectionForm" aria-label="Society and Financial Year Selection" 
+                              hx-post="{% url 'users:selection-update' %}" hx-trigger="change" hx-target="#workspace" hx-swap="innerHTML" hx-indicator="#workspace-loading">
                           {% csrf_token %}
                           <input type="hidden" name="next" value="{{ request.get_full_path }}" id="nextUrlField" />
-                          <label class="small mb-0" for="id_selected_society">{% translate "Society" %}</label>
-                          <select id="id_selected_society" name="selected_society_id" class="form-select form-select-sm" onchange="handleSocietySelection(this)" aria-label="Select Society">
-                            {% for society in selection_societies %}
-                              <option value="{{ society.id }}" {% if selected_society and selected_society.id == society.id %}selected{% endif %}>{{ society.name }}</option>
-                            {% empty %}
-                              <option value="">{% translate "No Society" %}</option>
-                            {% endfor %}
-                          </select>
-                          <label class="small mb-0" for="id_selected_financial_year">{% translate "FY" %}</label>
-                          <select id="id_selected_financial_year" name="selected_financial_year_id" class="form-select form-select-sm" onchange="this.form.submit()" aria-label="Select Financial Year">
-                            {% for financial_year in selection_financial_years %}
-                              <option value="{{ financial_year.id }}" {% if selected_financial_year and selected_financial_year.id == financial_year.id %}selected{% endif %}>{{ financial_year.name }}</option>
-                            {% empty %}
-                              <option value="">{% translate "No Financial Year" %}</option>
-                            {% endfor %}
-                          </select>
+                          <div class="d-flex flex-column">
+                            <label class="small mb-0" for="id_selected_society">{% translate "Society" %}</label>
+                            <select id="id_selected_society" name="selected_society_id" class="btn btn-sm btn-outline-secondary" aria-label="Select Society" 
+                                    style="background-color: var(--color-bg-primary); border: 1px solid var(--color-border-default); border-radius: var(--radius-sm);">
+                              {% for society in selection_societies %}
+                                <option value="{{ society.id }}" {% if selected_society and selected_society.id == society.id %}selected{% endif %}>{{ society.name }}</option>
+                              {% empty %}
+                                <option value="">{% translate "No Society" %}</option>
+                              {% endfor %}
+                            </select>
+                          </div>
+                          <div class="d-flex flex-column">
+                            <label class="small mb-0" for="id_selected_financial_year">{% translate "FY" %}</label>
+                            <select id="id_selected_financial_year" name="selected_financial_year_id" class="btn btn-sm btn-outline-secondary" aria-label="Select Financial Year" 
+                                    style="background-color: var(--color-bg-primary); border: 1px solid var(--color-border-default); border-radius: var(--radius-sm);">
+                              {% for financial_year in selection_financial_years %}
+                                <option value="{{ financial_year.id }}" {% if selected_financial_year and selected_financial_year.id == financial_year.id %}selected{% endif %}>{{ financial_year.name }}</option>
+                              {% empty %}
+                                <option value="">{% translate "No Financial Year" %}</option>
+                              {% endfor %}
+                            </select>
+                          </div>
                         </form>
                       </div>
                     </li>
                     <li class="nav-item">
-                      <button class="btn periods-chip"
+                      <button class="btn btn-sm btn-outline-primary"
                               type="button"
-                              data-bs-toggle="modal"
-                              data-bs-target="#periodsModal"
-                              aria-label="View Accounting Periods">
+                              hx-get="/accounting/periods/"
+                              hx-trigger="click"
+                              hx-target="#periods-modal-body"
+                              hx-swap="innerHTML"
+                              hx-indicator="#workspace-loading"
+                              aria-label="View Accounting Periods"
+                              style="border-radius: var(--radius-md); transition: all var(--transition-normal);">
                         <i class="fas fa-calendar-alt me-1"></i>
                         {% translate "Periods" %} ({{ selection_accounting_periods|length }})
                       </button>
@@ -350,6 +361,9 @@
               <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>{% translate "Loading..." %}
             </div>
             <div class="page-inner">
+              {% if request.resolver_match.namespace == 'gateops' %}
+                {% include "components/gateops_nav.html" %}
+              {% endif %}
               {% if messages %}
                 {% for message in messages %}
                   <div class="alert alert-dismissible {% if message.tags %}alert-{{ message.tags }}{% endif %}" role="alert" aria-live="polite">
@@ -359,9 +373,9 @@
                 {% endfor %}
               {% endif %}
 
-              <div class="dashboard-content-card card card-round">
-                <div class="card-body" id="workspace" tabindex="-1">
-                  {% block main %}
+              <div id="workspace" class="workspace" tabindex="-1">
+                <p class="page-subtitle">{% block dashboard_subtitle %}{% translate "Manage housing accounting tasks quickly from one place." %}{% endblock dashboard_subtitle %}</p>
+                {% block main %}
                     {% block content %}
                       <div class="row g-3">
                         <div class="col-12 col-md-6 col-xl-3">
@@ -390,19 +404,9 @@
                         </div>
                       </div>
                     {% endblock content %}
-                  {% endblock main %}
+{% endblock main %}
                 </div>
-              </div>
-
-              <div class="d-flex align-items-left align-items-md-center flex-column flex-md-row pt-3 pb-2">
-                <div>
-                  <h6 class="op-7 mb-0">{% block dashboard_subtitle %}{% translate "Manage housing accounting tasks quickly from one place." %}{% endblock dashboard_subtitle %}</h6>
-                </div>
-              </div>
             </div>
-          </div>
-        </div>
-      </div>
     {% endblock body %}
 
     {% if request.user.is_authenticated %}
@@ -431,41 +435,41 @@
         </div>
       </div>
 
-      <div class="modal fade" id="periodsModal" tabindex="-1" aria-labelledby="periodsModalLabel" aria-hidden="true" role="dialog">
-        <div class="modal-dialog modal-lg modal-dialog-scrollable">
-          <div class="modal-content">
-            <div class="modal-header">
-              <h5 class="modal-title" id="periodsModalLabel">
-                {% translate "Accounting Periods" %}
-                {% if selected_society %}- {{ selected_society.name }}{% endif %}
-                {% if selected_financial_year %} / {{ selected_financial_year.name }}{% endif %}
-              </h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-              {% if selection_accounting_periods %}
-                <ul class="periods-list mb-0">
-                  {% for period in selection_accounting_periods %}
-                    <li>
-                      <div class="small fw-semibold">{{ period.start_date|date:"M d, Y" }} - {{ period.end_date|date:"M d, Y" }}</div>
-                      <span class="period-status {% if period.is_open %}active{% else %}inactive{% endif %}">
-                        <i class="fas fa-circle"></i>
-                        {% if period.is_open %}
-                          {% translate "Active" %}
-                        {% else %}
-                          {% translate "Closed" %}
-                        {% endif %}
-                      </span>
-                    </li>
-                  {% endfor %}
-                </ul>
-              {% else %}
-                <p class="small text-muted mb-0">{% translate "No accounting periods found for selected society and financial year." %}</p>
-              {% endif %}
-            </div>
-          </div>
-        </div>
-      </div>
+       <div class="modal fade" id="periodsModal" tabindex="-1" aria-labelledby="periodsModalLabel" aria-hidden="true" role="dialog">
+         <div class="modal-dialog modal-lg modal-dialog-scrollable">
+           <div class="modal-content">
+             <div class="modal-header">
+               <h5 class="modal-title" id="periodsModalLabel">
+                 {% translate "Accounting Periods" %}
+                 {% if selected_society %}- {{ selected_society.name }}{% endif %}
+                 {% if selected_financial_year %} / {{ selected_financial_year.name }}{% endif %}
+               </h5>
+               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+             </div>
+             <div class="modal-body" id="periods-modal-body">
+               {% if selection_accounting_periods %}
+                 <ul class="periods-list mb-0">
+                   {% for period in selection_accounting_periods %}
+                     <li style="padding: var(--space-sm) 0; border-bottom: 1px solid var(--color-border-default);">
+                       <div class="small fw-semibold">{{ period.start_date|date:"M d, Y" }} - {{ period.end_date|date:"M d, Y" }}</div>
+                       <span class="period-status {% if period.is_open %}active{% else %}inactive{% endif %}" style="display: inline-flex; align-items: center; gap: var(--space-xs);">
+                         <i class="fas fa-circle" style="font-size: 0.6rem;"></i>
+                         {% if period.is_open %}
+                           <span style="color: var(--color-success);">{% translate "Active" %}</span>
+                         {% else %}
+                           <span style="color: var(--color-danger);">{% translate "Closed" %}</span>
+                         {% endif %}
+                       </span>
+                     </li>
+                   {% endfor %}
+                 </ul>
+               {% else %}
+                 <p class="small text-muted mb-0">{% translate "No accounting periods found for selected society and financial year." %}</p>
+               {% endif %}
+             </div>
+           </div>
+         </div>
+       </div>
     {% endif %}
 
     {% block modal %}{% endblock modal %}

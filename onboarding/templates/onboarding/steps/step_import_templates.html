@@ -14,37 +14,37 @@
       </p>
 
       {% if template_types and template_columns %}
-        <div class="accordion" id="templateAccordion">
+        <div class="row g-3 mb-3">
           {% for template_type in template_types %}
-            <div class="accordion-item">
-              <h2 class="accordion-header" id="heading-{{ forloop.counter }}">
-                <button class="accordion-button {% if not forloop.first %}collapsed{% endif %}"
-                        type="button"
-                        data-bs-toggle="collapse"
-                        data-bs-target="#collapse-{{ forloop.counter }}"
-                        aria-expanded="{% if forloop.first %}true{% else %}false{% endif %}"
-                        aria-controls="collapse-{{ forloop.counter }}">
-                  <i class="fas fa-file-csv me-2"></i>
-                  {{ template_type|cut:"_"|title }}
-                </button>
-              </h2>
-              <div id="collapse-{{ forloop.counter }}"
-                   class="accordion-collapse collapse {% if forloop.first %}show{% endif %}"
-                   aria-labelledby="heading-{{ forloop.counter }}"
-                   data-bs-parent="#templateAccordion">
-                <div class="accordion-body">
+            <div class="col-12 col-md-6 col-xl-4">
+              <div class="card h-100 border-0 shadow-sm">
+                <div class="card-body">
+                  <div class="d-flex align-items-center mb-2">
+                    <i class="fas fa-file-csv fa-2x text-primary me-3"></i>
+                    <div>
+                      <h6 class="mb-0">{{ template_type|cut:"_"|title }}</h6>
+                      <small class="text-muted">
+                        {% with columns=template_columns|get_item:template_type %}
+                          {{ columns|length }} {% trans "columns" %}
+                        {% endwith %}
+                      </small>
+                    </div>
+                  </div>
+
                   {% with columns=template_columns|get_item:template_type %}
-                    <p class="text-muted small mb-2">
-                      {% trans "Required columns:" %}
-                    </p>
-                    <div class="d-flex flex-wrap gap-2">
+                    <div class="d-flex flex-wrap gap-1 mb-3">
                       {% for col in columns %}
                         <span class="badge bg-light text-dark border">
-                          <code>{{ col }}</code>
+                          <code class="small">{{ col }}</code>
                         </span>
                       {% endfor %}
                     </div>
                   {% endwith %}
+
+                  <a href="{% url 'onboarding:template-download' template_type %}"
+                     class="btn btn-sm btn-outline-primary w-100">
+                    <i class="fas fa-download me-1"></i>{% trans "Download CSV Template" %}
+                  </a>
                 </div>
               </div>
             </div>
@@ -56,6 +56,16 @@
           {% trans "No template definitions available." %}
         </div>
       {% endif %}
+
+      <div class="alert alert-info" role="alert">
+        <i class="fas fa-info-circle me-2"></i>
+        {% blocktrans %}
+          <strong>Tip:</strong> Fill in the downloaded CSV with your data,
+          then upload it in the Staging Area (Step 12). You can upload,
+          validate, delete, and re-upload as many times as needed before
+          approving.
+        {% endblocktrans %}
+      </div>
 
       <form method="post"
             action="{% url 'onboarding:wizard-step-save' wizard.id step_number %}">

@@ -1,0 +1,482 @@
+- generic [ref=f10e1]:
+  - link "Skip to main content" [ref=f10e2] [cursor=pointer]:
+    - /url: "#main-content"
+  - generic [ref=f10e3]:
+    - generic [ref=f10e4]:
+      - generic [ref=f10e5]:
+        - link "Housynk Home" [ref=f10e6] [cursor=pointer]:
+          - /url: /
+          - img "Housynk" [ref=f10e8]
+        - button "Toggle sidebar" [expanded] [ref=f10e10] [cursor=pointer]
+      - navigation "Main Navigation" [ref=f10e15]:
+        - listitem [ref=f10e16]:
+          - text: 
+          - heading [level=4] [ref=f10e17]: Main
+        - listitem [ref=f10e18]:
+          - link "Dashboard" [ref=f10e19] [cursor=pointer]:
+            - /url: /
+            - generic [ref=f10e20]: 
+            - paragraph [ref=f10e21]: Dashboard
+        - listitem [ref=f10e22]:
+          - link "Societies" [ref=f10e23] [cursor=pointer]:
+            - /url: /housing/societies/admin/
+            - generic [ref=f10e24]: 
+            - paragraph [ref=f10e25]: Societies
+        - listitem [ref=f10e26]:
+          - link "Structure & Units" [ref=f10e27] [cursor=pointer]:
+            - /url: /housing/structures-units/
+            - generic [ref=f10e28]: 
+            - paragraph [ref=f10e29]: Structure & Units
+        - listitem [ref=f10e30]:
+          - link "Members" [ref=f10e31] [cursor=pointer]:
+            - /url: /housing/members/
+            - generic [ref=f10e32]: 
+            - paragraph [ref=f10e33]: Members
+        - listitem [ref=f10e34]:
+          - link "Shares" [ref=f10e35] [cursor=pointer]:
+            - /url: /shares/
+            - generic [ref=f10e36]: 
+            - paragraph [ref=f10e37]: Shares
+        - listitem [ref=f10e38]:
+          - heading [level=4] [ref=f10e39]: Core Operations
+        - listitem [ref=f10e40]:
+          - link "Accounting" [ref=f10e41] [cursor=pointer]:
+            - /url: /accounting/
+            - generic [ref=f10e42]: 
+            - paragraph [ref=f10e43]: Accounting
+        - listitem [ref=f10e44]:
+          - link "Parking" [ref=f10e45] [cursor=pointer]:
+            - /url: /parking/
+            - generic [ref=f10e46]: 
+            - paragraph [ref=f10e47]: Parking
+        - listitem [ref=f10e48]:
+          - link "Gate Management" [ref=f10e49] [cursor=pointer]:
+            - /url: /gateops/
+            - generic [ref=f10e50]: 
+            - paragraph [ref=f10e51]: Gate Management
+        - listitem [ref=f10e52]:
+          - heading [level=4] [ref=f10e53]: Financial Management
+        - listitem [ref=f10e54]:
+          - link "Finance Hub" [ref=f10e55] [cursor=pointer]:
+            - /url: /housing/finance/
+            - generic [ref=f10e56]: 
+            - paragraph [ref=f10e57]: Finance Hub
+        - listitem [ref=f10e58]:
+          - link "Reconciliation" [ref=f10e59] [cursor=pointer]:
+            - /url: /reconciliation/
+            - generic [ref=f10e60]: 
+            - paragraph [ref=f10e61]: Reconciliation
+        - listitem [ref=f10e62]:
+          - link "Reports" [ref=f10e63] [cursor=pointer]:
+            - /url: /reports/
+            - generic [ref=f10e64]: 
+            - paragraph [ref=f10e65]: Reports
+        - listitem [ref=f10e66]:
+          - heading [level=4] [ref=f10e67]: Administration
+        - listitem [ref=f10e68]:
+          - link "Reminders" [ref=f10e69] [cursor=pointer]:
+            - /url: /notifications/reminders/
+            - generic [ref=f10e70]: 
+            - paragraph [ref=f10e71]: Reminders
+    - generic [ref=f10e82]:
+      - navigation "Top Navigation" [ref=f10e84]:
+        - generic [ref=f10e85]:
+          - heading "Member Assignment" [level=3] [ref=f10e87]
+          - list [ref=f10e88]:
+            - listitem [ref=f10e89]:
+              - group "Tenant Context Selection" [ref=f10e90]:
+                - generic [ref=f10e91]:
+                  - generic [ref=f10e92]: Tenant Context
+                  - generic [ref=f10e93]: Owner
+                - form "Society and Financial Year Selection" [ref=f10e95]:
+                  - generic [ref=f10e96]: Society
+                  - combobox "Select Society" [ref=f10e97]:
+                    - option "Dhanashre Society" [selected]
+                  - generic [ref=f10e98]: FY
+                  - combobox "Select Financial Year" [ref=f10e99]:
+                    - option "FY 2026-27" [selected]
+                    - option "FY 2024-25"
+                    - option "FY 2023-24"
+            - listitem [ref=f10e100]:
+              - button "View Accounting Periods" [ref=f10e101] [cursor=pointer]:
+                - generic [ref=f10e102]: 
+                - text: Periods (12)
+            - listitem [ref=f10e103]:
+              - button "View keyboard shortcuts" [ref=f10e104] [cursor=pointer]:
+                - generic [ref=f10e105]: 
+                - text: Shortcuts
+            - listitem [ref=f10e106]:
+              - generic [ref=f10e107]:
+                - link "View Profile for tushar.sagaonkar@gmail.com" [ref=f10e108] [cursor=pointer]:
+                  - /url: /users/5/
+                  - generic [ref=f10e109]: 
+                  - text: tushar.sagaonkar@gmail.com
+                - button "Sign Out" [ref=f10e110] [cursor=pointer]:
+                  - generic [ref=f10e111]: 
+                  - text: Sign Out
+      - generic [ref=f10e112]:
+        - generic [ref=f10e114]:
+          - paragraph [ref=f10e115]: Step 8 of 28 — Dhanashre Society
+          - generic [ref=f10e116]:
+            - generic [ref=f10e117]:
+              - generic [ref=f10e118]:
+                - link "" [ref=f10e119] [cursor=pointer]:
+                  - /url: /onboarding/22/step/1/
+                - link "" [ref=f10e122] [cursor=pointer]:
+                  - /url: /onboarding/22/step/2/
+                - link "" [ref=f10e125] [cursor=pointer]:
+                  - /url: /onboarding/22/step/3/
+                - link "" [ref=f10e128] [cursor=pointer]:
+                  - /url: /onboarding/22/step/4/
+                - link "" [ref=f10e131] [cursor=pointer]:
+                  - /url: /onboarding/22/step/5/
+                - link "" [ref=f10e134] [cursor=pointer]:
+                  - /url: /onboarding/22/step/6/
+                - link "" [ref=f10e137] [cursor=pointer]:
+                  - /url: /onboarding/22/step/7/
+                - link "8" [ref=f10e140] [cursor=pointer]:
+                  - /url: /onboarding/22/step/8/
+                - link "9" [ref=f10e142]:
+                  - /url: /onboarding/22/step/9/
+                - link "10" [ref=f10e144]:
+                  - /url: /onboarding/22/step/10/
+                - link "11" [ref=f10e146]:
+                  - /url: /onboarding/22/step/11/
+                - link "12" [ref=f10e148]:
+                  - /url: /onboarding/22/step/12/
+                - link "13" [ref=f10e150]:
+                  - /url: /onboarding/22/step/13/
+                - link "14" [ref=f10e152]:
+                  - /url: /onboarding/22/step/14/
+                - link "15" [ref=f10e154]:
+                  - /url: /onboarding/22/step/15/
+                - link "16" [ref=f10e156]:
+                  - /url: /onboarding/22/step/16/
+                - link "17" [ref=f10e158]:
+                  - /url: /onboarding/22/step/17/
+                - link "18" [ref=f10e160]:
+                  - /url: /onboarding/22/step/18/
+                - link "19" [ref=f10e162]:
+                  - /url: /onboarding/22/step/19/
+                - link "20" [ref=f10e164]:
+                  - /url: /onboarding/22/step/20/
+                - link "21" [ref=f10e166]:
+                  - /url: /onboarding/22/step/21/
+                - link "22" [ref=f10e168]:
+                  - /url: /onboarding/22/step/22/
+                - link "23" [ref=f10e170]:
+                  - /url: /onboarding/22/step/23/
+                - link "24" [ref=f10e172]:
+                  - /url: /onboarding/22/step/24/
+                - link "25" [ref=f10e174]:
+                  - /url: /onboarding/22/step/25/
+                - link "26" [ref=f10e176]:
+                  - /url: /onboarding/22/step/26/
+                - link "27" [ref=f10e178]:
+                  - /url: /onboarding/22/step/27/
+                - link "28" [ref=f10e180]:
+                  - /url: /onboarding/22/step/28/
+              - generic [ref=f10e181]:
+                - generic [ref=f10e182]:
+                  - generic [ref=f10e183]: Step 8 of 28
+                  - strong [ref=f10e184]: Member Assignment
+                - generic [ref=f10e185]:
+                  - link " Previous" [ref=f10e186] [cursor=pointer]:
+                    - /url: /onboarding/22/step/7/
+                    - generic [ref=f10e187]: 
+                    - text: Previous
+                  - button "Next " [disabled]:
+                    - text: Next
+                    - generic: 
+                - generic [ref=f10e188]:
+                  - generic [ref=f10e189]: 
+                  - text: Existing society — full accounting migration is required.
+              - progressbar [ref=f10e191]
+            - generic [ref=f10e192]:
+              - generic [ref=f10e194]:
+                - paragraph [ref=f10e195]:
+                  - text: Pick a structure on the left to see its units. Each unit lists its members — add, edit, or remove them inline. Every save writes immediately. Click
+                  - strong [ref=f10e196]: Save & Continue
+                  - text: when you're done to move to the next step.
+                - generic [ref=f10e197]:
+                  - generic [ref=f10e199]:
+                    - heading " Structures" [level=6] [ref=f10e201]:
+                      - generic [ref=f10e202]: 
+                      - text: Structures
+                    - generic [ref=f10e203]:
+                      - button "2 Wing · 0 units" [ref=f10e204] [cursor=pointer]:
+                        - generic [ref=f10e205]: "2"
+                        - generic [ref=f10e206]: Wing · 0 units
+                      - button "L01 Building · 0 units" [ref=f10e207] [cursor=pointer]:
+                        - generic [ref=f10e208]: L01
+                        - generic [ref=f10e209]: Building · 0 units
+                      - button "— A Wing · 0 units" [ref=f10e210] [cursor=pointer]:
+                        - generic [ref=f10e211]: — A
+                        - generic [ref=f10e212]: Wing · 0 units
+                      - button "A Block · 20 units" [active] [ref=f10e213] [cursor=pointer]:
+                        - generic [ref=f10e214]: A
+                        - generic [ref=f10e215]: Block · 20 units
+                      - button "l3 Building · 28 units" [ref=f10e216] [cursor=pointer]:
+                        - generic [ref=f10e217]: l3
+                        - generic [ref=f10e218]: Building · 28 units
+                    - text: 
+                  - generic [ref=f10e220]:
+                    - heading " A (Block)" [level=6] [ref=f10e237]:
+                      - generic [ref=f10e238]: 
+                      - text: A (Block)
+                    - generic [ref=f10e224]:
+                      - generic [ref=f10e239]:
+                        - generic [ref=f10e240]:
+                          - generic [ref=f10e241]:
+                            - generic [ref=f10e242]: 
+                            - strong [ref=f10e243]: "101"
+                            - generic [ref=f10e244]: Flat
+                            - text: 320.00 sq ft
+                          - button " Add Member" [ref=f10e245] [cursor=pointer]:
+                            - generic [ref=f10e246]: 
+                            - text: Add Member
+                        - list [ref=f10e248]:
+                          - listitem [ref=f10e249]:
+                            - generic [ref=f10e250]:
+                              - generic [ref=f10e251]: SONALI
+                              - generic [ref=f10e252]: Owner
+                              - generic [ref=f10e253]: Active
+                              - generic [ref=f10e254]:
+                                - generic [ref=f10e255]: 
+                                - text: 2026-07-25
+                            - generic [ref=f10e256]:
+                              - button "" [ref=f10e257] [cursor=pointer]
+                              - button "" [ref=f10e259] [cursor=pointer]
+                          - listitem [ref=f10e261]:
+                            - generic [ref=f10e262]:
+                              - generic [ref=f10e263]: Tushar
+                              - generic [ref=f10e264]: Owner
+                              - generic [ref=f10e265]: Active
+                              - generic [ref=f10e266]:
+                                - generic [ref=f10e267]: 
+                                - text: 2026-07-25
+                            - generic [ref=f10e268]:
+                              - button "" [ref=f10e269] [cursor=pointer]
+                              - button "" [ref=f10e271] [cursor=pointer]
+                      - generic [ref=f10e273]:
+                        - generic [ref=f10e274]:
+                          - generic [ref=f10e275]:
+                            - generic [ref=f10e276]: 
+                            - strong [ref=f10e277]: "102"
+                            - generic [ref=f10e278]: Flat
+                            - text: 320.00 sq ft
+                          - button " Add Member" [ref=f10e279] [cursor=pointer]:
+                            - generic [ref=f10e280]: 
+                            - text: Add Member
+                        - generic [ref=f10e281]: No members assigned to this unit yet.
+                      - generic [ref=f10e283]:
+                        - generic [ref=f10e284]:
+                          - generic [ref=f10e285]:
+                            - generic [ref=f10e286]: 
+                            - strong [ref=f10e287]: "103"
+                            - generic [ref=f10e288]: Flat
+                            - text: 320.00 sq ft
+                          - button " Add Member" [ref=f10e289] [cursor=pointer]:
+                            - generic [ref=f10e290]: 
+                            - text: Add Member
+                        - generic [ref=f10e291]: No members assigned to this unit yet.
+                      - generic [ref=f10e293]:
+                        - generic [ref=f10e294]:
+                          - generic [ref=f10e295]:
+                            - generic [ref=f10e296]: 
+                            - strong [ref=f10e297]: "104"
+                            - generic [ref=f10e298]: Flat
+                            - text: 320.00 sq ft
+                          - button " Add Member" [ref=f10e299] [cursor=pointer]:
+                            - generic [ref=f10e300]: 
+                            - text: Add Member
+                        - generic [ref=f10e301]: No members assigned to this unit yet.
+                      - generic [ref=f10e303]:
+                        - generic [ref=f10e304]:
+                          - generic [ref=f10e305]:
+                            - generic [ref=f10e306]: 
+                            - strong [ref=f10e307]: "201"
+                            - generic [ref=f10e308]: Flat
+                            - text: 320.00 sq ft
+                          - button " Add Member" [ref=f10e309] [cursor=pointer]:
+                            - generic [ref=f10e310]: 
+                            - text: Add Member
+                        - generic [ref=f10e311]: No members assigned to this unit yet.
+                      - generic [ref=f10e313]:
+                        - generic [ref=f10e314]:
+                          - generic [ref=f10e315]:
+                            - generic [ref=f10e316]: 
+                            - strong [ref=f10e317]: "202"
+                            - generic [ref=f10e318]: Flat
+                            - text: 320.00 sq ft
+                          - button " Add Member" [ref=f10e319] [cursor=pointer]:
+                            - generic [ref=f10e320]: 
+                            - text: Add Member
+                        - generic [ref=f10e321]: No members assigned to this unit yet.
+                      - generic [ref=f10e323]:
+                        - generic [ref=f10e324]:
+                          - generic [ref=f10e325]:
+                            - generic [ref=f10e326]: 
+                            - strong [ref=f10e327]: "203"
+                            - generic [ref=f10e328]: Flat
+                            - text: 320.00 sq ft
+                          - button " Add Member" [ref=f10e329] [cursor=pointer]:
+                            - generic [ref=f10e330]: 
+                            - text: Add Member
+                        - generic [ref=f10e331]: No members assigned to this unit yet.
+                      - generic [ref=f10e333]:
+                        - generic [ref=f10e334]:
+                          - generic [ref=f10e335]:
+                            - generic [ref=f10e336]: 
+                            - strong [ref=f10e337]: "204"
+                            - generic [ref=f10e338]: Flat
+                            - text: 320.00 sq ft
+                          - button " Add Member" [ref=f10e339] [cursor=pointer]:
+                            - generic [ref=f10e340]: 
+                            - text: Add Member
+                        - generic [ref=f10e341]: No members assigned to this unit yet.
+                      - generic [ref=f10e343]:
+                        - generic [ref=f10e344]:
+                          - generic [ref=f10e345]:
+                            - generic [ref=f10e346]: 
+                            - strong [ref=f10e347]: "301"
+                            - generic [ref=f10e348]: Flat
+                            - text: 320.00 sq ft
+                          - button " Add Member" [ref=f10e349] [cursor=pointer]:
+                            - generic [ref=f10e350]: 
+                            - text: Add Member
+                        - generic [ref=f10e351]: No members assigned to this unit yet.
+                      - generic [ref=f10e353]:
+                        - generic [ref=f10e354]:
+                          - generic [ref=f10e355]:
+                            - generic [ref=f10e356]: 
+                            - strong [ref=f10e357]: "302"
+                            - generic [ref=f10e358]: Flat
+                            - text: 320.00 sq ft
+                          - button " Add Member" [ref=f10e359] [cursor=pointer]:
+                            - generic [ref=f10e360]: 
+                            - text: Add Member
+                        - generic [ref=f10e361]: No members assigned to this unit yet.
+                      - generic [ref=f10e363]:
+                        - generic [ref=f10e364]:
+                          - generic [ref=f10e365]:
+                            - generic [ref=f10e366]: 
+                            - strong [ref=f10e367]: "303"
+                            - generic [ref=f10e368]: Flat
+                            - text: 320.00 sq ft
+                          - button " Add Member" [ref=f10e369] [cursor=pointer]:
+                            - generic [ref=f10e370]: 
+                            - text: Add Member
+                        - generic [ref=f10e371]: No members assigned to this unit yet.
+                      - generic [ref=f10e373]:
+                        - generic [ref=f10e374]:
+                          - generic [ref=f10e375]:
+                            - generic [ref=f10e376]: 
+                            - strong [ref=f10e377]: "304"
+                            - generic [ref=f10e378]: Flat
+                            - text: 320.00 sq ft
+                          - button " Add Member" [ref=f10e379] [cursor=pointer]:
+                            - generic [ref=f10e380]: 
+                            - text: Add Member
+                        - generic [ref=f10e381]: No members assigned to this unit yet.
+                      - generic [ref=f10e383]:
+                        - generic [ref=f10e384]:
+                          - generic [ref=f10e385]:
+                            - generic [ref=f10e386]: 
+                            - strong [ref=f10e387]: "401"
+                            - generic [ref=f10e388]: Flat
+                            - text: 320.00 sq ft
+                          - button " Add Member" [ref=f10e389] [cursor=pointer]:
+                            - generic [ref=f10e390]: 
+                            - text: Add Member
+                        - generic [ref=f10e391]: No members assigned to this unit yet.
+                      - generic [ref=f10e393]:
+                        - generic [ref=f10e394]:
+                          - generic [ref=f10e395]:
+                            - generic [ref=f10e396]: 
+                            - strong [ref=f10e397]: "402"
+                            - generic [ref=f10e398]: Flat
+                            - text: 320.00 sq ft
+                          - button " Add Member" [ref=f10e399] [cursor=pointer]:
+                            - generic [ref=f10e400]: 
+                            - text: Add Member
+                        - generic [ref=f10e401]: No members assigned to this unit yet.
+                      - generic [ref=f10e403]:
+                        - generic [ref=f10e404]:
+                          - generic [ref=f10e405]:
+                            - generic [ref=f10e406]: 
+                            - strong [ref=f10e407]: "403"
+                            - generic [ref=f10e408]: Flat
+                            - text: 320.00 sq ft
+                          - button " Add Member" [ref=f10e409] [cursor=pointer]:
+                            - generic [ref=f10e410]: 
+                            - text: Add Member
+                        - generic [ref=f10e411]: No members assigned to this unit yet.
+                      - generic [ref=f10e413]:
+                        - generic [ref=f10e414]:
+                          - generic [ref=f10e415]:
+                            - generic [ref=f10e416]: 
+                            - strong [ref=f10e417]: "404"
+                            - generic [ref=f10e418]: Flat
+                            - text: 320.00 sq ft
+                          - button " Add Member" [ref=f10e419] [cursor=pointer]:
+                            - generic [ref=f10e420]: 
+                            - text: Add Member
+                        - generic [ref=f10e421]: No members assigned to this unit yet.
+                      - generic [ref=f10e423]:
+                        - generic [ref=f10e424]:
+                          - generic [ref=f10e425]:
+                            - generic [ref=f10e426]: 
+                            - strong [ref=f10e427]: "501"
+                            - generic [ref=f10e428]: Flat
+                            - text: 320.00 sq ft
+                          - button " Add Member" [ref=f10e429] [cursor=pointer]:
+                            - generic [ref=f10e430]: 
+                            - text: Add Member
+                        - generic [ref=f10e431]: No members assigned to this unit yet.
+                      - generic [ref=f10e433]:
+                        - generic [ref=f10e434]:
+                          - generic [ref=f10e435]:
+                            - generic [ref=f10e436]: 
+                            - strong [ref=f10e437]: "502"
+                            - generic [ref=f10e438]: Flat
+                            - text: 320.00 sq ft
+                          - button " Add Member" [ref=f10e439] [cursor=pointer]:
+                            - generic [ref=f10e440]: 
+                            - text: Add Member
+                        - generic [ref=f10e441]: No members assigned to this unit yet.
+                      - generic [ref=f10e443]:
+                        - generic [ref=f10e444]:
+                          - generic [ref=f10e445]:
+                            - generic [ref=f10e446]: 
+                            - strong [ref=f10e447]: "503"
+                            - generic [ref=f10e448]: Flat
+                            - text: 320.00 sq ft
+                          - button " Add Member" [ref=f10e449] [cursor=pointer]:
+                            - generic [ref=f10e450]: 
+                            - text: Add Member
+                        - generic [ref=f10e451]: No members assigned to this unit yet.
+                      - generic [ref=f10e453]:
+                        - generic [ref=f10e454]:
+                          - generic [ref=f10e455]:
+                            - generic [ref=f10e456]: 
+                            - strong [ref=f10e457]: "504"
+                            - generic [ref=f10e458]: Flat
+                            - text: 320.00 sq ft
+                          - button " Add Member" [ref=f10e459] [cursor=pointer]:
+                            - generic [ref=f10e460]: 
+                            - text: Add Member
+                        - generic [ref=f10e461]: No members assigned to this unit yet.
+                - generic [ref=f10e228]:
+                  - button " Save & Continue" [ref=f10e229] [cursor=pointer]:
+                    - generic [ref=f10e230]: 
+                    - text: Save & Continue
+                  - link " Back" [ref=f10e231] [cursor=pointer]:
+                    - /url: /onboarding/22/step/7/
+                    - generic [ref=f10e232]: 
+                    - text: Back
+              - text:   
+        - text:             
+        - alert
+        - text: 
+        - generic "Show toolbar" [ref=f10e234]: DJDT

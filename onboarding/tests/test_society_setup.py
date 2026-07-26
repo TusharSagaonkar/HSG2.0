@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
@@ -92,6 +93,22 @@ class SocietySetupCreateSocietyTest(TestCase):
         self.assertEqual(self.wizard.wizard_data.get("pan"), "XYZAB9999C")
         self.assertEqual(
             self.wizard.wizard_data.get("financial_year_pattern"), "APRIL_MARCH"
+        )
+
+    def test_create_society_serializes_registration_date(self):
+        SocietySetupService.create_society(
+            self.wizard,
+            _make_society_data(registration_date=date(2024, 1, 15)),
+            user=self.user,
+        )
+        self.wizard.refresh_from_db()
+
+        self.assertEqual(
+            self.wizard.wizard_data["registration_date"], "2024-01-15"
+        )
+        self.assertEqual(
+            self.wizard.wizard_data["society_details"]["registration_date"],
+            "2024-01-15",
         )
 
     def test_create_society_creates_audit_log(self):
@@ -482,18 +499,28 @@ class FinancialYearSetupServiceTest(TestCase):
         )
         self.assertEqual(pattern, FY_PATTERN_JAN_DEC)
 
-    def test_get_fy_options_returns_five_labels(self):
+    def test_get_fy_options_returns_current_and_previous_ten_years(self):
         opts = FinancialYearSetupService.get_fy_options(
             FY_PATTERN_APRIL_MARCH, reference_year=2026
         )
-        self.assertEqual(len(opts), 5)
-        self.assertIn("2026-27", opts)
-        self.assertIn("2024-25", opts)
-        self.assertIn("2028-29", opts)
+        self.assertEqual(len(opts), 11)
+        self.assertEqual(opts[0], "2026-27")
+        self.assertEqual(opts[-1], "2016-17")
+        self.assertNotIn("2027-28", opts)
 
     def test_get_fy_options_jan_dec(self):
         opts = FinancialYearSetupService.get_fy_options(
             FY_PATTERN_JAN_DEC, reference_year=2026
         )
-        self.assertEqual(len(opts), 5)
-        self.assertIn("2026-27", opts)
+        self.assertEqual(len(opts), 11)
+        self.assertEqual(opts[0], "2026-27")
+
+    @patch(
+        "onboarding.services.financial_year_service.timezone.localdate",
+        return_value=date(2026, 2, 15),
+    )
+    def test_get_fy_options_uses_active_financial_year(self, _localdate):
+        opts = FinancialYearSetupService.get_fy_options(FY_PATTERN_APRIL_MARCH)
+
+        self.assertEqual(opts[0], "2025-26")
+        self.assertEqual(opts[-1], "2015-16")
