@@ -1,0 +1,87 @@
+/* Scoped styles for Onboarding Step 11: improved readability and sticky headers */
+.content-card {
+  padding: 1rem;
+}
+
+.onboarding-card-title {
+  font-weight: 600;
+}
+
+.onboarding-card .card-body {
+  display: flex;
+  flex-direction: column;
+}
+
+.manual-table-wrapper {
+  max-height: 48vh;
+  overflow: auto;
+  border: 1px solid var(--color-border, #e6e9ef);
+  border-radius: 4px;
+  background: white;
+}
+
+.manual-template-table thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--table-head-bg, #f8f9fb);
+}
+
+.manual-template-table tbody tr.manual-row td {
+  vertical-align: middle;
+}
+
+.manual-toolbar .btn {
+  min-width: 110px;
+}
+
+.template-badges .badge code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, "Roboto Mono", "Courier New", monospace;
+}
+
+.card .btn.w-100.text-start i {
+  width: 1.4em;
+}
+
+@media (max-width: 576px) {
+  .manual-table-wrapper {
+    max-height: 40vh;
+  }
+}
+
+/* Action buttons in card - inline row, wrap on very small screens */
+.onboarding-card-actions {
+  display: flex;
+  flex-wrap: nowrap;
+}
+
+@media (max-width: 480px) {
+  .onboarding-card-actions {
+    flex-wrap: wrap;
+  }
+  .onboarding-card-actions .btn {
+    flex: 1 1 100%;
+  }
+}
+
+/* Ensure full-width typed form sits nicely above download buttons */
+.onboarding-card-actions + .d-flex {
+  margin-top: 6px;
+}
+
+/* Make content area and cards visually distinct */
+.content-card {
+  background: var(--onboarding-content-bg, #f6f8fb);
+  border-radius: 8px;
+}
+
+.onboarding-card .card {
+  /* Dark blue -> light blue vertical gradient matching theme */
+  background: linear-gradient(180deg, rgba(18,59,122,0.18) 0%, rgba(18,122,190,0.06) 100%);
+  border: 1px solid rgba(18,59,122,0.12);
+  box-shadow: 0 10px 36px rgba(18,59,122,0.08);
+}
+
+.onboarding-card .card-body {
+  background: transparent;
+}

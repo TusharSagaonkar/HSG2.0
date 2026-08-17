@@ -392,6 +392,18 @@ class ValidationChartOfAccountsTest(StagingServiceBaseTest):
         )
         self.assertEqual(report["invalid"], 1)
 
+    def test_validate_coa_general_nature_is_ignored(self):
+        self._upload(
+            "CHART_OF_ACCOUNTS",
+            ["account_code", "account_name", "nature"],
+            [["1.1", "Cash", "GENERAL"]],
+        )
+        report = ValidationService.validate_batch(
+            self.wizard, "CHART_OF_ACCOUNTS", user=self.user
+        )
+        self.assertEqual(report["valid"], 1)
+        self.assertEqual(report["invalid"], 0)
+
     def test_validate_coa_invalid_code_format(self):
         self._upload(
             "CHART_OF_ACCOUNTS",

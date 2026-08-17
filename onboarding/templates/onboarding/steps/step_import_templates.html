@@ -1,35 +1,55 @@
 {% extends "onboarding/base_wizard.html" %}
 {% load i18n %}
 {% load onboarding_tags %}
+{% load static %}
+
+{% block css %}{{ block.super }}
+  <link rel="stylesheet" href="{% static 'css/onboarding-step11.css' %}" />
+{% endblock css %}
 
 {% block wizard_content %}
   <div class="content-card">
     <div class="content-card__body">
       <p class="text-muted mb-3">
         {% blocktrans %}
-          Download the import templates below and fill in your opening
-          balance data. Each template has specific columns — review them
-          carefully before uploading in the staging area.
+          Choose a template, open the typed form when you want to enter data
+          directly, or download CSV/XLSX files if you prefer spreadsheets.
         {% endblocktrans %}
       </p>
 
       {% if template_types and template_columns %}
         <div class="row g-3 mb-3">
           {% for template_type in template_types %}
-            <div class="col-12 col-md-6 col-xl-4">
+            <div class="col-12 col-sm-6 col-md-4 col-lg-3">
               <div class="card h-100 border-0 shadow-sm">
-                <div class="card-body">
+                <div class="card-body d-flex flex-column">
                   <div class="d-flex align-items-center mb-2">
-                    <i class="fas fa-file-csv fa-2x text-primary me-3"></i>
+                    <i class="fas fa-file-csv fa-2x text-primary me-3" aria-hidden="true"></i>
                     <div>
-                      <h6 class="mb-0">{{ template_type|cut:"_"|title }}</h6>
-                      <small class="text-muted">
+                      <h6 class="mb-0 onboarding-card-title">{{ template_type|cut:"_"|title }}</h6>
+                      <small class="text-muted d-block">
                         {% with columns=template_columns|get_item:template_type %}
                           {{ columns|length }} {% trans "columns" %}
                         {% endwith %}
                       </small>
+                      <small class="text-muted">{% trans "Enter data via typed form or download a prepared spreadsheet." %}</small>
                     </div>
                   </div>
+
+                  {% with info=upload_summary|get_item:template_type %}
+                    <div class="mb-2">
+                      {% if info and info.approval_status %}
+                        <span class="badge {{ info.approval_status|status_badge_class }}">
+                          {{ info.approval_status }}
+                        </span>
+                        <small class="text-muted ms-2">
+                          {{ info.row_count }} {% trans "row(s)" %}
+                        </small>
+                      {% else %}
+                        <span class="badge bg-secondary">{% trans "NOT STARTED" %}</span>
+                      {% endif %}
+                    </div>
+                  {% endwith %}
 
                   {% with columns=template_columns|get_item:template_type %}
                     <div class="d-flex flex-wrap gap-1 mb-3">
@@ -41,10 +61,26 @@
                     </div>
                   {% endwith %}
 
-                  <a href="{% url 'onboarding:template-download' template_type %}"
-                     class="btn btn-sm btn-outline-primary w-100">
-                    <i class="fas fa-download me-1"></i>{% trans "Download CSV Template" %}
-                  </a>
+                  <div class="mt-auto">
+                    <div class="mb-2">
+                      <a href="{% url 'onboarding:template-manual-entry' wizard.id template_type %}"
+                         class="btn btn-sm btn-outline-dark w-100 text-start" aria-label="Typed form for {{ template_type }}">
+                        <i class="fas fa-keyboard me-1" aria-hidden="true"></i>{% trans "Typed Form" %}
+                      </a>
+                    </div>
+                    <div class="d-flex gap-2">
+                      <a href="{% url 'onboarding:template-download' template_type %}?wizard_id={{ wizard.id }}&format=csv"
+                         class="btn btn-sm btn-outline-primary flex-fill"
+                         download aria-label="CSV for {{ template_type }}">
+                        <i class="fas fa-download me-1" aria-hidden="true"></i>{% trans "CSV" %}
+                      </a>
+                      <a href="{% url 'onboarding:template-download' template_type %}?wizard_id={{ wizard.id }}&format=xlsx"
+                         class="btn btn-sm btn-outline-success flex-fill"
+                         download aria-label="Excel for {{ template_type }}">
+                        <i class="fas fa-file-excel me-1" aria-hidden="true"></i>{% trans "Excel" %}
+                      </a>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -60,19 +96,16 @@
       <div class="alert alert-info" role="alert">
         <i class="fas fa-info-circle me-2"></i>
         {% blocktrans %}
-          <strong>Tip:</strong> Fill in the downloaded CSV with your data,
-          then upload it in the Staging Area (Step 12). You can upload,
-          validate, delete, and re-upload as many times as needed before
-          approving.
+          <strong>Tip:</strong> The typed form is the fastest way to enter a
+          small amount of data directly.
         {% endblocktrans %}
       </div>
 
-      <form method="post"
-            action="{% url 'onboarding:wizard-step-save' wizard.id step_number %}">
+      <form method="post" action="{% url 'onboarding:wizard-step-save' wizard.id step_number %}">
         {% csrf_token %}
         <div class="form-actions mt-4">
           <button type="submit" class="btn btn-primary">
-            <i class="fas fa-check me-1"></i>{% trans "Continue to Staging Area" %}
+            <i class="fas fa-check me-1"></i>{% trans "Continue to Staging" %}
           </button>
           <a href="{% url 'onboarding:wizard-step' wizard.id 10 %}"
              class="btn btn-outline-secondary">

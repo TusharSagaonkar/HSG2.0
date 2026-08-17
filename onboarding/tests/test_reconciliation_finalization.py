@@ -224,6 +224,24 @@ class ReconciliationBalanceSheetTest(ReconciliationBaseTest):
         self.assertEqual(len(result["equity"]), 1)
         self.assertTrue(result["totals"]["is_balanced"])
 
+    def test_balance_sheet_ignores_general_nature(self):
+        """GENERAL should behave like an unspecified nature."""
+        self._upload(
+            "CHART_OF_ACCOUNTS",
+            ["account_code", "account_name", "nature"],
+            [["1.1", "Cash in Hand", "GENERAL"]],
+        )
+        self._upload(
+            "TRIAL_BALANCE",
+            ["account_code", "account_name", "debit", "credit"],
+            [["1.1", "Cash in Hand", "10000", "0"]],
+        )
+        result = ReconciliationService.generate_balance_sheet(
+            wizard=self.wizard, society=self.society
+        )
+        self.assertEqual(len(result["assets"]), 1)
+        self.assertEqual(result["assets"][0]["account_code"], "1.1")
+
     def test_balance_sheet_fallback_heuristics(self):
         """Without T1, classification falls back to account-name keywords."""
         self._upload(

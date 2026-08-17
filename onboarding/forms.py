@@ -28,6 +28,7 @@ from decimal import Decimal
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.forms import formset_factory
 from django.utils.translation import gettext_lazy as _
 
 from members.models import Unit
@@ -41,6 +42,10 @@ from onboarding.services.financial_year_service import (
 )
 from onboarding.services.module_config_service import (
     MODULE_DISPLAY_NAMES,
+)
+from onboarding.services.staging_service import (
+    TEMPLATE_DECIMAL_FIELDS,
+    StagingService,
 )
 from onboarding.services.wizard_service import (
     ALL_MODULES,
@@ -841,6 +846,64 @@ class FinalApprovalForm(BootstrapForm):
         label=_("Reason / Notes"),
         help_text=_("Optional notes for the audit trail."),
     )
+
+
+# --------------------------------------------------------------------------- #
+# Step 11 — Manual template entry
+# --------------------------------------------------------------------------- #
+
+def _humanize_template_column(column_name: str) -> str:
+    """Convert a staging column name into a human-friendly label."""
+    return column_name.replace("_", " ").strip().title()
+
+
+def build_template_entry_form_class(template_type: str) -> type[forms.Form]:
+    """Build a per-template row form for direct manual entry.
+
+    The generated form mirrors the staging template columns so users can
+    type data directly instead of uploading CSV/XLSX files.
+    """
+    canonical = StagingService._normalize_template_type(template_type)
+    columns = StagingService.get_template_columns(canonical)
+    decimal_fields = set(TEMPLATE_DECIMAL_FIELDS[canonical])
+
+    attrs: dict[str, object] = {"__module__": __name__}
+    for column in columns:
+        label = _humanize_template_column(column)
+        if column in decimal_fields:
+            attrs[column] = forms.DecimalField(
+                required=False,
+                max_digits=18,
+                decimal_places=2,
+                label=label,
+            )
+        else:
+            attrs[column] = forms.CharField(
+                required=False,
+                max_length=255,
+                label=label,
+            )
+
+    form_name = f"{canonical.title().replace('_', '')}ManualEntryForm"
+    return type(form_name, (BootstrapForm,), attrs)
+
+
+def build_template_entry_formset(
+    template_type: str,
+    *,
+    data=None,
+    initial=None,
+    extra: int = 1,
+    prefix: str = "rows",
+):
+    """Return a formset instance for manual staging entry."""
+    form_class = build_template_entry_form_class(template_type)
+    formset_class = formset_factory(
+        form_class,
+        extra=extra,
+        can_delete=False,
+    )
+    return formset_class(data=data, initial=initial, prefix=prefix)
 
 
 # --------------------------------------------------------------------------- #

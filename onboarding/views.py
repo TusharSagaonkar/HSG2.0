@@ -16,6 +16,9 @@ from __future__ import annotations
 
 import json
 import logging
+import csv
+import io
+import os
 from typing import Any
 
 from django.contrib import messages
@@ -39,6 +42,7 @@ from onboarding.forms import (
     SocietyDetailsForm,
     SocietyTypeForm,
     UnitConfigurationForm,
+    build_template_entry_formset,
 )
 from housing.forms import StructureForm as HousingStructureForm
 from onboarding.models import OnboardingWizard
@@ -59,6 +63,11 @@ from onboarding.services.wizard_service import (
     WizardService,
 )
 from societies.utils import tenant_context
+
+try:  # pragma: no cover - optional dependency
+    import openpyxl  # type: ignore
+except ImportError:  # pragma: no cover
+    openpyxl = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 _UNSET = object()
@@ -462,6 +471,270 @@ def _step8_member_context(wizard: OnboardingWizard) -> dict[str, Any]:
     }
 
 
+def _step9_account_context(wizard: OnboardingWizard) -> dict[str, Any]:
+    """Context for Step 9: accounting bootstrap confirmation."""
+    return {
+        "has_society": bool(wizard.society),
+    }
+
+
+def _step10_account_context(wizard: OnboardingWizard) -> dict[str, Any]:
+    """Context for Step 10: existing chart of accounts plus CRUD links."""
+    empty = {
+        "accounts": [],
+        "account_count": 0,
+        "root_accounts": [],
+        "has_society": False,
+    }
+    if not wizard.society:
+        return empty
+
+    from accounting.models import Account
+
+    accounts = list(
+        Account.objects.filter(society=wizard.society)
+        .select_related("category", "parent")
+        .order_by("code", "name", "pk")
+    )
+    root_accounts = [account for account in accounts if account.parent_id is None]
+
+    return {
+        "accounts": accounts,
+        "account_count": len(accounts),
+        "root_accounts": root_accounts,
+        "has_society": True,
+    }
+
+
+def _build_sample_template_rows(wizard: OnboardingWizard) -> dict[str, list[dict[str, Any]]]:
+    """Build prefilled sample rows for the Step 11 template downloads."""
+    rows: dict[str, list[dict[str, Any]]] = {}
+    if wizard is None or not getattr(wizard, "society", None):
+        return rows
+
+    from accounting.models import Account
+    from members.models import Member
+    from members.models import Unit
+    accounts = list(
+        Account.objects.filter(society=wizard.society)
+        .select_related("category", "parent")
+        .order_by("code", "name", "pk")
+    )
+    units = list(
+        Unit.objects.filter(structure__society=wizard.society)
+        .select_related("structure")
+        .order_by("structure__name", "identifier", "pk")
+    )
+    members = list(
+        Member.objects.filter(society=wizard.society)
+        .select_related("unit")
+        .order_by("unit__identifier", "full_name", "pk")
+    )
+
+    account_by_code = {a.code: a for a in accounts if a.code}
+    unit_by_identifier = {u.identifier: u for u in units if u.identifier}
+    member_by_unit: dict[str, list[Member]] = {}
+    for member in members:
+        if member.unit_id:
+            member_by_unit.setdefault(member.unit.identifier, []).append(member)
+
+    rows["CHART_OF_ACCOUNTS"] = [
+        {
+            "account_code": account.code,
+            "account_name": account.name,
+            "account_group": account.category.name if account.category_id else "",
+            "account_type": account.account_type,
+            "parent_code": account.parent.code if account.parent_id else "",
+            "nature": account.account_type or "",
+            "opening_debit": "",
+            "opening_credit": "",
+        }
+        for account in accounts[:25]
+    ]
+
+    trial_balance_rows: list[dict[str, Any]] = []
+    for account in accounts[:25]:
+        trial_balance_rows.append(
+            {
+                "account_code": account.code,
+                "account_name": account.name,
+                "debit": "",
+                "credit": "",
+            }
+        )
+    rows["TRIAL_BALANCE"] = trial_balance_rows
+
+    rows["MEMBER_OUTSTANDING"] = [
+        {
+            "unit_identifier": unit.identifier,
+            "member_name": (
+                member_by_unit.get(unit.identifier)[0].full_name
+                if member_by_unit.get(unit.identifier)
+                else ""
+            ),
+            "outstanding_amount": "",
+            "advance_maintenance": "",
+            "credit_balance": "",
+            "late_fees": "",
+            "interest_receivable": "",
+        }
+        for unit in units[:25]
+    ]
+
+    rows["VENDOR_OUTSTANDING"] = [
+        {
+            "vendor_name": "Vendor Name",
+            "outstanding_amount": "",
+            "advance_paid": "",
+            "retention": "",
+            "security_deposit": "",
+        }
+    ]
+
+    bank_accounts = [a for a in accounts if getattr(a, "is_bank", False)]
+    rows["BANK_OPENING"] = [
+        {
+            "bank_name": account.name,
+            "account_number": "",
+            "ifsc": "",
+            "branch": "",
+            "opening_balance": "",
+            "account_code": account.code,
+        }
+        for account in bank_accounts[:15]
+    ]
+
+    cash_account = next(
+        (a for a in accounts if a.code in {"1.4.1", "1.4.1.1", "1.4"}),
+        None,
+    )
+    rows["CASH_OPENING"] = [
+        {
+            "opening_balance": "",
+        }
+    ]
+    if cash_account is not None:
+        rows["CASH_OPENING"][0]["opening_balance"] = ""
+
+    asset_accounts = [
+        a for a in accounts
+        if a.account_type == Account.AccountType.ASSET and not getattr(a, "is_bank", False)
+    ]
+    rows["FIXED_ASSETS"] = [
+        {
+            "asset_name": "Lift",
+            "asset_category": "Building",
+            "gross_value": "",
+            "depreciation": "",
+            "net_value": "",
+            "account_code": asset_accounts[0].code if asset_accounts else "",
+        }
+    ]
+
+    rows["SECURITY_DEPOSITS"] = [
+        {
+            "description": "Security deposit",
+            "amount": "",
+            "against_account": account_by_code.get("2.1.4").code if account_by_code.get("2.1.4") else "",
+        }
+    ]
+
+    rows["LOANS"] = [
+        {
+            "loan_name": "Bank Loan",
+            "loan_type": "BANK",
+            "outstanding_principal": "",
+            "interest": "",
+            "account_code": account_by_code.get("2.6.1").code if account_by_code.get("2.6.1") else "",
+        }
+    ]
+
+    rows["FUNDS"] = [
+        {
+            "fund_name": "Repair Fund",
+            "fund_type": "REPAIR",
+            "balance": "",
+            "account_code": account_by_code.get("5.1.2").code if account_by_code.get("5.1.2") else "",
+        }
+    ]
+
+    return rows
+
+
+def _get_template_manual_seed_rows(
+    wizard: OnboardingWizard,
+    template_type: str,
+) -> list[dict[str, Any]]:
+    """Return the prefilled rows shown as locked reference rows."""
+    seed_rows = _build_sample_template_rows(wizard).get(template_type, [])
+    if seed_rows:
+        columns = StagingService.get_template_columns(template_type)
+        return [
+            {column: row.get(column, "") for column in columns}
+            for row in seed_rows
+        ]
+    columns = StagingService.get_template_columns(template_type)
+    return [{column: "" for column in columns}]
+
+
+def _get_template_manual_existing_rows(
+    wizard: OnboardingWizard,
+    template_type: str,
+) -> list[dict[str, Any]]:
+    """Return the last saved rows for a manual-entry template, if any."""
+    try:
+        staging_data = StagingService.get_staging_data(wizard, template_type)
+    except (ValidationError, ValueError):
+        return []
+
+    columns = StagingService.get_template_columns(template_type)
+    return [
+        {column: row.get(column, "") for column in columns}
+        for row in staging_data.get("rows", [])
+    ]
+
+
+def _build_template_payload(headers: tuple[str, ...], rows: list[dict[str, Any]]) -> list[list[str]]:
+    payload: list[list[str]] = [list(headers)]
+    for row in rows:
+        payload.append([str(row.get(col, "") or "") for col in headers])
+    if len(payload) == 1:
+        payload.append(["" for _ in headers])
+    return payload
+
+
+def _render_template_download(template_type: str, rows: list[dict[str, Any]], *, file_format: str):
+    """Render a CSV or XLSX download for a staging template."""
+    headers = StagingService.get_template_columns(template_type)
+    safe_name = StagingService._normalize_template_type(template_type).lower()
+
+    if file_format == "xlsx":
+        if openpyxl is None:
+            raise ValidationError(_("Excel downloads require the 'openpyxl' package."))
+        workbook = openpyxl.Workbook()
+        sheet = workbook.active
+        sheet.title = "Template"
+        for row in _build_template_payload(headers, rows):
+            sheet.append(row)
+        buffer = io.BytesIO()
+        workbook.save(buffer)
+        buffer.seek(0)
+        response = HttpResponse(
+            buffer.getvalue(),
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        )
+        response["Content-Disposition"] = f'attachment; filename="{safe_name}_template.xlsx"'
+        response["X-Content-Type-Options"] = "nosniff"
+        return response
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerows(_build_template_payload(headers, rows))
+    response = HttpResponse(buffer.getvalue(), content_type="text/csv")
+    response["Content-Disposition"] = f'attachment; filename="{safe_name}_template.csv"'
+    response["X-Content-Type-Options"] = "nosniff"
+    return response
+
 # --------------------------------------------------------------------------- #
 # Views
 # --------------------------------------------------------------------------- #
@@ -604,9 +877,11 @@ def wizard_step(
         context.update(_step8_member_context(wizard))
     elif step_number == 9:
         context["society"] = wizard.society
+        context.update(_step9_account_context(wizard))
     elif step_number == 10:
-        context["upload_summary"] = _safe_get_upload_summary(wizard)
+        context.update(_step10_account_context(wizard))
     elif step_number == 11:
+        context["upload_summary"] = _safe_get_upload_summary(wizard)
         context["template_types"] = ALL_TEMPLATE_TYPES
         context["template_columns"] = _get_template_columns()
 
@@ -964,7 +1239,7 @@ def wizard_step_save(
     # Steps without a form (5, 8, 9, 10, 11) just advance.
     if form is None:
         try:
-            _handle_no_form_step(request, wizard, step_number)
+            response = _handle_no_form_step(request, wizard, step_number)
         except ValidationError as exc:
             messages.error(request, str(exc))
             return redirect(
@@ -972,6 +1247,8 @@ def wizard_step_save(
                 wizard_id=wizard.pk,
                 step_number=step_number,
             )
+        if response is not None:
+            return response
         return _advance_and_redirect(request, wizard, step_number)
 
     # Step 7 Continue with an empty grid: allow advance when units already
@@ -1216,27 +1493,151 @@ def template_download(
     Generates a CSV file with the expected column headers so users can
     fill in their data and upload it to the staging area.
     """
-    import csv
-    from django.http import HttpResponse as DjangoHttpResponse
-
     try:
-        columns = StagingService.get_template_columns(template_type)
+        file_format = (request.GET.get("format") or "csv").strip().lower()
+        if file_format in {"excel", "xlsx"}:
+            file_format = "xlsx"
+        else:
+            file_format = "csv"
+        wizard_id = request.GET.get("wizard_id")
+        wizard = _get_wizard(int(wizard_id), request.user) if wizard_id else None
+        rows = _build_sample_template_rows(wizard)
+        canonical = StagingService._normalize_template_type(template_type)
     except (ValueError, ValidationError) as exc:
         messages.error(request, str(exc))
         return redirect("onboarding:wizard-list")
 
-    canonical = StagingService._normalize_template_type(template_type)
-    filename = f"{canonical.lower()}_template.csv"
+    return _render_template_download(
+        template_type,
+        rows.get(canonical, []),
+        file_format=file_format,
+    )
 
-    response = DjangoHttpResponse(content_type="text/csv")
-    response["Content-Disposition"] = f'attachment; filename="{filename}"'
 
-    writer = csv.writer(response)
-    writer.writerow(columns)
-    # Add one empty row as a placeholder
-    writer.writerow(["" for _ in columns])
+@login_required
+def template_manual_entry(
+    request: HttpRequest,
+    wizard_id: int,
+    template_type: str,
+) -> HttpResponse:
+    """Render and submit a direct typed-entry form for a staging template."""
+    wizard = _get_wizard(wizard_id, request.user)
 
-    return response
+    if wizard.current_step < 11:
+        messages.error(request, _("Please complete step 11 before manual entry."))
+        return redirect(
+            "onboarding:wizard-step",
+            wizard_id=wizard.pk,
+            step_number=wizard.current_step,
+        )
+
+    try:
+        canonical = StagingService._normalize_template_type(template_type)
+        columns = StagingService.get_template_columns(canonical)
+        seed_rows = _get_template_manual_seed_rows(wizard, canonical)
+        existing_rows = _get_template_manual_existing_rows(wizard, canonical)
+    except (ValidationError, ValueError) as exc:
+        messages.error(request, str(exc))
+        return redirect("onboarding:wizard-step", wizard_id=wizard.pk, step_number=11)
+
+    initial_rows = existing_rows or seed_rows
+    locked_columns_by_row: list[set[str]] = [
+        {
+            column
+            for column, value in row.items()
+            if str(value or "").strip()
+        }
+        for row in seed_rows
+    ]
+
+    formset_kwargs: dict[str, Any] = {
+        "extra": 1,
+    }
+    if request.method == "POST":
+        formset = build_template_entry_formset(
+            canonical,
+            data=request.POST,
+            initial=initial_rows,
+            extra=formset_kwargs["extra"],
+        )
+        if formset.is_valid():
+            rows: list[dict[str, Any]] = []
+            for index, form in enumerate(formset):
+                if not hasattr(form, "cleaned_data"):
+                    continue
+                row = {column: form.cleaned_data.get(column, "") for column in columns}
+                if index < len(locked_columns_by_row):
+                    for column in locked_columns_by_row[index]:
+                        row[column] = seed_rows[index].get(column, "")
+                if any(str(value).strip() for value in row.values()):
+                    rows.append(row)
+
+            if not rows:
+                formset._non_form_errors = formset.error_class(
+                    [_("Add at least one row before saving.")]
+                )
+            else:
+                try:
+                    StagingService.save_rows(
+                        wizard=wizard,
+                        template_type=canonical,
+                        rows=rows,
+                        user=request.user,
+                    )
+                    ValidationService.validate_batch(
+                        wizard=wizard,
+                        template_type=canonical,
+                        user=request.user,
+                    )
+                except (ValidationError, ValueError) as exc:
+                    messages.error(request, str(exc))
+                else:
+                    messages.success(
+                        request,
+                        _("Manual data saved and validated for %(t)s.")
+                        % {"t": canonical.replace("_", " ").title()},
+                    )
+                    return redirect(
+                        "onboarding:staging-view",
+                        wizard_id=wizard.pk,
+                        template_type=canonical,
+                    )
+    else:
+        formset = build_template_entry_formset(
+            canonical,
+            initial=initial_rows,
+            extra=formset_kwargs["extra"],
+        )
+
+    # Lock the provided cells only, so users can continue editing their own
+    # previously-entered values on repeat visits.
+    for index, form in enumerate(formset.forms):
+        if index < len(locked_columns_by_row):
+            for column in locked_columns_by_row[index]:
+                field = form.fields.get(column)
+                if field is None:
+                    continue
+                field.widget.attrs["readonly"] = "readonly"
+                field.widget.attrs["aria-readonly"] = "true"
+                field.widget.attrs["data-prefilled"] = "true"
+                existing = field.widget.attrs.get("class", "")
+                field.widget.attrs["class"] = f"{existing} bg-light text-muted".strip()
+
+    context = _base_context(wizard, 11)
+    context.update(
+        {
+            "template_type": canonical,
+            "template_columns": columns,
+            "template_entry_formset": formset,
+            "seed_row_count": len(seed_rows),
+            "existing_row_count": len(existing_rows),
+        }
+    )
+    return render(
+        request,
+        "onboarding/steps/step_manual_template_entry.html",
+        context,
+    )
 
 
 @login_required

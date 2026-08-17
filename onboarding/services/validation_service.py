@@ -143,6 +143,18 @@ def _is_blank(value) -> bool:
     return str(value).strip() == ""
 
 
+def _normalize_coa_nature(value: Any) -> str:
+    """Normalize Chart of Accounts nature values for validation.
+
+    ``GENERAL`` is used elsewhere in the codebase as a generic subtype and
+    should behave like an unspecified nature in staging.
+    """
+    nature = (value or "").strip().upper()
+    if nature == "GENERAL":
+        return ""
+    return nature
+
+
 class ValidationService:
     """Validates all staging data. Never writes to live accounting tables.
 
@@ -341,7 +353,7 @@ class ValidationService:
                     seen_codes[code] = row.row_number
 
             # Nature validation.
-            nature = (row.nature or "").strip().upper()
+            nature = _normalize_coa_nature(row.nature)
             if nature and nature not in VALID_NATURES:
                 errs.append(_error(
                     row.row_number, "nature",
@@ -1493,7 +1505,7 @@ class ValidationService:
         nature_by_code: dict[str, str] = {}
         for r in coa_rows:
             code = (r.account_code or "").strip()
-            nature = (r.nature or "").strip().upper()
+            nature = _normalize_coa_nature(r.nature)
             if code and nature:
                 nature_by_code[code] = nature
 

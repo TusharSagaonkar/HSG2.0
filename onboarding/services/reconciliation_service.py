@@ -178,6 +178,8 @@ class ReconciliationService:
         for r in coa_rows:
             code = (r.account_code or "").strip()
             nature = (r.nature or "").strip().upper()
+            if nature == "GENERAL":
+                nature = ""
             if code and nature:
                 nature_by_code[code] = nature
 

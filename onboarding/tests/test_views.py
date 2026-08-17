@@ -37,7 +37,10 @@ from onboarding.models import (
     StagingVendorOutstanding,
     UploadBatch,
 )
+from onboarding.services.staging_service import StagingService
 from onboarding.services.wizard_service import WizardService
+from accounting.models import Account
+from accounting.models import AccountCategory
 
 # --------------------------------------------------------------------------- #
 # Manager patching
@@ -243,6 +246,185 @@ class WizardListViewTest(OnboardingViewTestBase):
         self.assertIn("wizards", response.context)
         wizard_pks = [w.pk for w in response.context["wizards"]]
         self.assertIn(self.wizard.pk, wizard_pks)
+
+
+class WizardStep10ViewTest(OnboardingViewTestBase):
+    """Tests for the step 10 chart of accounts view."""
+
+    def test_step10_shows_existing_accounts_and_crud_links(self):
+        society = self.society
+        category = AccountCategory.objects.create(
+            society=society,
+            name="Step 10 Assets",
+            account_type=Account.AccountType.ASSET,
+        )
+        root = Account.objects.create(
+            society=society,
+            name="Assets",
+            code="91",
+            category=category,
+            account_type=Account.AccountType.ASSET,
+        )
+        child = Account.objects.create(
+            society=society,
+            name="Cash",
+            code="91.1",
+            category=category,
+            parent=root,
+            account_type=Account.AccountType.ASSET,
+        )
+        self.wizard.current_step = 10
+        self.wizard.save(update_fields=["current_step"])
+
+        response = self.client.get(
+            reverse("onboarding:wizard-step", kwargs={"wizard_id": self.wizard.pk, "step_number": 10})
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Open Account Tree")
+        self.assertContains(response, root.name)
+        self.assertContains(response, child.name)
+        self.assertContains(response, reverse("accounting:account-tree"))
+        self.assertContains(response, reverse("accounting:account-list"))
+        self.assertContains(response, reverse("accounting:account-add"))
+        self.assertContains(response, reverse("accounting:account-edit", kwargs={"pk": child.pk}))
+        self.assertEqual(
+            response.context["account_count"],
+            Account.objects.filter(society=society).count(),
+        )
+        self.assertGreaterEqual(len(response.context["root_accounts"]), 1)
+
+
+class WizardStep11TemplateDownloadTest(OnboardingViewTestBase):
+    """Tests for the step 11 template download links."""
+
+    def test_template_download_supports_csv_and_xlsx(self):
+        self.wizard.current_step = 11
+        self.wizard.save(update_fields=["current_step"])
+
+        csv_response = self.client.get(
+            reverse("onboarding:template-download", kwargs={"template_type": "TRIAL_BALANCE"}),
+            {"wizard_id": self.wizard.pk, "format": "csv"},
+        )
+        self.assertEqual(csv_response.status_code, 200)
+        self.assertEqual(csv_response["Content-Type"], "text/csv")
+        self.assertIn("account_code", csv_response.content.decode())
+
+        xlsx_response = self.client.get(
+            reverse("onboarding:template-download", kwargs={"template_type": "TRIAL_BALANCE"}),
+            {"wizard_id": self.wizard.pk, "format": "xlsx"},
+        )
+        self.assertEqual(xlsx_response.status_code, 200)
+        self.assertIn(
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            xlsx_response["Content-Type"],
+        )
+
+    def test_continue_advances_to_staging_step(self):
+        self.wizard.current_step = 11
+        self.wizard.save(update_fields=["current_step"])
+
+        response = self.client.post(
+            reverse(
+                "onboarding:wizard-step-save",
+                kwargs={"wizard_id": self.wizard.pk, "step_number": 11},
+            ),
+            {},
+        )
+
+        self.assertRedirects(
+            response,
+            reverse(
+                "onboarding:wizard-step",
+                kwargs={"wizard_id": self.wizard.pk, "step_number": 12},
+            ),
+            fetch_redirect_response=False,
+        )
+        self.wizard.refresh_from_db()
+        self.assertEqual(self.wizard.current_step, 12)
+
+
+class WizardStep11ManualEntryTest(OnboardingViewTestBase):
+    """Tests for the step 11 typed manual-entry form."""
+
+    def test_manual_entry_renders_formset(self):
+        self.wizard.current_step = 11
+        self.wizard.save(update_fields=["current_step"])
+
+        response = self.client.get(
+            reverse(
+                "onboarding:template-manual-entry",
+                kwargs={"wizard_id": self.wizard.pk, "template_type": "TRIAL_BALANCE"},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'readonly="readonly"')
+        self.assertContains(response, "id_rows-TOTAL_FORMS")
+        self.assertContains(response, "account_code")
+
+    def test_manual_entry_saves_rows_and_redirects_to_summary(self):
+        self.wizard.current_step = 11
+        self.wizard.save(update_fields=["current_step"])
+
+        get_response = self.client.get(
+            reverse(
+                "onboarding:template-manual-entry",
+                kwargs={"wizard_id": self.wizard.pk, "template_type": "TRIAL_BALANCE"},
+            )
+        )
+        locked_row_count = get_response.context["seed_row_count"]
+
+        post_data = {
+            "rows-TOTAL_FORMS": str(locked_row_count + 1),
+            "rows-INITIAL_FORMS": str(locked_row_count),
+            "rows-MIN_NUM_FORMS": "0",
+            "rows-MAX_NUM_FORMS": "1000",
+            f"rows-{locked_row_count}-account_code": "1.1",
+            f"rows-{locked_row_count}-account_name": "Cash",
+            f"rows-{locked_row_count}-debit": "100",
+            f"rows-{locked_row_count}-credit": "0",
+        }
+        response = self.client.post(
+            reverse(
+                "onboarding:template-manual-entry",
+                kwargs={"wizard_id": self.wizard.pk, "template_type": "TRIAL_BALANCE"},
+            ),
+            post_data,
+        )
+
+        self.assertRedirects(
+            response,
+            reverse(
+                "onboarding:staging-view",
+                kwargs={"wizard_id": self.wizard.pk, "template_type": "TRIAL_BALANCE"},
+            ),
+            fetch_redirect_response=False,
+        )
+        staged = StagingService.get_staging_data(self.wizard, "TRIAL_BALANCE")
+        self.assertEqual(staged["total_count"], locked_row_count + 1)
+        self.assertEqual(staged["rows"][-1]["account_code"], "1.1")
+        self.assertEqual(staged["rows"][-1]["account_name"], "Cash")
+
+        reopen_response = self.client.get(
+            reverse(
+                "onboarding:template-manual-entry",
+                kwargs={"wizard_id": self.wizard.pk, "template_type": "TRIAL_BALANCE"},
+            )
+        )
+        self.assertEqual(reopen_response.status_code, 200)
+        self.assertContains(reopen_response, 'readonly="readonly"')
+        self.assertContains(reopen_response, 'value="Cash"')
+        self.assertContains(reopen_response, 'value="100.00"')
+
+        step11_response = self.client.get(
+            reverse(
+                "onboarding:wizard-step",
+                kwargs={"wizard_id": self.wizard.pk, "step_number": 11},
+            )
+        )
+        self.assertEqual(step11_response.status_code, 200)
+        self.assertContains(step11_response, "VALIDATED")
 
     def test_list_only_shows_own_wizards(self):
         """Wizards created by other users are not visible."""

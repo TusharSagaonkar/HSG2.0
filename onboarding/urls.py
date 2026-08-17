@@ -39,6 +39,11 @@ urlpatterns = [
         name="wizard-step-save",
     ),
     path(
+        "<int:wizard_id>/template/<str:template_type>/manual/",
+        views.template_manual_entry,
+        name="template-manual-entry",
+    ),
+    path(
         "<int:wizard_id>/units/structure/<int:structure_id>/delete/",
         views.wizard_units_delete,
         name="wizard-units-delete",

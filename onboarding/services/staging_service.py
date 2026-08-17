@@ -459,6 +459,56 @@ class StagingService:
 
     @staticmethod
     @transaction.atomic
+    def save_rows(wizard, template_type, rows, user=None, *, file_name: str | None = None) -> UploadBatch:
+        """Persist editor-entered rows into the same staging tables as uploads.
+
+        This follows the upload pipeline semantics, but it skips the file
+        storage step and writes the in-memory rows directly into staging.
+        """
+        if wizard is None:
+            raise ValueError("wizard is required.")
+
+        canonical = StagingService._normalize_template_type(template_type)
+        safe_rows = StagingService._prepare_editor_rows(canonical, rows)
+
+        # Replace any existing staged data for this template so the editor
+        # behaves like the latest source of truth, just like re-upload.
+        StagingService._delete_existing(wizard, canonical)
+
+        batch = UploadBatch.objects.create(
+            wizard=wizard,
+            society=wizard.society,
+            template_type=canonical,
+            file_name=file_name or f"manual_editor_{canonical.lower()}.csv",
+            file_path="",
+            uploaded_by=user,
+            row_count=0,
+            status=UploadBatch.Status.UPLOADED,
+            validation_summary={
+                "total_rows": len(safe_rows),
+                "valid_rows": 0,
+                "invalid_rows": 0,
+                "pending_rows": len(safe_rows),
+                "errors_count": 0,
+            },
+        )
+
+        StagingService.store_staging_data(wizard, batch, canonical, safe_rows)
+
+        StagingService._log_audit(
+            wizard=wizard,
+            action="SAVE_TEMPLATE",
+            user=user,
+            details={
+                "template_type": canonical,
+                "row_count": len(safe_rows),
+                "batch_id": batch.pk,
+            },
+        )
+        return batch
+
+    @staticmethod
+    @transaction.atomic
     def store_staging_data(wizard, upload_batch, template_type, rows) -> int:
         """Map parsed rows to the appropriate staging model and bulk-create
         them. Each row gets ``row_number``, ``raw_data`` (original row dict),
@@ -745,6 +795,41 @@ class StagingService:
             if norm_key:
                 normalized[norm_key] = value
         return normalized
+
+    @staticmethod
+    def _prepare_editor_rows(template_type, rows) -> list[dict[str, Any]]:
+        """Normalize editor rows and drop rows that are entirely blank.
+
+        The step-11 editor is meant to capture only the values a user actually
+        wants to provide. This helper strips whitespace, keeps only declared
+        template columns, and ignores rows that do not contain any data.
+        """
+        canonical = StagingService._normalize_template_type(template_type)
+        columns = TEMPLATE_COLUMNS[canonical]
+        if not isinstance(rows, list):
+            return []
+
+        prepared: list[dict[str, Any]] = []
+        for raw_row in rows:
+            if not isinstance(raw_row, dict):
+                continue
+            normalized = StagingService._normalize_row(raw_row)
+            row: dict[str, Any] = {}
+            has_value = False
+            for column in columns:
+                value = normalized.get(column, "")
+                if value is None:
+                    value = ""
+                if isinstance(value, str):
+                    value = value.strip()
+                else:
+                    value = str(value).strip()
+                if value != "":
+                    has_value = True
+                row[column] = value
+            if has_value:
+                prepared.append(row)
+        return prepared
 
     @staticmethod
     def _normalize_key(key: str) -> str:
