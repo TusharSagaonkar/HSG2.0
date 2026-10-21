@@ -12,8 +12,8 @@ Services exported:
     * :class:`FinancialYearSetupService` — financial year + period creation
     * :class:`StagingService` — staging area: upload, parse, store, delete, approve
     * :class:`ValidationService` — validation engine (per-template + cross-reference)
-    * :class:`ReconciliationService` — reconciliation dashboard + validation checklist (Steps 23–24)
-    * :class:`MigrationFinalizationService` — opening journal creation + migration lock (Steps 25–27)
+    * :class:`ReconciliationService` — reconciliation dashboard + validation checklist (Steps 22–23)
+    * :class:`MigrationFinalizationService` — opening journal creation + migration lock (Steps 24–26)
 """
 
 from .wizard_service import WizardService

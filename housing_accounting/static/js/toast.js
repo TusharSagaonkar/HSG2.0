@@ -119,8 +119,18 @@ if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", () => {
     toastManager = new ToastManager();
     window.toast = toastManager;
+    bindToastEvents();
   });
 } else {
   toastManager = new ToastManager();
   window.toast = toastManager;
+  bindToastEvents();
+}
+
+function bindToastEvents() {
+  document.body.addEventListener("showToast", (event) => {
+    const detail = event.detail || {};
+    if (!detail.message || !window.toast) return;
+    window.toast.show(detail.message, detail.type || "info");
+  });
 }

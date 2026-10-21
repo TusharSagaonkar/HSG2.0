@@ -398,7 +398,7 @@ class ValidationService:
         - Required: account_code, debit, credit
         - No duplicate account_codes
         - Debit and credit are valid decimal numbers
-        - Total Debit must equal Total Credit (critical check, Step 15)
+        - Total Debit must equal Total Credit (critical check, Step 14)
         """
         qs = (
             StagingTrialBalance.objects
@@ -1107,7 +1107,7 @@ class ValidationService:
         return {"errors_by_row": errors_by_row, "summary": {}}
 
     # ------------------------------------------------------------------ #
-    # Cross-reference validation (Step 24 checklist)
+    # Cross-reference validation (Step 23 checklist)
     # ------------------------------------------------------------------ #
 
     @staticmethod

@@ -43,9 +43,9 @@
       <link rel="stylesheet" href="{% static 'vendor/kaiadmin-lite/assets/css/fonts.min.css' %}" />
       <link rel="stylesheet" href="{% static 'vendor/kaiadmin-lite/assets/css/kaiadmin.min.css' %}" />
       <link href="{% static 'css/design-tokens.css' %}" rel="stylesheet" />
-      <link href="{% static 'css/components.css' %}" rel="stylesheet" />
+      <link href="{% static 'css/components.css' %}?v=20261020-1" rel="stylesheet" />
       <link href="{% static 'css/accessibility.css' %}" rel="stylesheet" />
-      <link href="{% static 'css/project.css' %}" rel="stylesheet" />
+      <link href="{% static 'css/project.css' %}?v=20261018-1" rel="stylesheet" />
     {% endblock css %}
 
     <!-- Load sidebar state early to prevent flickering -->
@@ -68,7 +68,7 @@
       <script defer src="https://unpkg.com/htmx.org@1.9.12"></script>
       <script defer src="{% static 'js/toast.js' %}"></script>
       <script defer src="{% static 'js/components.js' %}"></script>
-      <script defer src="{% static 'js/project.js' %}?v=20260429"></script>
+      <script defer src="{% static 'js/project.js' %}?v=20261018-3"></script>
       <script defer src="{% static 'js/shortcut_engine.js' %}"></script>
     {% endblock javascript %}
   </head>
@@ -132,7 +132,7 @@
                   </li>
 
                   <li class="nav-item {% if current_namespace == 'housing' and current_url_name == 'member-list' or current_namespace == 'housing' and current_url_name == 'member-edit' or current_namespace == 'housing' and current_url_name == 'member-add' or current_namespace == 'members' %}active{% endif %}">
-                    <a href="{% url 'housing:member-list' %}" aria-label="Members" data-workspace-link hx-get="{% url 'housing:member-list' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
+                    <a href="{% url 'housing:member-list' %}" aria-label="Members" data-full-navigation>
                       <i class="fas fa-users"></i>
                       <p>{% translate "Members" %}</p>
                     </a>
@@ -151,7 +151,7 @@
                 </li>
 
                     <li class="nav-item {% if current_namespace == 'accounting' %}active{% endif %}">
-                      <a href="{% url 'accounting:dashboard' %}" aria-label="Accounting" data-workspace-link hx-get="{% url 'accounting:dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
+                      <a href="{% url 'accounting:dashboard' %}" aria-label="Accounting" data-full-navigation>
                         <i class="fas fa-calculator"></i>
                         <p>{% translate "Accounting" %}</p>
                       </a>
@@ -177,7 +177,7 @@
                 </li>
 
                   <li class="nav-item {% if current_namespace == 'billing' and current_url_name == 'charge-template-list' or current_namespace == 'billing' and current_url_name == 'bill-list' or current_namespace == 'billing' and current_url_name == 'bill-detail' or current_namespace == 'receipts' and current_url_name == 'receipt-list' or current_namespace == 'receipts' and current_url_name == 'receipt-detail' or current_namespace == 'housing' and current_url_name == 'finance-dashboard' or current_namespace == 'housing' and current_url_name == 'outstanding-dashboard' or current_namespace == 'housing' and current_url_name == 'charge-template-add' or current_namespace == 'housing' and current_url_name == 'billing-generate' or current_namespace == 'housing' and current_url_name == 'receipt-post' %}active{% endif %}">
-                    <a href="{% url 'housing:finance-dashboard' %}" aria-label="Finance Hub" data-workspace-link hx-get="{% url 'housing:finance-dashboard' %}" hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML" hx-push-url="true" hx-indicator="#workspace-loading">
+                    <a href="{% url 'housing:finance-dashboard' %}" aria-label="Finance Hub" data-full-navigation>
                       <i class="fas fa-file-invoice-dollar"></i>
                       <p>{% translate "Finance Hub" %}</p>
                     </a>
@@ -268,28 +268,14 @@
                 <ul class="navbar-nav topbar-nav ms-md-auto align-items-center">
                   {% if request.user.is_authenticated %}
                     <li class="nav-item">
-                      <div class="selection-shell d-flex align-items-center gap-2 p-2" role="group" aria-label="Tenant Context Selection" style="background-color: var(--color-bg-secondary); border-radius: var(--radius-md);">
-                        <div class="selection-shell-meta">
-                          <span class="selection-shell-kicker">{% translate "Tenant Context" %}</span>
-                          <div class="selection-shell-badges">
-                            {% if request.user.is_super_admin %}
-                              <span class="context-badge context-badge-super" style="background-color: var(--color-primary-subtle); color: var(--color-primary); padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-full); font-weight: var(--font-weight-medium);">{% translate "Super Admin" %}</span>
-                            {% endif %}
-                            {% if current_membership %}
-                              <span class="context-badge context-badge-role" style="background-color: var(--color-primary-subtle); color: var(--color-primary); padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-full); font-weight: var(--font-weight-medium);">{{ current_membership.get_role_display }}</span>
-                            {% elif selected_society %}
-                              <span class="context-badge context-badge-empty" style="background-color: var(--color-gray-100); color: var(--color-gray-600); padding: var(--space-xs) var(--space-sm); border-radius: var(--radius-full); font-weight: var(--font-weight-medium);">{% translate "No Role" %}</span>
-                            {% endif %}
-                          </div>
-                        </div>
-                        <form method="post" action="{% url 'users:selection-update' %}" class="selection-form d-flex align-items-center gap-2" id="societySelectionForm" aria-label="Society and Financial Year Selection" 
-                              hx-post="{% url 'users:selection-update' %}" hx-trigger="change" hx-target="#workspace" hx-swap="innerHTML" hx-indicator="#workspace-loading">
+                      <div class="selection-shell" role="group" aria-label="Society and Financial Year Selection">
+                        <form method="post" action="{% url 'users:selection-update' %}" class="selection-form" id="societySelectionForm" aria-label="Society and Financial Year Selection">
                           {% csrf_token %}
                           <input type="hidden" name="next" value="{{ request.get_full_path }}" id="nextUrlField" />
-                          <div class="d-flex flex-column">
+                          <div class="selection-control">
                             <label class="small mb-0" for="id_selected_society">{% translate "Society" %}</label>
                             <select id="id_selected_society" name="selected_society_id" class="btn btn-sm btn-outline-secondary" aria-label="Select Society" 
-                                    style="background-color: var(--color-bg-primary); border: 1px solid var(--color-border-default); border-radius: var(--radius-sm);">
+                                    onchange="this.form.requestSubmit()" style="background-color: var(--color-bg-primary); border: 1px solid var(--color-border-default); border-radius: var(--radius-sm);">
                               {% for society in selection_societies %}
                                 <option value="{{ society.id }}" {% if selected_society and selected_society.id == society.id %}selected{% endif %}>{{ society.name }}</option>
                               {% empty %}
@@ -297,10 +283,10 @@
                               {% endfor %}
                             </select>
                           </div>
-                          <div class="d-flex flex-column">
+                          <div class="selection-control">
                             <label class="small mb-0" for="id_selected_financial_year">{% translate "FY" %}</label>
                             <select id="id_selected_financial_year" name="selected_financial_year_id" class="btn btn-sm btn-outline-secondary" aria-label="Select Financial Year" 
-                                    style="background-color: var(--color-bg-primary); border: 1px solid var(--color-border-default); border-radius: var(--radius-sm);">
+                                    onchange="this.form.requestSubmit()" style="background-color: var(--color-bg-primary); border: 1px solid var(--color-border-default); border-radius: var(--radius-sm);">
                               {% for financial_year in selection_financial_years %}
                                 <option value="{{ financial_year.id }}" {% if selected_financial_year and selected_financial_year.id == financial_year.id %}selected{% endif %}>{{ financial_year.name }}</option>
                               {% empty %}
@@ -314,11 +300,8 @@
                     <li class="nav-item">
                       <button class="btn btn-sm btn-outline-primary"
                               type="button"
-                              hx-get="/accounting/periods/"
-                              hx-trigger="click"
-                              hx-target="#periods-modal-body"
-                              hx-swap="innerHTML"
-                              hx-indicator="#workspace-loading"
+                              data-bs-toggle="modal"
+                              data-bs-target="#periodsModal"
                               aria-label="View Accounting Periods"
                               style="border-radius: var(--radius-md); transition: all var(--transition-normal);">
                         <i class="fas fa-calendar-alt me-1"></i>
@@ -435,36 +418,33 @@
         </div>
       </div>
 
-       <div class="modal fade" id="periodsModal" tabindex="-1" aria-labelledby="periodsModalLabel" aria-hidden="true" role="dialog">
-         <div class="modal-dialog modal-lg modal-dialog-scrollable">
-           <div class="modal-content">
-             <div class="modal-header">
+       <div class="modal fade periods-modal" id="periodsModal" tabindex="-1" aria-labelledby="periodsModalLabel" aria-hidden="true" role="dialog">
+         <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+           <div class="modal-content periods-modal__content">
+             <div class="modal-header periods-modal__header">
                <h5 class="modal-title" id="periodsModalLabel">
                  {% translate "Accounting Periods" %}
-                 {% if selected_society %}- {{ selected_society.name }}{% endif %}
-                 {% if selected_financial_year %} / {{ selected_financial_year.name }}{% endif %}
+                 {% if selected_society %}<span class="periods-modal__context">— {{ selected_society.name }}</span>{% endif %}
+                 {% if selected_financial_year %}<span class="periods-modal__context">/ {{ selected_financial_year.name }}</span>{% endif %}
                </h5>
-               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+               <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
              </div>
-             <div class="modal-body" id="periods-modal-body">
+             <div class="modal-body periods-modal__body" id="periods-modal-body">
                {% if selection_accounting_periods %}
-                 <ul class="periods-list mb-0">
+                 <ul class="periods-list periods-list--modal mb-0" aria-label="{% translate 'Accounting periods' %}">
                    {% for period in selection_accounting_periods %}
-                     <li style="padding: var(--space-sm) 0; border-bottom: 1px solid var(--color-border-default);">
-                       <div class="small fw-semibold">{{ period.start_date|date:"M d, Y" }} - {{ period.end_date|date:"M d, Y" }}</div>
-                       <span class="period-status {% if period.is_open %}active{% else %}inactive{% endif %}" style="display: inline-flex; align-items: center; gap: var(--space-xs);">
-                         <i class="fas fa-circle" style="font-size: 0.6rem;"></i>
-                         {% if period.is_open %}
-                           <span style="color: var(--color-success);">{% translate "Active" %}</span>
-                         {% else %}
-                           <span style="color: var(--color-danger);">{% translate "Closed" %}</span>
-                         {% endif %}
-                       </span>
+                     <li>
+                       <div class="periods-list__date">{{ period.start_date|date:"M d, Y" }} <span aria-hidden="true">–</span> {{ period.end_date|date:"M d, Y" }}</div>
+                       {% if period.is_open %}
+                         <span class="period-status active"><i class="fas fa-circle" aria-hidden="true"></i>{% translate "Active" %}</span>
+                       {% else %}
+                         <span class="period-status inactive"><i class="fas fa-circle" aria-hidden="true"></i>{% translate "Closed" %}</span>
+                       {% endif %}
                      </li>
                    {% endfor %}
                  </ul>
                {% else %}
-                 <p class="small text-muted mb-0">{% translate "No accounting periods found for selected society and financial year." %}</p>
+                 <p class="periods-empty">{% translate "No accounting periods found for the selected financial year." %}</p>
                {% endif %}
              </div>
            </div>

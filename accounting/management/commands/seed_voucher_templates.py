@@ -54,35 +54,25 @@ class Command(BaseCommand):
     def _seed_for_society(self, society, dry_run):
         """Create default templates for a single society."""
         # Find commonly used accounts (by name patterns)
-        cash_account = Account.objects.filter(
+        posting_accounts = Account.objects.filter(
             society=society,
-            name__icontains="cash",
             is_active=True,
-        ).first()
-        bank_account = Account.objects.filter(
-            society=society,
+            is_posting=True,
+            children__isnull=True,
+        ).distinct()
+        cash_account = posting_accounts.filter(name__icontains="cash").first()
+        bank_account = posting_accounts.filter(
             name__icontains="bank",
-            is_active=True,
         ).first()
-        maintenance_receivable = Account.objects.filter(
-            society=society,
-            name__icontains="maintenance receivable",
-            is_active=True,
-        ).first()
-        electricity_expense = Account.objects.filter(
-            society=society,
+        maintenance_receivable = posting_accounts.filter(name__icontains="maintenance due").first()
+        electricity_expense = posting_accounts.filter(
             name__icontains="electricity",
-            is_active=True,
         ).first()
-        depreciation_expense = Account.objects.filter(
-            society=society,
+        depreciation_expense = posting_accounts.filter(
             name__icontains="depreciation",
-            is_active=True,
         ).first()
-        furniture_account = Account.objects.filter(
-            society=society,
+        furniture_account = posting_accounts.filter(
             name__icontains="furniture",
-            is_active=True,
         ).first()
 
         # If any required account is missing, skip that template

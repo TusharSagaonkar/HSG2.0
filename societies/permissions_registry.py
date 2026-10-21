@@ -31,7 +31,7 @@ class PermissionRegistry:
     _MODULES: ClassVar[dict[str, dict[str, list[str]]]] = {
         "accounting": {
             "voucher": ["create", "view", "edit", "delete", "post", "reverse", "export", "print"],
-            "account": ["create", "view", "edit", "lock", "unlock"],
+            "account": ["create", "view", "edit", "delete", "lock", "unlock"],
             "financialyear": ["create", "view", "edit", "lock", "unlock"],
             "report": ["view", "export"],
             "vouchertemplate": ["create", "view", "edit", "delete"],

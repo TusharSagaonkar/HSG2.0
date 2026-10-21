@@ -144,15 +144,15 @@
               <div class="mb-2">
                 <div class="d-flex justify-content-between align-items-center mb-1">
                   <small class="text-muted">{% trans "Progress" %}</small>
-                  <small class="fw-bold">{{ wizard.current_step }} / 28</small>
+                  <small class="fw-bold">{{ wizard.current_step }} / 27</small>
                 </div>
                 <div class="progress" style="height: 6px;">
                   <div class="progress-bar {% if wizard.status == 'COMPLETED' %}bg-success{% elif wizard.status == 'ABANDONED' %}bg-secondary{% else %}bg-primary{% endif %}"
                        role="progressbar"
-                       style="width: {% widthratio wizard.current_step 28 100 %}%;"
+                       style="width: {% widthratio wizard.current_step 27 100 %}%;"
                        aria-valuenow="{{ wizard.current_step }}"
                        aria-valuemin="0"
-                       aria-valuemax="28">
+                       aria-valuemax="27">
                   </div>
                 </div>
               </div>

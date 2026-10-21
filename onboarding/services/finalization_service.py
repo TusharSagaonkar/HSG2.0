@@ -1,5 +1,5 @@
 """Migration finalization service for the Society Creation & Accounting
-Migration Wizard (Phase 7 — Steps 25–27: final approval, opening journal
+Migration Wizard (Phase 7 — Steps 24–26: final approval, opening journal
 creation, and migration lock).
 
 This is the **most critical service** in the wizard: it is the **only**
@@ -102,13 +102,13 @@ def _to_decimal(value, default: Decimal = ZERO) -> Decimal:
 
 class MigrationFinalizationService:
     """Finalizes the accounting migration by creating the opening journal
-    in live accounting tables and locking the migration (Steps 25–27).
+    in live accounting tables and locking the migration (Steps 24–26).
 
     This is the **only service** that writes to live accounting tables.
     """
 
     # ------------------------------------------------------------------ #
-    # Step 25–27 — Orchestration
+# Step 24–26 — Orchestration
     # ------------------------------------------------------------------ #
 
     @staticmethod
@@ -203,7 +203,7 @@ class MigrationFinalizationService:
         return voucher
 
     # ------------------------------------------------------------------ #
-    # Step 26 — Create Opening Journal
+    # Step 25 — Create Opening Journal
     # ------------------------------------------------------------------ #
 
     @staticmethod
@@ -253,7 +253,7 @@ class MigrationFinalizationService:
         if fy is None:
             raise ValidationError(
                 "No open financial year found for the society. "
-                "Ensure Step 5 (Financial Year Creation) is completed."
+    "Ensure Step 4 (Financial Year Creation) is completed."
             )
 
         # Ensure the FY start date period is open for posting.
@@ -610,7 +610,7 @@ class MigrationFinalizationService:
         return entries
 
     # ------------------------------------------------------------------ #
-    # Step 27 — Lock Migration
+    # Step 26 — Lock Migration
     # ------------------------------------------------------------------ #
 
     @staticmethod
@@ -802,7 +802,7 @@ class MigrationFinalizationService:
 
         raise ValidationError(
             f"Unit not found for identifier '{identifier}'. "
-            "Ensure Step 7 (Unit Configuration) and Step 8 (Member Assignment) "
+            "Ensure Step 6 (Unit Configuration) and Step 7 (Member Assignment) "
             "are completed before finalization."
         )
 

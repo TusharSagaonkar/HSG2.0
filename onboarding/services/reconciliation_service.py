@@ -1,5 +1,5 @@
 """Reconciliation dashboard service for the Society Creation & Accounting
-Migration Wizard (Phase 6 — Steps 23 & 24: reconciliation dashboard data +
+Migration Wizard (Phase 6 — Steps 22 & 23: reconciliation dashboard data +
 validation checklist).
 
 This service generates **read-only** reconciliation dashboard data from the
@@ -81,15 +81,15 @@ def _is_close(a: Decimal, b: Decimal, tol: Decimal = TOLERANCE) -> bool:
 
 
 class ReconciliationService:
-    """Generates reconciliation dashboard data (Step 23) and runs the
-    validation checklist (Step 24).
+    """Generates reconciliation dashboard data (Step 22) and runs the
+    validation checklist (Step 23).
 
     All methods read **only** from staging tables. They never touch live
     accounting models (``Voucher``, ``LedgerEntry``, ``Account``).
     """
 
     # ------------------------------------------------------------------ #
-    # Step 23 — Reconciliation Dashboard sections
+    # Step 22 — Reconciliation Dashboard sections
     # ------------------------------------------------------------------ #
 
     @staticmethod
@@ -650,7 +650,7 @@ class ReconciliationService:
         """Generate the complete reconciliation dashboard (all sections).
 
         Combines all summary generators into a single dict for the
-        reconciliation dashboard view (Step 23).
+        reconciliation dashboard view (Step 22).
 
         Returns::
 
@@ -701,7 +701,7 @@ class ReconciliationService:
         }
 
     # ------------------------------------------------------------------ #
-    # Step 24 — Validation Checklist (C1–C9)
+    # Step 23 — Validation Checklist (C1–C9)
     # ------------------------------------------------------------------ #
 
     @staticmethod
@@ -724,7 +724,7 @@ class ReconciliationService:
                 "can_finalize": True,
             }
 
-        ``all_passed`` gates Step 25 (Final Approval).
+        ``all_passed`` gates Step 24 (Final Approval).
         """
         cross = ValidationService.validate_cross_references(wizard)
 

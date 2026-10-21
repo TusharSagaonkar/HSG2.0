@@ -24,7 +24,7 @@
             {% if existing_structures %}
               <div class="structure-tree">
                 {% for structure in existing_structures %}
-                  {% include "housing/partials/structure_tree_item.html" with structure=structure level=0 %}
+                  {% include "housing/partials/structure_tree_item.html" with structure=structure level=0 wizard_id=wizard.id %}
                 {% endfor %}
               </div>
             {% else %}
@@ -48,8 +48,11 @@
           </h5>
         </div>
         <div class="content-card__body">
-          <form method="post" 
+          <form method="post"
                 action="{% url 'onboarding:wizard-step-save' wizard.id step_number %}"
+                hx-post="{% url 'onboarding:wizard-step-save' wizard.id step_number %}"
+                hx-target="#workspace"
+                hx-swap="innerHTML"
                 novalidate>
             {% csrf_token %}
 
@@ -156,7 +159,7 @@
 
             <!-- Form Actions for Onboarding Context -->
             <div class="form-actions mt-3">
-              <a href="{% url 'onboarding:wizard-step' wizard.id 5 %}"
+              <a href="{% url 'onboarding:wizard-step' wizard.id 4 %}"
                  class="btn-action btn-action--secondary">
                 <i class="fas fa-arrow-left me-1"></i>{% translate "Previous Step" %}
               </a>

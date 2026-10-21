@@ -24,11 +24,11 @@ class AccountForm(forms.ModelForm):
         model = Account
         fields = [
             "name",
-            "code",
             "category",
             "account_type",
             "sub_type",
             "is_active",
+            "is_posting",
             "is_gst",
             "gst_type",
             "is_bank",
@@ -39,7 +39,6 @@ class AccountForm(forms.ModelForm):
         ]
         widgets = {
             "name": forms.TextInput(attrs={"placeholder": "e.g. Bank Account"}),
-            "code": forms.TextInput(attrs={"placeholder": "e.g. 1.2.3"}),
             "sub_type": forms.Select(),
             "gst_type": forms.Select(),
         }
@@ -114,12 +113,6 @@ class AccountForm(forms.ModelForm):
 
         if category and account_type and category.account_type != account_type:
             raise forms.ValidationError("Account type must match the selected category.")
-
-        if self.parent and cleaned.get("code") and self.parent.code:
-            if not cleaned["code"].startswith(f"{self.parent.code}."):
-                raise forms.ValidationError(
-                    {"code": f"Child code must start with the parent code {self.parent.code}."}
-                )
 
         return cleaned
 
@@ -221,7 +214,12 @@ class VoucherTemplateRowForm(forms.ModelForm):
         super().__init__(*args, **kwargs)
         self.society = society
         self.fields["account"].queryset = (
-            Account.objects.filter(society=society).order_by("name")
+            Account.objects.filter(
+                society=society,
+                is_active=True,
+                is_posting=True,
+                children__isnull=True,
+            ).distinct().order_by("code", "name")
             if society
             else Account.objects.none()
         )
@@ -261,7 +259,12 @@ class LedgerEntryRowForm(forms.Form):
         self.society = society
         super().__init__(*args, **kwargs)
         self.fields["account"].queryset = (
-            Account.objects.filter(society=society).order_by("name")
+            Account.objects.filter(
+                society=society,
+                is_active=True,
+                is_posting=True,
+                children__isnull=True,
+            ).distinct().order_by("code", "name")
             if society
             else Account.objects.none()
         )
@@ -300,6 +303,9 @@ class LedgerEntryRowForm(forms.Form):
 
         if not account.is_active:
             raise forms.ValidationError("Selected account is inactive.")
+
+        if not account.is_posting or account.children.exists():
+            raise forms.ValidationError("Select an active leaf account enabled for posting.")
 
         if self.society and account.society_id != self.society.id:
             raise forms.ValidationError("Account must belong to the selected society.")

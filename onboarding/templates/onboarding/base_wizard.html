@@ -11,7 +11,7 @@
 
 {% block dashboard_subtitle %}
   {% if wizard %}
-    {% blocktrans with step=step_number total=total_steps %}
+    {% blocktrans with step=progress_index total=total_steps %}
       Step {{ step }} of {{ total }}
     {% endblocktrans %}
     {% if wizard.society %}— {{ wizard.society.name }}{% endif %}

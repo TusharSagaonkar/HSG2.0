@@ -37,6 +37,7 @@ from onboarding.models import (
     StagingVendorOutstanding,
     UploadBatch,
 )
+from onboarding.services.staging_service import ALL_TEMPLATE_TYPES
 from onboarding.services.staging_service import StagingService
 from onboarding.services.wizard_service import WizardService
 from accounting.models import Account
@@ -347,6 +348,18 @@ class WizardStep11TemplateDownloadTest(OnboardingViewTestBase):
 class WizardStep11ManualEntryTest(OnboardingViewTestBase):
     """Tests for the step 11 typed manual-entry form."""
 
+    def _build_fixed_row_post_data(self, formset):
+        post_data = {
+            "rows-TOTAL_FORMS": str(len(formset.forms)),
+            "rows-INITIAL_FORMS": str(len(formset.forms)),
+            "rows-MIN_NUM_FORMS": "0",
+            "rows-MAX_NUM_FORMS": "1000",
+        }
+        for index, form in enumerate(formset.forms):
+            for field in form.visible_fields():
+                post_data[f"rows-{index}-{field.name}"] = field.value() or ""
+        return post_data
+
     def test_manual_entry_renders_formset(self):
         self.wizard.current_step = 11
         self.wizard.save(update_fields=["current_step"])
@@ -362,6 +375,28 @@ class WizardStep11ManualEntryTest(OnboardingViewTestBase):
         self.assertContains(response, 'readonly="readonly"')
         self.assertContains(response, "id_rows-TOTAL_FORMS")
         self.assertContains(response, "account_code")
+        self.assertNotContains(response, "manualAddRow")
+        self.assertNotContains(response, "manualEmptyRowTemplate")
+        self.assertContains(response, "Edit Source Data")
+
+    def test_manual_entry_renders_fixed_rows_for_all_templates(self):
+        self.wizard.current_step = 11
+        self.wizard.save(update_fields=["current_step"])
+
+        for template_type in ALL_TEMPLATE_TYPES:
+            response = self.client.get(
+                reverse(
+                    "onboarding:template-manual-entry",
+                    kwargs={
+                        "wizard_id": self.wizard.pk,
+                        "template_type": template_type,
+                    },
+                )
+            )
+            self.assertEqual(response.status_code, 200)
+            self.assertNotContains(response, "manualAddRow")
+            self.assertNotContains(response, "manualEmptyRowTemplate")
+            self.assertContains(response, "Save & Validate")
 
     def test_manual_entry_saves_rows_and_redirects_to_summary(self):
         self.wizard.current_step = 11
@@ -374,17 +409,11 @@ class WizardStep11ManualEntryTest(OnboardingViewTestBase):
             )
         )
         locked_row_count = get_response.context["seed_row_count"]
+        formset = get_response.context["template_entry_formset"]
 
-        post_data = {
-            "rows-TOTAL_FORMS": str(locked_row_count + 1),
-            "rows-INITIAL_FORMS": str(locked_row_count),
-            "rows-MIN_NUM_FORMS": "0",
-            "rows-MAX_NUM_FORMS": "1000",
-            f"rows-{locked_row_count}-account_code": "1.1",
-            f"rows-{locked_row_count}-account_name": "Cash",
-            f"rows-{locked_row_count}-debit": "100",
-            f"rows-{locked_row_count}-credit": "0",
-        }
+        post_data = self._build_fixed_row_post_data(formset)
+        post_data["rows-0-debit"] = "100"
+        post_data["rows-0-credit"] = "0"
         response = self.client.post(
             reverse(
                 "onboarding:template-manual-entry",
@@ -402,9 +431,13 @@ class WizardStep11ManualEntryTest(OnboardingViewTestBase):
             fetch_redirect_response=False,
         )
         staged = StagingService.get_staging_data(self.wizard, "TRIAL_BALANCE")
-        self.assertEqual(staged["total_count"], locked_row_count + 1)
-        self.assertEqual(staged["rows"][-1]["account_code"], "1.1")
-        self.assertEqual(staged["rows"][-1]["account_name"], "Cash")
+        self.assertEqual(staged["total_count"], locked_row_count)
+        self.assertEqual(
+            staged["rows"][0]["account_code"], formset.forms[0].initial["account_code"]
+        )
+        self.assertEqual(
+            staged["rows"][0]["account_name"], formset.forms[0].initial["account_name"]
+        )
 
         reopen_response = self.client.get(
             reverse(
@@ -414,7 +447,6 @@ class WizardStep11ManualEntryTest(OnboardingViewTestBase):
         )
         self.assertEqual(reopen_response.status_code, 200)
         self.assertContains(reopen_response, 'readonly="readonly"')
-        self.assertContains(reopen_response, 'value="Cash"')
         self.assertContains(reopen_response, 'value="100.00"')
 
         step11_response = self.client.get(
@@ -425,6 +457,38 @@ class WizardStep11ManualEntryTest(OnboardingViewTestBase):
         )
         self.assertEqual(step11_response.status_code, 200)
         self.assertContains(step11_response, "VALIDATED")
+
+    def test_manual_entry_rejects_extra_rows(self):
+        self.wizard.current_step = 11
+        self.wizard.save(update_fields=["current_step"])
+
+        get_response = self.client.get(
+            reverse(
+                "onboarding:template-manual-entry",
+                kwargs={"wizard_id": self.wizard.pk, "template_type": "TRIAL_BALANCE"},
+            )
+        )
+        formset = get_response.context["template_entry_formset"]
+        post_data = self._build_fixed_row_post_data(formset)
+        extra_index = len(formset.forms)
+        post_data["rows-TOTAL_FORMS"] = str(extra_index + 1)
+        post_data[f"rows-{extra_index}-account_code"] = "9.9"
+        post_data[f"rows-{extra_index}-account_name"] = "Extra"
+        post_data[f"rows-{extra_index}-debit"] = "50"
+        post_data[f"rows-{extra_index}-credit"] = "0"
+
+        response = self.client.post(
+            reverse(
+                "onboarding:template-manual-entry",
+                kwargs={"wizard_id": self.wizard.pk, "template_type": "TRIAL_BALANCE"},
+            ),
+            post_data,
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "fixed rows")
+        staged = StagingService.get_staging_data(self.wizard, "TRIAL_BALANCE")
+        self.assertEqual(staged["total_count"], 0)
 
     def test_list_only_shows_own_wizards(self):
         """Wizards created by other users are not visible."""

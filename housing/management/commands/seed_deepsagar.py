@@ -103,9 +103,17 @@ class Command(BaseCommand):
         main_bank = Account.objects.get(society=society, code=AccountCodes.BANK_MAINTENANCE)
         maintenance_income = Account.objects.get(society=society, code=AccountCodes.MAINTENANCE_CHARGES)
         sinking_income = (
-            Account.objects.filter(society=society, code="3.4.1").first()
-            or Account.objects.get(society=society, name="Other Income")
+            Account.objects.filter(society=society, code="3.4.1", is_posting=True).first()
+            or Account.objects.filter(
+                society=society,
+                name__in=("Miscellaneous Income", "Other Income"),
+                is_posting=True,
+            ).first()
         )
+        if sinking_income is None:
+            raise CommandError(
+                "Could not find a posting account for other income (3.4.1)."
+            )
 
         fy = self._ensure_open_financial_year(society=society, today=today)
         period = self._ensure_open_period(

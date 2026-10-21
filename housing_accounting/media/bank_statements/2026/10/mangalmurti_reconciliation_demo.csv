@@ -1,0 +1,4 @@
+Date,Narration,Ref No,Debit,Credit,Balance
+2026-09-10,Receipt for bill #5 - Anjali Deshmukh,MG-DEMO-REC-001,,1815.00,251815.00
+2026-09-12,Receipt for bill #6 - Archana Chougule,MG-DEMO-REC-002,,1815.00,253630.00
+2026-10-12,Vendor payment against payable,MG-DEMO-PAY-001,4200.00,,249430.00

@@ -1,5 +1,5 @@
 import re
-from django.db import models
+from django.db import models, transaction
 from django.core.exceptions import ValidationError
 from .model_AccountCategory import AccountCategory
 from societies.models import Society
@@ -44,12 +44,13 @@ class Account(models.Model):
     )
     parent = models.ForeignKey(
         "self",
-        on_delete=models.CASCADE,
+        on_delete=models.RESTRICT,
         blank=True,
         null=True,
         related_name="children",
     )
     is_active = models.BooleanField(default=True)
+    is_posting = models.BooleanField(default=True)
     system_protected = models.BooleanField(default=False)
     account_type = models.CharField(
         max_length=20,
@@ -116,6 +117,27 @@ class Account(models.Model):
     def clean(self):
         super().clean()
 
+        if self.parent_id and self.society_id and self.parent.society_id != self.society_id:
+            raise ValidationError({"parent": "Parent account must belong to the same society."})
+        if self.parent and self.parent.is_posting:
+            if self.parent.ledger_entries.filter(voucher__posted_at__isnull=False).exists():
+                raise ValidationError({
+                    "parent": "This account has posted transactions and cannot become a parent without migrating its ledger history."
+                })
+
+        if self.is_posting and self.pk and self.children.exists():
+            raise ValidationError({"is_posting": "Parent accounts cannot receive direct postings."})
+
+        if self.pk:
+            previous_is_posting = (
+                Account.objects.filter(pk=self.pk).values_list("is_posting", flat=True).first()
+            )
+            if previous_is_posting and not self.is_posting:
+                if self.ledger_entries.filter(voucher__posted_at__isnull=False).exists():
+                    raise ValidationError({
+                        "is_posting": "This account has posted transactions and cannot be changed to a parent account without migrating its ledger history."
+                    })
+
         # Validate code format if provided
         if self.code and not self.CODE_PATTERN.match(self.code):
             raise ValidationError(
@@ -155,8 +177,30 @@ class Account(models.Model):
             raise ValidationError("Clearing accounts must be Asset or Liability.")
 
     def save(self, *args, **kwargs):
-        self.clean()
-        super().save(*args, **kwargs)
+        with transaction.atomic():
+            if self.parent_id:
+                parent = Account.objects.select_for_update().get(pk=self.parent_id)
+                if parent.society_id != self.society_id:
+                    raise ValidationError({"parent": "Parent account must belong to the same society."})
+                if parent.is_posting:
+                    if parent.ledger_entries.filter(voucher__posted_at__isnull=False).exists():
+                        raise ValidationError({
+                            "parent": "This account has posted transactions and cannot become a parent without migrating its ledger history."
+                        })
+                    parent.is_posting = False
+                    parent.save(update_fields=["is_posting"])
+            self.full_clean()
+            super().save(*args, **kwargs)
+
+    def validate_can_receive_posting(self, society):
+        if self.society_id != society.pk:
+            raise ValidationError({"account": "Account does not belong to this society."})
+        if not self.is_active:
+            raise ValidationError({"account": "Cannot post to an inactive account."})
+        if not self.is_posting:
+            raise ValidationError({"account": "This account is not enabled for posting."})
+        if self.children.exists():
+            raise ValidationError({"account": "Transactions can only be posted to leaf accounts."})
 
     def delete(self, *args, **kwargs):
         if self.system_protected:

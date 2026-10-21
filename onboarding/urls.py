@@ -39,6 +39,16 @@ urlpatterns = [
         name="wizard-step-save",
     ),
     path(
+        "<int:wizard_id>/financial-years/<int:financial_year_id>/delete/",
+        views.wizard_financial_year_delete,
+        name="wizard-financial-year-delete",
+    ),
+    path(
+        "<int:wizard_id>/accounts/reset/",
+        views.wizard_reset_accounts,
+        name="wizard-reset-accounts",
+    ),
+    path(
         "<int:wizard_id>/template/<str:template_type>/manual/",
         views.template_manual_entry,
         name="template-manual-entry",
@@ -49,22 +59,27 @@ urlpatterns = [
         name="wizard-units-delete",
     ),
     path(
-        "<int:wizard_id>/step/8/api/members/",
+        "<int:wizard_id>/structures/<int:structure_id>/delete/",
+        views.wizard_structure_delete,
+        name="wizard-structure-delete",
+    ),
+    path(
+        "<int:wizard_id>/step/7/api/members/",
         views.wizard_member_list_api,
         name="wizard-member-list-api",
     ),
     path(
-        "<int:wizard_id>/step/8/api/members/create/",
+        "<int:wizard_id>/step/7/api/members/create/",
         views.wizard_member_create_api,
         name="wizard-member-create-api",
     ),
     path(
-        "<int:wizard_id>/step/8/api/members/<int:member_id>/update/",
+        "<int:wizard_id>/step/7/api/members/<int:member_id>/update/",
         views.wizard_member_update_api,
         name="wizard-member-update-api",
     ),
     path(
-        "<int:wizard_id>/step/8/api/members/<int:member_id>/delete/",
+        "<int:wizard_id>/step/7/api/members/<int:member_id>/delete/",
         views.wizard_member_delete_api,
         name="wizard-member-delete-api",
     ),

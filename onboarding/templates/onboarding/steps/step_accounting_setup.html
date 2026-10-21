@@ -20,14 +20,54 @@
           {% endblocktrans %}
         </div>
 
-        <dl class="row mb-3">
-          <dt class="col-sm-4">{% trans "Society Name" %}</dt>
-          <dd class="col-sm-8">{{ society.name }}</dd>
-          <dt class="col-sm-4">{% trans "Registration Number" %}</dt>
-          <dd class="col-sm-8">{{ society.registration_number|default:"-" }}</dd>
-          <dt class="col-sm-4">{% trans "PAN" %}</dt>
-          <dd class="col-sm-8">{{ society.pan|default:"-" }}</dd>
-        </dl>
+        <div class="d-flex align-items-center justify-content-between mt-4 mb-2">
+          <h5 class="mb-0">{% trans "Onboarding Summary" %}</h5>
+          <span class="text-muted small">{% blocktrans with structures=summary_structure_count units=summary_unit_count members=summary_member_count %}{{ structures }} structures · {{ units }} units · {{ members }} members{% endblocktrans %}</span>
+        </div>
+
+        <div class="border rounded p-3 mb-2">
+          <div class="d-flex flex-wrap gap-2 align-items-center mb-2">
+            <strong>{% trans "Society" %}</strong>
+            {% if summary_society_type %}<span class="badge text-bg-secondary">{{ summary_society_type }}</span>{% endif %}
+            {% if summary_financial_year %}<span class="badge text-bg-light border">{% trans "Start year" %}: {{ summary_financial_year }}</span>{% endif %}
+          </div>
+          <div class="row g-2 small">
+            {% for row in summary_society_rows %}
+              <div class="col-12 col-md-6 col-xl-4"><span class="text-muted">{{ row.label }}:</span> {{ row.value|linebreaksbr }}</div>
+            {% empty %}<div class="col text-muted">{% trans "No society details available." %}</div>{% endfor %}
+          </div>
+        </div>
+
+        <div class="border rounded p-3 mb-2">
+          <strong class="small d-block mb-2">{% trans "Modules" %}</strong>
+          {% if summary_modules %}
+            <div class="d-flex flex-wrap gap-1">{% for module in summary_modules %}<span class="badge text-bg-light border">{{ module }}</span>{% endfor %}</div>
+          {% else %}<span class="text-muted small">{% trans "No optional modules selected." %}</span>{% endif %}
+        </div>
+
+        <div class="border rounded p-3 mb-3">
+          <strong class="small d-block mb-2">{% trans "Property & Residents" %}</strong>
+          {% for structure in summary_structures %}
+            <div class="small py-1 {% if not forloop.first %}border-top{% endif %}">
+              <span class="fw-semibold">{{ structure.path_label }}</span> <span class="text-muted">({{ structure.structure_type_label }})</span>
+              {% if structure.units %}
+                <div class="ms-3">
+                  {% for unit in structure.units %}
+                    <div class="py-1">
+                      <span class="fw-medium">{{ unit.identifier }}</span> <span class="text-muted">· {{ unit.unit_type_label }}{% if unit.area_sqft %} · {{ unit.area_sqft }} sq ft{% endif %}</span>
+                      {% if unit.members %}
+                        <span class="text-muted">—</span>
+                        {% for member in unit.members %}
+                          <span>{{ member.full_name }} <span class="text-muted">({{ member.role_label }}, {{ member.status_label }}{% if member.email %}; {{ member.email }}{% endif %}{% if member.phone %}; {{ member.phone }}{% endif %}{% if member.start_date %}; {{ member.start_date }}{% endif %})</span>{% if not forloop.last %}; {% endif %}</span>
+                        {% endfor %}
+                      {% else %}<span class="text-muted">— {% trans "No members assigned" %}</span>{% endif %}
+                    </div>
+                  {% endfor %}
+                </div>
+              {% else %}<span class="text-muted">— {% trans "No units" %}</span>{% endif %}
+            </div>
+          {% empty %}<span class="text-muted small">{% trans "No structures or units available." %}</span>{% endfor %}
+        </div>
       {% else %}
         <div class="alert alert-warning" role="alert">
           <i class="fas fa-exclamation-triangle me-2"></i>
@@ -44,7 +84,7 @@
                   {% if not society %}disabled{% endif %}>
             <i class="fas fa-cogs me-1"></i>{% trans "Set Up Accounting & Continue" %}
           </button>
-          <a href="{% url 'onboarding:wizard-step' wizard.id 8 %}"
+          <a href="{% url 'onboarding:wizard-step' wizard.id 7 %}"
              class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left me-1"></i>{% trans "Back" %}
           </a>

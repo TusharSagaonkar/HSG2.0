@@ -6,6 +6,7 @@ from django.utils import timezone
 from decimal import Decimal
 from collections import defaultdict
 from societies.models import Society
+from accounting.models.model_Account import Account
 from accounting.models.model_voucher_sequence import VoucherSequence
 from accounting.models.model_FinancialYear import FinancialYear
 from accounting.models.model_AccountingPeriod import AccountingPeriod
@@ -88,6 +89,9 @@ class Voucher(models.Model):
         entries = list(self.entries.all())
         if len(entries) < 2:
             raise ValidationError("Voucher must contain at least two ledger entries.")
+
+        for entry in entries:
+            entry.full_clean()
 
         total_debit = Decimal("0.00")
         total_credit = Decimal("0.00")
@@ -196,29 +200,33 @@ class Voucher(models.Model):
             raise ValidationError("GST lines require at least one non-GST taxable base line in the voucher.")
 
     def post(self):
-        if self.posted_at:
-            raise ValidationError("Voucher is already posted.")
-
-        # 🔒 Financial Year lock check
-        fy = FinancialYear.get_open_year_for_date(self.voucher_date, society=self.society)
-        if not fy:
-            raise ValidationError(
-                f"No open financial year for voucher date {self.voucher_date}."
-            )
-        
-
-        # 🔒 Month / Period lock
-        if not AccountingPeriod.is_period_open(self.society, self.voucher_date):
-            raise ValidationError(
-                f"No open accounting period for date {self.voucher_date}."
-            )
-
-        self.full_clean()
-
         with transaction.atomic():
+            locked_voucher = Voucher.objects.select_for_update().get(pk=self.pk)
+            if locked_voucher.posted_at:
+                raise ValidationError("Voucher is already posted.")
+
+            # Validate scope, period, journal lines, posting eligibility, and balance
+            # while holding the voucher lock, before making the post permanent.
+            fy = FinancialYear.get_open_year_for_date(
+                locked_voucher.voucher_date,
+                society=locked_voucher.society,
+            )
+            if not fy:
+                raise ValidationError(
+                    f"No open financial year for voucher date {locked_voucher.voucher_date}."
+                )
+
+            if not AccountingPeriod.is_period_open(locked_voucher.society, locked_voucher.voucher_date):
+                raise ValidationError(
+                    f"No open accounting period for date {locked_voucher.voucher_date}."
+                )
+
+            account_ids = locked_voucher.entries.values_list("account_id", flat=True).distinct()
+            list(Account.objects.select_for_update().filter(pk__in=account_ids).order_by("pk"))
+            locked_voucher.full_clean()
             seq, _ = VoucherSequence.objects.select_for_update().get_or_create(
-                society=self.society,
-                voucher_type=self.voucher_type,
+                society=locked_voucher.society,
+                voucher_type=locked_voucher.voucher_type,
                 defaults={"current_number": 0},
             )
 
@@ -238,6 +246,9 @@ class Voucher(models.Model):
         if self.pk:
             original = Voucher.objects.get(pk=self.pk)
 
+            if not original.posted_at and self.posted_at:
+                raise ValidationError("Use voucher.post() to validate and post a voucher.")
+
             # Allow idempotent saves after posting
             if original.posted_at:
                 immutable_fields = {
@@ -245,6 +256,7 @@ class Voucher(models.Model):
                     "voucher_type",
                     "voucher_date",
                     "narration",
+                    "posted_at",
                 }
                 for field in immutable_fields:
                     if getattr(self, field) != getattr(original, field):
@@ -256,7 +268,15 @@ class Voucher(models.Model):
             ):
                 raise ValidationError("Voucher number cannot be changed.")
 
+        elif self.posted_at:
+            raise ValidationError("Create vouchers as drafts and use voucher.post() to post them.")
+
         super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.posted_at:
+            raise ValidationError("Posted vouchers cannot be deleted. Create a reversal instead.")
+        return super().delete(*args, **kwargs)
 
     def __str__(self):
         return f"{self.voucher_type} - {self.voucher_date}"

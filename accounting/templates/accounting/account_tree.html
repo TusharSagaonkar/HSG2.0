@@ -42,6 +42,19 @@
     <a href="{% url 'accounting:account-list' %}" class="tree-link">
       <i class="fas fa-list me-1"></i>{% translate "Flat List" %}
     </a>
+    <button
+      type="button"
+      class="tree-link"
+      data-account-tree-toggle-all
+      data-expand-label="{% translate 'Expand all' %}"
+      data-collapse-label="{% translate 'Collapse all' %}"
+      data-expand-aria="{% translate 'Expand all account branches' %}"
+      data-collapse-aria="{% translate 'Collapse all account branches' %}"
+      aria-label="{% translate 'Expand all account branches' %}"
+    >
+      <i class="fas fa-expand-alt me-1" data-account-tree-toggle-icon aria-hidden="true"></i>
+      <span data-account-tree-toggle-label>{% translate "Expand all" %}</span>
+    </button>
     {% if can_create_account and selected_society %}
       <button
         type="button"
@@ -54,11 +67,77 @@
     {% endif %}
   </div>
 
-  <div class="tree-legend" aria-label="{% translate 'Tree legend' %}">
-    <span class="tree-legend-item"><span class="tree-legend-swatch tree-legend-swatch--root"></span>{% translate "Root account" %}</span>
-    <span class="tree-legend-item"><span class="tree-legend-swatch tree-legend-swatch--branch"></span>{% translate "Child branch" %}</span>
-    <span class="tree-legend-item"><span class="tree-legend-swatch tree-legend-swatch--leaf"></span>{% translate "Leaf account" %}</span>
-  </div>
+  <form method="get" action="{% url 'accounting:account-tree' %}" class="tree-search-panel" data-account-tree-search-form data-search-url="{% url 'accounting:account-tree-search' %}" data-loading-label="{% translate 'Searching accounts…' %}" data-no-results-label="{% translate 'No matching accounts found.' %}">
+    <div class="tree-search-main">
+      <label class="visually-hidden" for="account-tree-query">{% translate "Search accounts by name or code" %}</label>
+      <div class="tree-search-input-wrap">
+        <i class="fas fa-search" aria-hidden="true"></i>
+        <input id="account-tree-query" type="search" name="q" value="{{ filters.q }}" placeholder="{% translate 'Search by account name or code' %}" class="form-control" autocomplete="off" data-account-tree-search-input aria-controls="account-tree-live-results">
+      </div>
+      <button type="submit" class="btn btn-primary tree-search-submit"><i class="fas fa-search me-1" aria-hidden="true"></i>{% translate "Search" %}</button>
+      {% if filters_active %}<a href="{% url 'accounting:account-tree' %}" class="tree-search-clear">{% translate "Clear" %}</a>{% endif %}
+    </div>
+    <div id="account-tree-live-results" class="tree-search-live-results" data-account-tree-search-results role="list" aria-live="polite" hidden></div>
+
+    <details class="tree-filter-details" {% if filters_active %}open{% endif %}>
+      <summary><i class="fas fa-sliders-h me-1" aria-hidden="true"></i>{% translate "Account filters" %}</summary>
+      <div class="tree-filter-grid">
+        <label>{% translate "Group / category" %}
+          <select name="category" class="form-select">
+            <option value="">{% translate "All groups" %}</option>
+            {% for item in categories %}
+              <option value="{{ item.pk }}" {% if filters.category == item.pk|stringformat:"s" %}selected{% endif %}>{{ item.name }} · {{ item.get_account_type_display }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label>{% translate "Account type" %}
+          <select name="account_type" class="form-select">
+            <option value="">{% translate "All types" %}</option>
+            {% for value, label in account_types %}<option value="{{ value }}" {% if filters.account_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>{% translate "Sub type" %}
+          <select name="sub_type" class="form-select">
+            <option value="">{% translate "All sub types" %}</option>
+            {% for value, label in account_sub_types %}<option value="{{ value }}" {% if filters.sub_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </label>
+        <label>{% translate "Status" %}
+          <select name="is_active" class="form-select">
+            <option value="">{% translate "Any status" %}</option>
+            <option value="yes" {% if filters.is_active == "yes" %}selected{% endif %}>{% translate "Active" %}</option>
+            <option value="no" {% if filters.is_active == "no" %}selected{% endif %}>{% translate "Inactive" %}</option>
+          </select>
+        </label>
+        <label>{% translate "GST account" %}
+          <select name="is_gst" class="form-select">
+            <option value="">{% translate "Any" %}</option>
+            <option value="yes" {% if filters.is_gst == "yes" %}selected{% endif %}>{% translate "Yes" %}</option>
+            <option value="no" {% if filters.is_gst == "no" %}selected{% endif %}>{% translate "No" %}</option>
+          </select>
+        </label>
+        <label>{% translate "GST type" %}
+          <select name="gst_type" class="form-select">
+            <option value="">{% translate "Any GST type" %}</option>
+            {% for value, label in gst_types %}<option value="{{ value }}" {% if filters.gst_type == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </label>
+        {% for flag in account_flag_filters %}
+          <label>{{ flag.label }}
+            <select name="{{ flag.field }}" class="form-select">
+              <option value="">{% translate "Any" %}</option>
+              <option value="yes" {% if flag.value == "yes" %}selected{% endif %}>{% translate "Yes" %}</option>
+              <option value="no" {% if flag.value == "no" %}selected{% endif %}>{% translate "No" %}</option>
+            </select>
+          </label>
+        {% endfor %}
+        <div class="tree-filter-actions">
+          <button type="submit" class="btn btn-sm btn-outline-primary">{% translate "Apply filters" %}</button>
+        </div>
+      </div>
+    </details>
+    {% if filters_active %}<p class="tree-search-results">{% blocktrans count count=matching_accounts %}Found {{ count }} matching account.{% plural %}Found {{ count }} matching accounts.{% endblocktrans %}</p>{% endif %}
+  </form>
 
   {% for group in tree_groups %}
     <div class="tree-group">
@@ -76,25 +155,16 @@
           {% endfor %}
         </div>
       {% else %}
-        <p class="tree-empty">{% translate "No accounts available for this society." %}</p>
+        <p class="tree-empty">{% if filters_active %}{% translate "No matching accounts found in this society." %}{% else %}{% translate "No accounts available for this society." %}{% endif %}</p>
       {% endif %}
     </div>
   {% empty %}
-    <p class="tree-empty">{% translate "No accounts available." %}</p>
+    <p class="tree-empty">{% if filters_active %}{% translate "No matching accounts found." %}{% else %}{% translate "No accounts available." %}{% endif %}</p>
   {% endfor %}
-{% endblock content %}
 
-{% block modal %}
-  <div class="modal fade" id="accountFormModal" tabindex="-1" aria-labelledby="accountFormModalLabel" aria-hidden="true" role="dialog">
-    <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+  <div class="modal fade" id="accountFormModal" tabindex="-1" aria-label="{% translate 'Account form' %}" aria-hidden="true" role="dialog">
+    <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable account-form-dialog">
       <div class="modal-content account-form-modal">
-        <div class="modal-header">
-          <div>
-            <h5 class="modal-title" id="accountFormModalLabel" data-account-form-title>{% translate "Account" %}</h5>
-            <p class="modal-subtitle mb-0" data-account-form-subtitle>{% translate "Loading account form..." %}</p>
-          </div>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="{% translate 'Close' %}"></button>
-        </div>
         <div class="modal-body" data-account-form-body>
           <div class="text-center py-4">
             <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
@@ -104,4 +174,4 @@
       </div>
     </div>
   </div>
-{% endblock modal %}
+{% endblock content %}

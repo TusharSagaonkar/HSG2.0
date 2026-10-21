@@ -34,15 +34,15 @@
       <div class="mb-3">
         <div class="d-flex justify-content-between align-items-center mb-1">
           <small class="text-muted">{% trans "Progress" %}</small>
-          <small class="fw-bold">{{ wizard.current_step }} / 28</small>
+          <small class="fw-bold">{{ wizard.current_step }} / 27</small>
         </div>
         <div class="progress" style="height: 8px;">
           <div class="progress-bar {% if wizard.status == 'COMPLETED' %}bg-success{% elif wizard.status == 'ABANDONED' %}bg-secondary{% else %}bg-primary{% endif %}"
                role="progressbar"
-               style="width: {% widthratio wizard.current_step 28 100 %}%;"
+               style="width: {% widthratio wizard.current_step 27 100 %}%;"
                aria-valuenow="{{ wizard.current_step }}"
                aria-valuemin="0"
-               aria-valuemax="28">
+               aria-valuemax="27">
           </div>
         </div>
       </div>
@@ -51,7 +51,7 @@
       <dl class="row mb-3">
         <dt class="col-sm-4">{% trans "Current Step" %}</dt>
         <dd class="col-sm-8">
-          <strong>{{ wizard.current_step }}</strong> / 28
+          <strong>{{ wizard.current_step }}</strong> / 27
           — {{ step_names|get_item:step_number|default:step_name }}
         </dd>
 
@@ -112,7 +112,7 @@
             </tr>
           </thead>
           <tbody>
-            {% for step_num in "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28"|split:"," %}
+            {% for step_num in "1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27"|split:"," %}
               {% with sn=step_num|add:'0' %}
                 <tr class="{% if sn == wizard.current_step %}table-warning{% endif %}">
                   <td class="text-center">

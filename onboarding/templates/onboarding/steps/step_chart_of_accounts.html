@@ -12,54 +12,79 @@
         {% endblocktrans %}
       </p>
 
-      <div class="d-flex flex-wrap gap-2 mb-4">
-        <a href="{% url 'accounting:account-tree' %}" class="btn btn-outline-primary">
-          <i class="fas fa-sitemap me-1"></i>{% trans "Open Account Tree" %}
-        </a>
-        <a href="{% url 'accounting:account-list' %}" class="btn btn-outline-secondary">
-          <i class="fas fa-list me-1"></i>{% trans "Open Account List" %}
-        </a>
-        <a href="{% url 'accounting:account-add' %}" class="btn btn-primary">
-          <i class="fas fa-plus me-1"></i>{% trans "Add Root Account" %}
-        </a>
-      </div>
-
       {% if accounts %}
-        <div class="table-responsive">
-          <table class="table table-sm table-hover align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>{% trans "Code" %}</th>
-                <th>{% trans "Name" %}</th>
-                <th>{% trans "Type" %}</th>
-                <th>{% trans "Parent" %}</th>
-                <th class="text-end">{% trans "Actions" %}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% for account in accounts %}
-                <tr>
-                  <td class="fw-semibold">{{ account.code }}</td>
-                  <td>{{ account.name }}</td>
-                  <td>{{ account.get_account_type_display }}</td>
-                  <td>{{ account.parent.name|default:"-" }}</td>
-                  <td class="text-end">
-                    <a href="{% url 'accounting:account-edit' account.pk %}"
-                       class="btn btn-sm btn-outline-primary">
-                      <i class="fas fa-pen me-1"></i>{% trans "Edit" %}
-                    </a>
-                  </td>
-                </tr>
+        <div class="tree-group mb-4">
+          <div class="tree-group-header">
+            <div class="tree-group-title">
+              <span class="tree-group-name">{{ wizard.society.name }}</span>
+              {% if account_search_query %}
+                <span class="tree-group-count">{{ account_matching_count }} {% trans "matches" %} · {{ account_count }} {% trans "accounts" %}</span>
+              {% else %}
+                <span class="tree-group-count">{{ account_count }} {% trans "accounts" %}</span>
+              {% endif %}
+            </div>
+      <form method="get"
+            action="{% url 'onboarding:wizard-step' wizard.id 9 %}"
+            class="tree-search-panel tree-search-panel--inline"
+            data-account-tree-search-form
+            data-search-url="{% url 'accounting:account-tree-search' %}"
+            data-loading-label="{% trans 'Searching accounts…' %}"
+            data-no-results-label="{% trans 'No matching accounts found.' %}">
+        <div class="tree-search-main">
+          <label class="visually-hidden" for="step9-account-query">{% trans "Search accounts by name or code" %}</label>
+          <div class="tree-search-input-wrap">
+            <i class="fas fa-search" aria-hidden="true"></i>
+            <input id="step9-account-query" type="search" name="q"
+                   value="{{ account_search_query }}"
+                   placeholder="{% trans 'Search by account name or code' %}"
+                   class="form-control" autocomplete="off"
+                   data-account-tree-search-input aria-controls="step9-account-results">
+          </div>
+          <button type="submit" class="btn btn-primary tree-search-submit">
+            <i class="fas fa-search me-1" aria-hidden="true"></i>{% trans "Search" %}
+          </button>
+          {% if account_search_query %}
+            <a href="{% url 'onboarding:wizard-step' wizard.id 9 %}" class="tree-search-clear">{% trans "Clear" %}</a>
+          {% endif %}
+        </div>
+        <div id="step9-account-results" class="tree-search-live-results"
+             data-account-tree-search-results role="list" aria-live="polite" hidden></div>
+      </form>
+      <form method="post" action="{% url 'onboarding:wizard-reset-accounts' wizard.id %}"
+            onsubmit="return confirm('{% trans 'Reset the chart of accounts? This removes custom accounts and any account-linked ledger entries, then restores the system standard accounts.' %}');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-danger text-nowrap">
+          <i class="fas fa-rotate-left me-1" aria-hidden="true"></i>{% trans "Reset accounts" %}
+        </button>
+      </form>
+          </div>
+          <div class="tree-container">
+            {% if account_tree_nodes %}
+              {% for node in account_tree_nodes %}
+                {% include "accounting/partials/account_tree_node.html" with node=node level=0 %}
               {% endfor %}
-            </tbody>
-          </table>
+            {% else %}
+              <p class="tree-empty">{% trans "No matching accounts found." %}</p>
+            {% endif %}
+          </div>
         </div>
       {% else %}
         <div class="alert alert-info" role="alert">
           <i class="fas fa-info-circle me-2"></i>
-          {% trans "No accounts exist yet. Use the add button above to create the chart of accounts." %}
+          {% trans "No accounts exist yet." %}
+
         </div>
       {% endif %}
+
+      <div class="modal fade" id="accountFormModal" tabindex="-1" aria-label="{% trans 'Account form' %}" aria-hidden="true" role="dialog">
+        <div class="modal-dialog modal-dialog-centered modal-dialog-scrollable account-form-dialog">
+          <div class="modal-content account-form-modal">
+            <div class="modal-body" data-account-form-body>
+              <div class="text-center py-4"><div class="spinner-border text-primary" role="status" aria-hidden="true"></div><p class="text-muted mt-3 mb-0">{% trans "Choose an account action to edit its details or grow the branch." %}</p></div>
+            </div>
+          </div>
+        </div>
+      </div>
 
       <form method="post"
             action="{% url 'onboarding:wizard-step-save' wizard.id step_number %}">
@@ -68,7 +93,7 @@
           <button type="submit" class="btn btn-primary">
             <i class="fas fa-check me-1"></i>{% trans "Continue to Import Templates" %}
           </button>
-          <a href="{% url 'onboarding:wizard-step' wizard.id 9 %}"
+          <a href="{% url 'onboarding:wizard-step' wizard.id 8 %}"
              class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left me-1"></i>{% trans "Back" %}
           </a>

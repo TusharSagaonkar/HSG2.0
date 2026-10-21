@@ -1,0 +1,35 @@
+{% load i18n %}
+<div class="tree-node-actions d-flex align-items-center gap-1">
+  {% if can_create_account %}
+    <button type="button" class="btn btn-sm btn-outline-success tree-action-link"
+            data-account-form-url="{% url 'accounting:account-add' %}?parent={{ account.pk }}{% if account_return_url %}&amp;next={{ account_return_url|urlencode }}{% endif %}"
+            data-account-form-title="{% translate 'Add child account' %}"
+            data-account-form-parent="{{ account.full_path }}">
+      <i class="fas fa-plus me-1"></i>{% translate "Add" %}
+    </button>
+  {% endif %}
+  {% if can_edit_account %}
+    <button type="button" class="btn btn-sm btn-outline-primary tree-action-link"
+            data-account-form-url="{% url 'accounting:account-edit' account.pk %}{% if account_return_url %}?next={{ account_return_url|urlencode }}{% endif %}"
+            data-account-form-title="{% translate 'Edit account' %}">
+      <i class="fas fa-pen me-1"></i>{% translate "Edit" %}
+    </button>
+    <form method="post" action="{% url 'accounting:account-toggle-active' account.pk %}{% if account_return_url %}?next={{ account_return_url|urlencode }}{% endif %}"
+          hx-post="{% url 'accounting:account-toggle-active' account.pk %}{% if account_return_url %}?next={{ account_return_url|urlencode }}{% endif %}"
+          hx-target="closest .tree-container > .tree-node" hx-swap="outerHTML">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-sm {% if account.is_active %}btn-outline-warning{% else %}btn-outline-success{% endif %} tree-action-link">
+        {% if account.is_active %}<i class="fas fa-toggle-on me-1"></i>{% translate "Deactivate" %}{% else %}<i class="fas fa-toggle-off me-1"></i>{% translate "Activate" %}{% endif %}
+      </button>
+    </form>
+  {% endif %}
+  {% if can_delete_account %}
+    <form method="post" action="{% url 'accounting:account-delete' account.pk %}{% if account_return_url %}?next={{ account_return_url|urlencode }}{% endif %}"
+          onsubmit="return confirm('{% translate 'Delete this account?' %}');">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-sm btn-outline-danger tree-action-link">
+        <i class="fas fa-trash me-1"></i>{% translate "Delete" %}
+      </button>
+    </form>
+  {% endif %}
+</div>

@@ -176,6 +176,7 @@ class VoucherTemplateRow(models.Model):
             raise ValidationError(
                 _("Account must belong to the same society as the template.")
             )
+        self.account.validate_can_receive_posting(self.template.society)
         # Ensure unit belongs to the same society as the template
         if self.unit and self.unit.structure.society_id != self.template.society_id:
             raise ValidationError(
@@ -187,3 +188,7 @@ class VoucherTemplateRow(models.Model):
         # Ensure side is valid
         if self.side not in (self.Side.DEBIT, self.Side.CREDIT):
             raise ValidationError(_("Side must be either DEBIT or CREDIT."))
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        return super().save(*args, **kwargs)

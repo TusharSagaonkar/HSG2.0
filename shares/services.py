@@ -743,10 +743,13 @@ class ShareTransactionService:
         # Log certificate event
         try:
             EventLogService.log_certificate_event(
-                certificate=certificate,
+                society=member.society,
+                member=member,
+                certificate_number=certificate_no,
                 event_type=EventLog.EventType.SHARE_CERTIFICATE_ISSUED,
                 performed_by=ShareLedgerService._get_performed_by(issued_by),
-                description=f"Share certificate {certificate_no} issued for {member.get_full_name()}",
+                share_count=share_count,
+                description=f"Share certificate {certificate_no} issued for {member.full_name}",
                 metadata={
                     "certificate_id": certificate.id,
                     "member_id": member.id,
@@ -1041,7 +1044,7 @@ class EventLogService:
             description=description,
             metadata=metadata,
             ip_address=ip_address,
-            user_agent=user_agent,
+            user_agent=user_agent or "",
         )
         logger.info(
             "Event logged: %s for member %s (society %s)",

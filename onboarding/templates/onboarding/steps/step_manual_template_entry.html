@@ -1,6 +1,5 @@
 {% extends "onboarding/base_wizard.html" %}
 {% load i18n %}
-{% load static %}
 
 {% block wizard_content %}
   <div class="content-card">
@@ -9,7 +8,7 @@
         <div>
           <h5 class="mb-1">{{ template_type|cut:"_"|title }}</h5>
           <p class="text-muted mb-0">
-            {% trans "The provided values are prefilled and locked. Fill in the blank cells and add rows where needed." %}
+            {% trans "The rows on this form are fixed." %}
           </p>
         </div>
         <div class="text-end">
@@ -21,9 +20,9 @@
       <div class="alert alert-info" role="alert">
         <i class="fas fa-keyboard me-2"></i>
         {% blocktrans %}
-          The values we provide are locked as a reference set. You can fill in
-          the blank cells and add new rows below, and after you save we will
-          run the existing validation checks and show the summary page.
+          These rows are fixed to the current source data. Edit the values
+          that are available in each row. To add or change rows, go back to
+          the previous setup step, update the source data, and return here.
         {% endblocktrans %}
       </div>
 
@@ -33,17 +32,12 @@
             <div>
               <h6 class="mb-1">{% trans "Expected Fields" %}</h6>
               <p class="text-muted small mb-0">
-                {% trans "Fill only the values your template needs. Leave optional fields blank." %}
+                {% trans "Each row below is fixed. Fill only the fields you need to complete." %}
               </p>
             </div>
-            <div class="d-flex gap-2">
-              <button type="button" class="btn btn-sm btn-outline-primary" id="manualAddRow">
-                <i class="fas fa-plus me-1"></i>{% trans "Add Row" %}
-              </button>
-              <button type="button" class="btn btn-sm btn-outline-secondary" id="manualClearRows">
-                <i class="fas fa-eraser me-1"></i>{% trans "Clear Rows" %}
-              </button>
-            </div>
+            <a href="{% url 'onboarding:wizard-step' wizard.id 9 %}" class="btn btn-sm btn-outline-primary">
+              <i class="fas fa-sitemap me-1"></i>{% trans "Edit Source Data" %}
+            </a>
           </div>
 
           {% if template_columns %}
@@ -70,20 +64,40 @@
           </div>
         {% endif %}
 
+        {% if template_type == "CHART_OF_ACCOUNTS" %}
+          <section class="card border mb-3" aria-labelledby="coa-account-menu-title">
+            <div class="card-header" id="coa-account-menu-title">
+              <h6 class="mb-1">{% trans "Opening balances by account" %}</h6>
+              <div class="small text-muted">{% trans "Enter opening debit and credit on posting accounts. Parent totals summarize posted activity across their descendants." %}</div>
+            </div>
+            <div class="coa-table-heading px-2 py-2 bg-body-tertiary border-bottom small fw-semibold">
+              <span>{% trans "Account hierarchy · posted DR / CR summary" %}</span>
+              <span>{% trans "Opening DR" %}</span>
+              <span>{% trans "Opening CR" %}</span>
+            </div>
+            <div class="list-group list-group-flush">
+              {% for node in manual_coa_tree %}
+                {% include "onboarding/partials/manual_coa_account_node.html" with node=node depth=0 %}
+              {% empty %}
+                <div class="list-group-item text-muted">{% trans "No accounts are available." %}</div>
+              {% endfor %}
+            </div>
+          </section>
+        {% else %}
         <div class="manual-table-wrapper table-responsive mb-3">
           <table class="table table-sm table-bordered align-middle manual-template-table">
             <thead class="table-light">
               <tr>
                 <th class="text-center" style="width: 72px;">#</th>
                 {% for field in template_entry_formset.empty_form.visible_fields %}
-                  <th>{{ field.label }}</th>
+                  <th>{% if template_type == "CHART_OF_ACCOUNTS" and field.name == "account_code" %}{% trans "Posting account" %}{% else %}{{ field.label }}{% endif %}</th>
                 {% endfor %}
               </tr>
             </thead>
-            <tbody id="manualRowsBody">
+            <tbody>
               {% for form in template_entry_formset.forms %}
-                <tr class="manual-row">
-                  <td class="text-center text-muted row-number">{{ forloop.counter }}</td>
+                <tr>
+                  <td class="text-center text-muted">{{ forloop.counter }}</td>
                   {% for field in form.visible_fields %}
                     <td>
                       {{ field }}
@@ -97,27 +111,23 @@
                     </td>
                   {% endfor %}
                 </tr>
+              {% empty %}
+                <tr>
+                  <td colspan="100%" class="text-muted">
+                    {% trans "No rows are available for this template." %}
+                  </td>
+                </tr>
               {% endfor %}
             </tbody>
           </table>
         </div>
-
-        <template id="manualEmptyRowTemplate">
-          <tr class="manual-row">
-            <td class="text-center text-muted row-number">__ROW__</td>
-            {% for field in template_entry_formset.empty_form.visible_fields %}
-              <td>
-                {{ field }}
-              </td>
-            {% endfor %}
-          </tr>
-        </template>
+        {% endif %}
 
         <div class="d-flex flex-wrap gap-2 mt-4">
           <button type="submit" class="btn btn-primary">
             <i class="fas fa-check me-1"></i>{% trans "Save & Validate" %}
           </button>
-          <a href="{% url 'onboarding:wizard-step' wizard.id 11 %}" class="btn btn-outline-secondary">
+          <a href="{% url 'onboarding:wizard-step' wizard.id 9 %}" class="btn btn-outline-secondary">
             <i class="fas fa-arrow-left me-1"></i>{% trans "Back" %}
           </a>
           <a href="{% url 'onboarding:staging-view' wizard.id template_type %}" class="btn btn-outline-primary ms-auto">
@@ -128,97 +138,54 @@
       </form>
     </div>
   </div>
+  <style>
+    #manualTemplateForm .coa-account-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) repeat(2, minmax(115px, 150px));
+      align-items: center;
+      gap: .4rem .75rem;
+      width: 100%;
+      min-width: 0;
+      padding: .45rem .5rem;
+      border-bottom: 1px solid var(--bs-border-color);
+    }
+    #manualTemplateForm .coa-account-heading {
+      display: flex;
+      min-width: 0;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: .25rem .5rem;
+      overflow-wrap: anywhere;
+    }
+    #manualTemplateForm .coa-account-heading .fw-semibold {
+      min-width: 0;
+      overflow-wrap: anywhere;
+    }
+    #manualTemplateForm .coa-account-children {
+      margin-left: .75rem;
+      border-left: 2px solid var(--bs-border-color);
+      min-width: 0;
+    }
+    #manualTemplateForm .coa-table-heading {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) repeat(2, minmax(115px, 150px));
+      align-items: center;
+      gap: .5rem .75rem;
+      min-width: 0;
+    }
+    #manualTemplateForm .coa-posted-summary { flex-basis: 100%; margin-left: 1.35rem; }
+    #manualTemplateForm .coa-balance-input,
+    #manualTemplateForm .coa-balance-input input { display: block; width: 100%; min-width: 0; }
+    #manualTemplateForm details,
+    #manualTemplateForm .list-group { min-width: 0; }
+    @media (max-width: 700px) {
+      #manualTemplateForm .coa-account-row,
+      #manualTemplateForm .coa-table-heading {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+      #manualTemplateForm .coa-account-heading,
+      #manualTemplateForm .coa-table-heading > span:first-child { grid-column: 1 / -1; }
+      #manualTemplateForm .coa-account-children { margin-left: .35rem; }
+    }
+  </style>
 {% endblock wizard_content %}
-
-{% block inline_javascript %}
-  <script>
-    document.addEventListener("DOMContentLoaded", function () {
-      var formEl = document.getElementById("manualTemplateForm");
-      var bodyEl = document.getElementById("manualRowsBody");
-      var totalFormsEl = document.getElementById("id_rows-TOTAL_FORMS");
-      var addBtn = document.getElementById("manualAddRow");
-      var clearBtn = document.getElementById("manualClearRows");
-      var templateEl = document.getElementById("manualEmptyRowTemplate");
-
-      function updateRowNumbers() {
-        bodyEl.querySelectorAll(".manual-row").forEach(function (row, index) {
-          var label = row.querySelector(".row-number");
-          if (label) {
-            label.textContent = index + 1;
-          }
-        });
-      }
-
-      function renumberRowInputs(row, index) {
-        row.querySelectorAll("input, select, textarea").forEach(function (field) {
-          if (field.name) {
-            field.name = field.name.replace(/rows-(\d+|__prefix__)-/g, "rows-" + index + "-");
-          }
-          if (field.id) {
-            field.id = field.id.replace(/rows-(\d+|__prefix__)-/g, "rows-" + index + "-");
-          }
-        });
-        row.querySelectorAll("label").forEach(function (label) {
-          var forAttr = label.getAttribute("for");
-          if (forAttr) {
-            label.setAttribute("for", forAttr.replace(/rows-(\d+|__prefix__)-/g, "rows-" + index + "-"));
-          }
-        });
-      }
-
-      function addRow() {
-        if (!templateEl || !bodyEl || !totalFormsEl) return;
-        var index = parseInt(totalFormsEl.value, 10) || 0;
-        var html = templateEl.innerHTML.replaceAll("__ROW__", String(index + 1));
-        html = html.replaceAll("__prefix__", String(index));
-        var wrapper = document.createElement("tbody");
-        wrapper.innerHTML = html.trim();
-        var row = wrapper.firstElementChild;
-        if (!row) return;
-        row.dataset.rowLocked = "false";
-        renumberRowInputs(row, index);
-        bodyEl.appendChild(row);
-        totalFormsEl.value = String(index + 1);
-        updateRowNumbers();
-      }
-
-      function clearRows() {
-        if (!bodyEl || !totalFormsEl) return;
-        bodyEl.querySelectorAll(".manual-row").forEach(function (row) {
-          row.querySelectorAll("input, select, textarea").forEach(function (field) {
-            if (field.readOnly || field.disabled) {
-              return;
-            }
-            if (field.type === "checkbox" || field.type === "radio") {
-              field.checked = false;
-            } else {
-              field.value = "";
-            }
-          });
-        });
-      }
-
-      if (addBtn) {
-        addBtn.addEventListener("click", function () {
-          addRow();
-        });
-      }
-
-      if (clearBtn) {
-        clearBtn.addEventListener("click", function () {
-          clearRows();
-        });
-      }
-
-      updateRowNumbers();
-    });
-  </script>
-{% endblock inline_javascript %}
-
-{% block css %}{{ block.super }}
-  <link rel="stylesheet" href="{% static 'css/onboarding-step11.css' %}" />
-{% endblock css %}
-
-{% block javascript %}{{ block.super }}
-  <script defer src="{% static 'js/onboarding-step11.js' %}"></script>
-{% endblock javascript %}

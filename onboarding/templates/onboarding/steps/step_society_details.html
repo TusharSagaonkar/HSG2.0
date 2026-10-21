@@ -2,270 +2,179 @@
 {% load i18n %}
 
 {% block wizard_content %}
-  <div class="content-card">
-    <div class="content-card__body">
-      <p class="text-muted mb-3">
-        {% blocktrans %}
-          Enter the legal identity and locale configuration for your society.
-          This information is used to create the society record and configure
-          financial year settings.
-        {% endblocktrans %}
-      </p>
+  <div class="content-card form-card form-card--narrow">
+    <header class="form-card__header">
+      <div class="form-card__heading">
+        <span class="form-card__kicker">{% trans "Society profile" %}</span>
+        <h2 class="form-card__title">{% trans "Society details" %}</h2>
+        <p class="form-card__subtitle">
+          {% blocktrans %}
+            Enter the legal identity and locale configuration for your society.
+            GST and TAN are optional; every other field is required.
+          {% endblocktrans %}
+        </p>
+      </div>
+      <div class="form-card__meta">
+        <span class="form-card__chip">
+          <i class="fas fa-asterisk" aria-hidden="true"></i>
+          {% trans "Required fields marked with *" %}
+        </span>
+      </div>
+    </header>
 
+    <div class="form-card__body">
       <form method="post"
             action="{% url 'onboarding:wizard-step-save' wizard.id step_number %}">
         {% csrf_token %}
 
         {% if form.non_field_errors %}
-          <div class="alert alert-danger" role="alert">
+          <div class="alert alert-danger form-alert" role="alert">
+            <i class="fas fa-exclamation-triangle me-2" aria-hidden="true"></i>
             {{ form.non_field_errors }}
           </div>
         {% endif %}
 
-        <div class="row g-3">
-          <div class="col-12">
-            <div class="form-group">
-              <label for="{{ form.name.id_for_label }}" class="form-label">
-                {{ form.name.label }}
-                <span class="text-danger">*</span>
-              </label>
-              {{ form.name }}
-              {% if form.name.help_text %}
-                <small class="form-text text-muted">{{ form.name.help_text }}</small>
-              {% endif %}
-              {% for error in form.name.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-              {% endfor %}
+        <div class="form-sections">
+          {# 1. Society identity #}
+          <section class="form-section" aria-labelledby="section-identity">
+            <div class="form-section__head">
+              <span class="form-section__icon"><i class="fas fa-building" aria-hidden="true"></i></span>
+              <div class="form-section__copy">
+                <h3 class="form-section__title" id="section-identity">{% trans "Society identity" %}</h3>
+                <p class="form-section__subtitle">{% trans "Legal name, registration and type." %}</p>
+              </div>
+              <span class="form-section__index" aria-hidden="true">01</span>
             </div>
-          </div>
+            <div class="form-section__body">
+              <div class="row g-3">
+                <div class="col-12">
+                  {% include "onboarding/partials/form_field.html" with field=form.name %}
+                </div>
+                <div class="col-12 col-md-4">
+                  {% include "onboarding/partials/form_field.html" with field=form.registration_number %}
+                </div>
+                <div class="col-12 col-md-4">
+                  {% include "onboarding/partials/form_field.html" with field=form.registration_date %}
+                </div>
+                <div class="col-12 col-md-4">
+                  {% include "onboarding/partials/form_field.html" with field=form.society_type %}
+                </div>
+              </div>
+            </div>
+          </section>
 
-          <div class="col-12 col-md-6">
-            <div class="form-group">
-              <label for="{{ form.registration_number.id_for_label }}" class="form-label">
-                {{ form.registration_number.label }}
-                <span class="text-danger">*</span>
-              </label>
-              {{ form.registration_number }}
-              {% for error in form.registration_number.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-              {% endfor %}
+          {# 2. Registered address #}
+          <section class="form-section" aria-labelledby="section-address">
+            <div class="form-section__head">
+              <span class="form-section__icon"><i class="fas fa-map-marker-alt" aria-hidden="true"></i></span>
+              <div class="form-section__copy">
+                <h3 class="form-section__title" id="section-address">{% trans "Registered address" %}</h3>
+                <p class="form-section__subtitle">{% trans "Where official correspondence is delivered." %}</p>
+              </div>
+              <span class="form-section__index" aria-hidden="true">02</span>
             </div>
-          </div>
+            <div class="form-section__body">
+              <div class="row g-3">
+                <div class="col-12">
+                  {% include "onboarding/partials/form_field.html" with field=form.address %}
+                </div>
+                <div class="col-12 col-md-3">
+                  {% include "onboarding/partials/form_field.html" with field=form.city %}
+                </div>
+                <div class="col-12 col-md-3">
+                  {% include "onboarding/partials/form_field.html" with field=form.state %}
+                </div>
+                <div class="col-12 col-md-3">
+                  {% include "onboarding/partials/form_field.html" with field=form.pin_code %}
+                </div>
+                <div class="col-12 col-md-3">
+                  {% include "onboarding/partials/form_field.html" with field=form.country %}
+                </div>
+              </div>
+            </div>
+          </section>
 
-          <div class="col-12 col-md-6">
-            <div class="form-group">
-              <label for="{{ form.registration_date.id_for_label }}" class="form-label">
-                {{ form.registration_date.label }}
-                <span class="text-danger">*</span>
-              </label>
-              {{ form.registration_date }}
-              {% for error in form.registration_date.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-              {% endfor %}
+          {# 3. Tax & compliance #}
+          <section class="form-section" aria-labelledby="section-tax">
+            <div class="form-section__head">
+              <span class="form-section__icon"><i class="fas fa-file-invoice-dollar" aria-hidden="true"></i></span>
+              <div class="form-section__copy">
+                <h3 class="form-section__title" id="section-tax">{% trans "Tax & compliance" %}</h3>
+                <p class="form-section__subtitle">{% trans "GST and TAN are optional." %}</p>
+              </div>
+              <span class="form-section__index" aria-hidden="true">03</span>
             </div>
-          </div>
+            <div class="form-section__body">
+              <div class="row g-3">
+                <div class="col-12 col-md-4">
+                  {% include "onboarding/partials/form_field.html" with field=form.pan %}
+                </div>
+                <div class="col-12 col-md-4">
+                  {% include "onboarding/partials/form_field.html" with field=form.gst_number %}
+                </div>
+                <div class="col-12 col-md-4">
+                  {% include "onboarding/partials/form_field.html" with field=form.tan %}
+                </div>
+              </div>
+            </div>
+          </section>
 
-          <div class="col-12 col-md-4">
-            <div class="form-group">
-              <label for="{{ form.society_type.id_for_label }}" class="form-label">
-                {{ form.society_type.label }}
-                <span class="text-danger">*</span>
-              </label>
-              {{ form.society_type }}
-              {% for error in form.society_type.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-              {% endfor %}
+          {# 4. Contact details #}
+          <section class="form-section" aria-labelledby="section-contact">
+            <div class="form-section__head">
+              <span class="form-section__icon"><i class="fas fa-address-book" aria-hidden="true"></i></span>
+              <div class="form-section__copy">
+                <h3 class="form-section__title" id="section-contact">{% trans "Contact details" %}</h3>
+                <p class="form-section__subtitle">{% trans "Primary email and phone for society notices." %}</p>
+              </div>
+              <span class="form-section__index" aria-hidden="true">04</span>
             </div>
-          </div>
+            <div class="form-section__body">
+              <div class="row g-3">
+                <div class="col-12 col-md-6">
+                  {% include "onboarding/partials/form_field.html" with field=form.email %}
+                </div>
+                <div class="col-12 col-md-6">
+                  {% include "onboarding/partials/form_field.html" with field=form.phone %}
+                </div>
+              </div>
+            </div>
+          </section>
 
-          <div class="col-12">
-            <div class="form-group">
-              <label for="{{ form.address.id_for_label }}" class="form-label">
-                {{ form.address.label }}
-                <span class="text-danger">*</span>
-              </label>
-              {{ form.address }}
-              {% for error in form.address.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-              {% endfor %}
+          {# 5. Locale & financial year #}
+          <section class="form-section" aria-labelledby="section-locale">
+            <div class="form-section__head">
+              <span class="form-section__icon"><i class="fas fa-globe" aria-hidden="true"></i></span>
+              <div class="form-section__copy">
+                <h3 class="form-section__title" id="section-locale">{% trans "Locale & financial year" %}</h3>
+                <p class="form-section__subtitle">{% trans "Used for dates, currency and reporting periods." %}</p>
+              </div>
+              <span class="form-section__index" aria-hidden="true">05</span>
             </div>
-          </div>
-
-          <div class="col-12 col-md-4">
-            <div class="form-group">
-              <label for="{{ form.city.id_for_label }}" class="form-label">
-                {{ form.city.label }}
-                <span class="text-danger">*</span>
-              </label>
-              {{ form.city }}
-              {% for error in form.city.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-              {% endfor %}
+            <div class="form-section__body">
+              <div class="row g-3">
+                <div class="col-12 col-md-4">
+                  {% include "onboarding/partials/form_field.html" with field=form.time_zone %}
+                </div>
+                <div class="col-12 col-md-4">
+                  {% include "onboarding/partials/form_field.html" with field=form.currency %}
+                </div>
+                <div class="col-12 col-md-4">
+                  {% include "onboarding/partials/form_field.html" with field=form.financial_year_pattern %}
+                </div>
+              </div>
             </div>
-          </div>
-
-          <div class="col-12 col-md-4">
-            <div class="form-group">
-              <label for="{{ form.state.id_for_label }}" class="form-label">
-                {{ form.state.label }}
-                <span class="text-danger">*</span>
-              </label>
-              {{ form.state }}
-              {% for error in form.state.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-              {% endfor %}
-            </div>
-          </div>
-
-          <div class="col-12 col-md-4">
-            <div class="form-group">
-              <label for="{{ form.pin_code.id_for_label }}" class="form-label">
-                {{ form.pin_code.label }}
-                <span class="text-danger">*</span>
-              </label>
-              {{ form.pin_code }}
-              {% for error in form.pin_code.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-              {% endfor %}
-            </div>
-          </div>
-
-          <div class="col-12 col-md-4">
-            <div class="form-group">
-              <label for="{{ form.country.id_for_label }}" class="form-label">
-                {{ form.country.label }}
-                <span class="text-danger">*</span>
-              </label>
-              {{ form.country }}
-              {% for error in form.country.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-              {% endfor %}
-            </div>
-          </div>
-
-          <div class="col-12 col-md-4">
-            <div class="form-group">
-              <label for="{{ form.pan.id_for_label }}" class="form-label">
-                {{ form.pan.label }}
-                <span class="text-danger">*</span>
-              </label>
-              {{ form.pan }}
-              {% if form.pan.help_text %}
-                <small class="form-text text-muted">{{ form.pan.help_text }}</small>
-              {% endif %}
-              {% for error in form.pan.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-              {% endfor %}
-            </div>
-          </div>
-
-          <div class="col-12 col-md-4">
-            <div class="form-group">
-              <label for="{{ form.gst_number.id_for_label }}" class="form-label">
-                {{ form.gst_number.label }}
-              </label>
-              {{ form.gst_number }}
-              {% if form.gst_number.help_text %}
-                <small class="form-text text-muted">{{ form.gst_number.help_text }}</small>
-              {% endif %}
-              {% for error in form.gst_number.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-              {% endfor %}
-            </div>
-          </div>
-
-          <div class="col-12 col-md-4">
-            <div class="form-group">
-              <label for="{{ form.tan.id_for_label }}" class="form-label">
-                {{ form.tan.label }}
-              </label>
-              {{ form.tan }}
-              {% if form.tan.help_text %}
-                <small class="form-text text-muted">{{ form.tan.help_text }}</small>
-              {% endif %}
-              {% for error in form.tan.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-              {% endfor %}
-            </div>
-          </div>
-
-          <div class="col-12 col-md-6">
-            <div class="form-group">
-              <label for="{{ form.email.id_for_label }}" class="form-label">
-                {{ form.email.label }}
-                <span class="text-danger">*</span>
-              </label>
-              {{ form.email }}
-              {% for error in form.email.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-              {% endfor %}
-            </div>
-          </div>
-
-          <div class="col-12 col-md-6">
-            <div class="form-group">
-              <label for="{{ form.phone.id_for_label }}" class="form-label">
-                {{ form.phone.label }}
-                <span class="text-danger">*</span>
-              </label>
-              {{ form.phone }}
-              {% for error in form.phone.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-              {% endfor %}
-            </div>
-          </div>
-
-          <div class="col-12 col-md-4">
-            <div class="form-group">
-              <label for="{{ form.time_zone.id_for_label }}" class="form-label">
-                {{ form.time_zone.label }}
-                <span class="text-danger">*</span>
-              </label>
-              {{ form.time_zone }}
-              {% for error in form.time_zone.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-              {% endfor %}
-            </div>
-          </div>
-
-          <div class="col-12 col-md-4">
-            <div class="form-group">
-              <label for="{{ form.currency.id_for_label }}" class="form-label">
-                {{ form.currency.label }}
-                <span class="text-danger">*</span>
-              </label>
-              {{ form.currency }}
-              {% for error in form.currency.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-              {% endfor %}
-            </div>
-          </div>
-
-          <div class="col-12 col-md-4">
-            <div class="form-group">
-              <label for="{{ form.financial_year_pattern.id_for_label }}" class="form-label">
-                {{ form.financial_year_pattern.label }}
-                <span class="text-danger">*</span>
-              </label>
-              {{ form.financial_year_pattern }}
-              {% if form.financial_year_pattern.help_text %}
-                <small class="form-text text-muted">{{ form.financial_year_pattern.help_text }}</small>
-              {% endif %}
-              {% for error in form.financial_year_pattern.errors %}
-                <div class="invalid-feedback d-block">{{ error }}</div>
-              {% endfor %}
-            </div>
-          </div>
+          </section>
         </div>
 
-        <div class="form-actions mt-4">
-          <button type="submit" class="btn btn-primary">
-            <i class="fas fa-check me-1"></i>{% trans "Save & Continue" %}
-          </button>
+        <div class="form-actions">
           <a href="{% url 'onboarding:wizard-list' %}"
              class="btn btn-outline-secondary">
             {% trans "Cancel" %}
           </a>
+          <button type="submit" class="btn btn-primary">
+            <i class="fas fa-check me-1" aria-hidden="true"></i>{% trans "Save & Continue" %}
+          </button>
         </div>
       </form>
     </div>

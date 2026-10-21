@@ -22,6 +22,17 @@
       <div class="structure-item__name">{{ structure.name }}</div>
       <div class="structure-item__type">{{ structure.get_structure_type_display }}</div>
     </div>
+
+    {% if wizard_id %}
+      <form method="post" action="{% url 'onboarding:wizard-structure-delete' wizard_id structure.id %}"
+            onsubmit="return confirm('{% translate "Delete this structure and all nested structures and units?" %}');">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-sm btn-outline-danger" title="{% translate 'Delete structure' %}"
+                aria-label="{% translate 'Delete structure' %} {{ structure.name }}">
+          <i class="fas fa-trash-alt" aria-hidden="true"></i>
+        </button>
+      </form>
+    {% endif %}
     
     {% if structure.children.all|length > 0 %}
       <div class="structure-item__badge">
@@ -34,7 +45,7 @@
   {% if structure.children.all %}
     <div class="structure-children">
       {% for child in structure.children.all %}
-        {% include "housing/partials/structure_tree_item.html" with structure=child level=level|add:1 %}
+        {% include "housing/partials/structure_tree_item.html" with structure=child level=level|add:1 wizard_id=wizard_id %}
       {% endfor %}
     </div>
   {% endif %}

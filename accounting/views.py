@@ -4,11 +4,13 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
-from django.db.models import F
+from django.db.models import DecimalField, F, Q, Sum, Value
+from django.db.models.functions import Coalesce
 from django.db import transaction
+from django.db.models.deletion import ProtectedError
 from django.db.models import Exists
 from django.db.models import OuterRef
-from django.db.models import Sum
+from django.db.models.functions import Replace
 from django.forms import formset_factory
 from django.shortcuts import get_object_or_404
 from django.shortcuts import redirect
@@ -20,8 +22,11 @@ from django.views import View
 from django.views.generic import ListView
 from django.views.generic import TemplateView
 from django.utils import timezone
+from django.utils.http import urlencode
+from django.utils.http import url_has_allowed_host_and_scheme
 from decimal import Decimal
 from datetime import date
+from urllib.parse import parse_qs, urlsplit
 import csv
 
 logger = logging.getLogger(__name__)
@@ -33,6 +38,7 @@ from accounting.forms import VoucherForm
 from accounting.forms import VoucherTemplateForm
 from accounting.forms import build_voucher_template_row_formset
 from accounting.models import Account
+from accounting.models import AccountCategory
 from accounting.models import AccountingPeriod
 from accounting.models import LedgerEntry
 from accounting.models import Voucher
@@ -108,15 +114,204 @@ class AccountListView(LoginRequiredMixin, PermissionRequiredMixin, TenantScopeMi
     context_object_name = "accounts"
 
     def get_queryset(self):
-        selected_society, _ = get_selected_scope(self.request)
+        selected_society, selected_financial_year = get_selected_scope(self.request)
+        posted_entry = Q(
+            ledger_entries__voucher__posted_at__isnull=False,
+            ledger_entries__voucher__society_id=F("society_id"),
+        )
+        opening_entry = posted_entry & Q(ledger_entries__voucher__voucher_date__lt=selected_financial_year.start_date) if selected_financial_year else Q(pk__in=[])
+        if selected_financial_year:
+            posted_entry &= Q(
+                ledger_entries__voucher__voucher_date__gte=selected_financial_year.start_date,
+                ledger_entries__voucher__voucher_date__lte=selected_financial_year.end_date,
+            )
         queryset = Account.objects.select_related(
             "society",
             "category",
             "parent",
-        ).order_by("society__name", "name")
+        ).annotate(
+            period_debit=Coalesce(
+                Sum("ledger_entries__debit", filter=posted_entry),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            ),
+            period_credit=Coalesce(
+                Sum("ledger_entries__credit", filter=posted_entry),
+                Value(Decimal("0.00")),
+                output_field=DecimalField(max_digits=14, decimal_places=2),
+            ),
+        ).order_by("society__name", "code", "name")
+        queryset = queryset.annotate(
+            opening_debit=Coalesce(Sum("ledger_entries__debit", filter=opening_entry), Value(Decimal("0.00")), output_field=DecimalField(max_digits=14, decimal_places=2)),
+            opening_credit=Coalesce(Sum("ledger_entries__credit", filter=opening_entry), Value(Decimal("0.00")), output_field=DecimalField(max_digits=14, decimal_places=2)),
+        )
         if selected_society:
             queryset = queryset.filter(society=selected_society)
         return queryset
+
+    @staticmethod
+    def _balance_sides(net, account_type):
+        normal_debit = account_type in {"ASSET", "EXPENSE"}
+        if (net >= 0) == normal_debit:
+            return abs(net), Decimal("0.00")
+        return Decimal("0.00"), abs(net)
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        selected_society, selected_financial_year = get_selected_scope(self.request)
+        search_query = self.request.GET.get("q", "").strip()
+        mode = self.request.GET.get("mode", "detailed")
+        if mode not in {"detailed", "grouped", "summary"}:
+            mode = "detailed"
+        exclude_zero = self.request.GET.get("exclude_zero") == "1"
+        all_accounts = list(context["accounts"])
+        account_by_id = {account.pk: account for account in all_accounts}
+        children = {}
+        for account in all_accounts:
+            children.setdefault(account.parent_id, []).append(account)
+        leaf_accounts = [account for account in all_accounts if not children.get(account.pk)]
+
+        for account in all_accounts:
+            opening_net = account.opening_debit - account.opening_credit
+            period_net = account.period_debit - account.period_credit
+            if account.account_type not in {"ASSET", "EXPENSE"}:
+                opening_net, period_net = -opening_net, -period_net
+            account.opening_debit_balance, account.opening_credit_balance = self._balance_sides(opening_net, account.account_type)
+            account.closing_debit_balance, account.closing_credit_balance = self._balance_sides(opening_net + period_net, account.account_type)
+
+        matching_ids = {
+            a.pk for a in all_accounts
+            if not search_query or search_query.casefold() in a.name.casefold() or search_query.casefold() in (a.code or "").casefold()
+        }
+        rows = []
+        if mode == "detailed":
+            accounts = [a for a in leaf_accounts if a.pk in matching_ids]
+            if exclude_zero:
+                accounts = [a for a in accounts if a.closing_debit_balance or a.closing_credit_balance]
+            rows = [{"account": a} for a in accounts]
+            debit_total = sum((a.closing_debit_balance for a in accounts), Decimal("0.00"))
+            credit_total = sum((a.closing_credit_balance for a in accounts), Decimal("0.00"))
+        elif mode == "grouped":
+            visible_ids = set(matching_ids)
+            for pk in list(matching_ids):
+                current = account_by_id[pk]
+                ancestor_path = {current.pk}
+                while current.parent_id and current.parent_id in account_by_id and current.parent_id not in ancestor_path:
+                    visible_ids.add(current.parent_id)
+                    current = account_by_id[current.parent_id]
+                    ancestor_path.add(current.pk)
+            for pk in list(matching_ids):
+                stack = [pk]
+                while stack:
+                    for child in children.get(stack.pop(), []):
+                        if child.pk not in visible_ids:
+                            visible_ids.add(child.pk)
+                            stack.append(child.pk)
+
+            def make_node(account, depth=0, path=None):
+                path = path or set()
+                next_path = path | {account.pk}
+                child_nodes = [
+                    make_node(c, depth + 1, next_path)
+                    for c in children.get(account.pk, [])
+                    if c.pk in visible_ids and c.pk not in next_path
+                ]
+                child_nodes = [node for node in child_nodes if node is not None]
+                keys = ("opening_debit", "opening_credit", "period_debit", "period_credit", "closing_debit", "closing_credit")
+                if child_nodes:
+                    descendant_values = {
+                        key: sum((node[key] for node in child_nodes), Decimal("0.00"))
+                        for key in keys
+                    }
+                    own_values = {
+                        "opening_debit": account.opening_debit_balance,
+                        "opening_credit": account.opening_credit_balance,
+                        "period_debit": account.period_debit,
+                        "period_credit": account.period_credit,
+                        "closing_debit": account.closing_debit_balance,
+                        "closing_credit": account.closing_credit_balance,
+                    }
+                    values = {key: descendant_values[key] + own_values[key] for key in keys}
+                else:
+                    values = {
+                        "opening_debit": account.opening_debit_balance,
+                        "opening_credit": account.opening_credit_balance,
+                        "period_debit": account.period_debit,
+                        "period_credit": account.period_credit,
+                        "closing_debit": account.closing_debit_balance,
+                        "closing_credit": account.closing_credit_balance,
+                    }
+                if exclude_zero and not (values["closing_debit"] or values["closing_credit"]):
+                    return None
+                return {
+                    "account": account,
+                    "children": child_nodes,
+                    "depth": depth,
+                    "orphan": bool(account.parent_id and account.parent_id not in account_by_id),
+                    **values,
+                }
+
+            root_accounts = [
+                account for account in all_accounts
+                if not account.parent_id or account.parent_id not in account_by_id
+            ]
+            rows = [node for root in root_accounts if root.pk in visible_ids if (node := make_node(root))]
+            represented_ids = set()
+            stack = list(rows)
+            while stack:
+                node = stack.pop()
+                if node["account"].pk in represented_ids:
+                    continue
+                represented_ids.add(node["account"].pk)
+                stack.extend(node["children"])
+            # If malformed cyclic parent links exist, still surface each account once.
+            for account in all_accounts:
+                if account.pk in visible_ids and account.pk not in represented_ids:
+                    node = make_node(account)
+                    if node:
+                        rows.append(node)
+                        fallback_stack = [node]
+                        while fallback_stack:
+                            fallback_node = fallback_stack.pop()
+                            if fallback_node["account"].pk in represented_ids:
+                                continue
+                            represented_ids.add(fallback_node["account"].pk)
+                            fallback_stack.extend(fallback_node["children"])
+            debit_total = sum((n["closing_debit"] for n in rows), Decimal("0.00"))
+            credit_total = sum((n["closing_credit"] for n in rows), Decimal("0.00"))
+        else:
+            summary_match_ids = set(matching_ids)
+            for pk in list(matching_ids):
+                stack = [pk]
+                while stack:
+                    for child in children.get(stack.pop(), []):
+                        if child.pk not in summary_match_ids:
+                            summary_match_ids.add(child.pk)
+                            stack.append(child.pk)
+            for account_type, label in Account.AccountType.choices:
+                # Sum each account's own posted activity once, including branches
+                # that have children; these balances are not descendant rollups.
+                typed_accounts = [a for a in all_accounts if a.account_type == account_type and a.pk in summary_match_ids]
+                debit = sum((a.closing_debit_balance for a in typed_accounts), Decimal("0.00"))
+                credit = sum((a.closing_credit_balance for a in typed_accounts), Decimal("0.00"))
+                if not exclude_zero or debit or credit:
+                    rows.append({"name": label, "account_type": account_type, "closing_debit": debit, "closing_credit": credit})
+            debit_total = sum((r["closing_debit"] for r in rows), Decimal("0.00"))
+            credit_total = sum((r["closing_credit"] for r in rows), Decimal("0.00"))
+
+        context.update({
+            "accounts": [r["account"] for r in rows] if mode == "detailed" else [],
+            "rows": rows,
+            "mode": mode,
+            "mode_choices": (("detailed", "Detailed Trial Balance"), ("grouped", "Grouped Trial Balance"), ("summary", "Summary Trial Balance")),
+            "search_query": search_query,
+            "exclude_zero": exclude_zero,
+            "total_debit_balance": debit_total,
+            "total_credit_balance": credit_total,
+            "selected_financial_year": selected_financial_year,
+            "selected_society": selected_society,
+        })
+        return context
 
 
 account_list_view = AccountListView.as_view()
@@ -177,6 +372,98 @@ def _build_account_tree(accounts):
     return root_nodes
 
 
+def _account_branch_ids(account, include_ancestors=False):
+    """Return the account branch, optionally including all its ancestors."""
+    children_by_parent = {}
+    for row in Account.objects.filter(society_id=account.society_id).values(
+        "pk", "parent_id"
+    ):
+        children_by_parent.setdefault(row["parent_id"], []).append(row["pk"])
+    branch_ids = {account.pk}
+    pending = [account.pk]
+    while pending:
+        for child_id in children_by_parent.get(pending.pop(), []):
+            if child_id not in branch_ids:
+                branch_ids.add(child_id)
+                pending.append(child_id)
+    if include_ancestors:
+        parent_by_id = {row["pk"]: row["parent_id"] for row in Account.objects.filter(
+            society_id=account.society_id
+        ).values("pk", "parent_id")}
+        parent_id = parent_by_id.get(account.pk)
+        while parent_id and parent_id not in branch_ids:
+            branch_ids.add(parent_id)
+            parent_id = parent_by_id.get(parent_id)
+    return branch_ids
+
+
+def _account_ancestors_are_active(account):
+    """Return whether every ancestor above this account is active."""
+    parent = account.parent
+    while parent:
+        if not parent.is_active:
+            return False
+        parent = parent.parent
+    return True
+
+
+def _account_matches_tree_filters(account, params):
+    """Apply the account tree's GET filters to one account row."""
+    query = params.get("q", [""])[0].strip()
+    compact_query = query.replace(".", "").strip().casefold()
+    if query and query.casefold() not in account.name.casefold() and query.casefold() not in (account.code or "").casefold():
+        if not compact_query or compact_query not in (account.code or "").replace(".", "").casefold():
+            return False
+
+    exact_filters = {
+        "account_type": account.account_type,
+        "sub_type": account.sub_type,
+        "gst_type": account.gst_type,
+    }
+    for key, value in exact_filters.items():
+        selected = params.get(key, [""])[0]
+        if selected and selected != value:
+            return False
+
+    category = params.get("category", [""])[0]
+    if category and category != str(account.category_id):
+        return False
+
+    active = params.get("is_active", [""])[0]
+    if active in {"yes", "no"} and account.is_active != (active == "yes"):
+        return False
+
+    boolean_filters = (
+        "is_gst", "is_bank", "is_member_related", "is_vendor_related", "is_contra", "is_clearing"
+    )
+    for key in boolean_filters:
+        selected = params.get(key, [""])[0]
+        if selected in {"yes", "no"} and getattr(account, key) != (selected == "yes"):
+            return False
+    return True
+
+
+def _accounts_visible_in_tree(accounts, return_url):
+    """Return matches plus their ancestors, preserving the current tree filter."""
+    params = parse_qs(urlsplit(return_url).query)
+    if not params:
+        return accounts
+
+    account_by_id = {account.pk: account for account in accounts}
+    visible_ids = {
+        account.pk for account in accounts
+        if _account_matches_tree_filters(account, params)
+    }
+    for account_id in list(visible_ids):
+        parent_id = account_by_id[account_id].parent_id
+        visited = {account_id}
+        while parent_id in account_by_id and parent_id not in visited:
+            visible_ids.add(parent_id)
+            visited.add(parent_id)
+            parent_id = account_by_id[parent_id].parent_id
+    return [account for account in accounts if account.pk in visible_ids]
+
+
 class AccountTreeView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):
     permission_required = "accounting.account.view"
     template_name = "accounting/account_tree.html"
@@ -193,17 +480,85 @@ class AccountTreeView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView)
         if selected_society:
             queryset = queryset.filter(society=selected_society)
 
+        categories = AccountCategory.objects.order_by("account_type", "name")
+        if selected_society:
+            categories = categories.filter(society=selected_society)
+
+        filters = {
+            "q": self.request.GET.get("q", "").strip(),
+            "category": self.request.GET.get("category", ""),
+            "account_type": self.request.GET.get("account_type", ""),
+            "sub_type": self.request.GET.get("sub_type", ""),
+            "is_active": self.request.GET.get("is_active", ""),
+            "is_gst": self.request.GET.get("is_gst", ""),
+            "gst_type": self.request.GET.get("gst_type", ""),
+            "is_bank": self.request.GET.get("is_bank", ""),
+            "is_member_related": self.request.GET.get("is_member_related", ""),
+            "is_vendor_related": self.request.GET.get("is_vendor_related", ""),
+            "is_contra": self.request.GET.get("is_contra", ""),
+            "is_clearing": self.request.GET.get("is_clearing", ""),
+        }
+        filters["account_type"] = filters["account_type"] if filters["account_type"] in dict(Account.AccountType.choices) else ""
+        filters["sub_type"] = filters["sub_type"] if filters["sub_type"] in dict(Account.SubType.choices) else ""
+        filters["gst_type"] = filters["gst_type"] if filters["gst_type"] in dict(Account.GstType.choices) else ""
+        filters["is_active"] = filters["is_active"] if filters["is_active"] in {"yes", "no"} else ""
+        for key in ("is_gst", "is_bank", "is_member_related", "is_vendor_related", "is_contra", "is_clearing"):
+            filters[key] = filters[key] if filters[key] in {"yes", "no"} else ""
+
+        filtered_queryset = queryset
+        if filters["q"]:
+            compact_code_query = filters["q"].replace(".", "").strip()
+            search_query = Q(name__icontains=filters["q"]) | Q(code__icontains=filters["q"])
+            if compact_code_query:
+                filtered_queryset = filtered_queryset.annotate(
+                    compact_account_code=Replace("code", Value("."), Value("")),
+                )
+                search_query |= Q(compact_account_code__icontains=compact_code_query)
+            filtered_queryset = filtered_queryset.filter(search_query)
+        if filters["account_type"]:
+            filtered_queryset = filtered_queryset.filter(account_type=filters["account_type"])
+        if filters["sub_type"]:
+            filtered_queryset = filtered_queryset.filter(sub_type=filters["sub_type"])
+        if filters["gst_type"]:
+            filtered_queryset = filtered_queryset.filter(gst_type=filters["gst_type"])
+        if filters["is_active"]:
+            filtered_queryset = filtered_queryset.filter(is_active=filters["is_active"] == "yes")
+        for key in ("is_gst", "is_bank", "is_member_related", "is_vendor_related", "is_contra", "is_clearing"):
+            if filters[key]:
+                filtered_queryset = filtered_queryset.filter(**{key: filters[key] == "yes"})
+
+        category_id = filters["category"]
+        try:
+            category = categories.filter(pk=int(category_id)).first() if category_id else None
+        except (TypeError, ValueError):
+            category = None
+        filters["category"] = str(category.pk) if category else ""
+        if category:
+            filtered_queryset = filtered_queryset.filter(category=category)
+
+        all_accounts = list(queryset)
+        matching_accounts = list(filtered_queryset)
+        account_by_id = {account.pk: account for account in all_accounts}
+        display_ids = {account.pk for account in matching_accounts}
+        for account in matching_accounts:
+            parent_id = account.parent_id
+            while parent_id and parent_id in account_by_id and parent_id not in display_ids:
+                display_ids.add(parent_id)
+                parent_id = account_by_id[parent_id].parent_id
+        display_accounts = [account for account in all_accounts if account.pk in display_ids]
+        filters_active = any(filters.values())
+
         context["tree_groups"] = []
         if selected_society:
             context["tree_groups"].append(
                 {
                     "society": selected_society,
-                    "nodes": _build_account_tree(list(queryset)),
+                    "nodes": _build_account_tree(display_accounts),
                 }
             )
         else:
             society_map = {}
-            for account in queryset:
+            for account in display_accounts:
                 society_map.setdefault(account.society_id, {"society": account.society, "accounts": []})
                 society_map[account.society_id]["accounts"].append(account)
             context["tree_groups"] = [
@@ -214,7 +569,26 @@ class AccountTreeView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView)
                 for item in sorted(society_map.values(), key=lambda item: item["society"].name.lower())
             ]
 
-        context["total_accounts"] = queryset.count()
+        context["selected_society"] = selected_society
+        context["account_return_url"] = self.request.get_full_path()
+        context["total_accounts"] = len(all_accounts)
+        context["matching_accounts"] = len(matching_accounts)
+        context["filters"] = filters
+        context["filters_active"] = filters_active
+        context["categories"] = categories
+        context["account_types"] = Account.AccountType.choices
+        context["account_sub_types"] = Account.SubType.choices
+        context["gst_types"] = Account.GstType.choices
+        context["account_flag_filters"] = [
+            {"field": key, "label": label, "value": filters[key]}
+            for key, label in (
+                ("is_bank", "Bank account"),
+                ("is_member_related", "Member related"),
+                ("is_vendor_related", "Vendor related"),
+                ("is_contra", "Contra"),
+                ("is_clearing", "Clearing"),
+            )
+        ]
         context["can_create_account"] = has_permission(
             self.request.user,
             "accounting.account.create",
@@ -225,10 +599,82 @@ class AccountTreeView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView)
             "accounting.account.edit",
             selected_society,
         )
+        context["can_delete_account"] = has_permission(
+            self.request.user,
+            "accounting.account.delete",
+            selected_society,
+        )
         return context
 
 
 account_tree_view = AccountTreeView.as_view()
+
+
+class AccountTreeSearchView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    permission_required = "accounting.account.view"
+
+    def get(self, request, *args, **kwargs):
+        selected_society, _ = get_selected_scope(request)
+        query = request.GET.get("q", "").strip()
+        if not query:
+            return JsonResponse({"results": []})
+
+        compact_code_query = query.replace(".", "").strip()
+        accounts = Account.objects.select_related("society", "category").all()
+        if selected_society:
+            accounts = accounts.filter(society=selected_society)
+        search_query = Q(name__icontains=query) | Q(code__icontains=query)
+        if compact_code_query:
+            accounts = accounts.annotate(
+                compact_account_code=Replace("code", Value("."), Value("")),
+            )
+            search_query |= Q(compact_account_code__icontains=compact_code_query)
+        accounts = accounts.filter(search_query)
+
+        account_type = request.GET.get("account_type", "")
+        if account_type in dict(Account.AccountType.choices):
+            accounts = accounts.filter(account_type=account_type)
+        sub_type = request.GET.get("sub_type", "")
+        if sub_type in dict(Account.SubType.choices):
+            accounts = accounts.filter(sub_type=sub_type)
+        gst_type = request.GET.get("gst_type", "")
+        if gst_type in dict(Account.GstType.choices):
+            accounts = accounts.filter(gst_type=gst_type)
+        if selected_society:
+            categories = AccountCategory.objects.filter(society=selected_society)
+        else:
+            categories = AccountCategory.objects.all()
+        try:
+            category_id = int(request.GET.get("category", ""))
+        except (TypeError, ValueError):
+            category_id = None
+        if category_id and categories.filter(pk=category_id).exists():
+            accounts = accounts.filter(category_id=category_id)
+
+        active_status = request.GET.get("is_active", "")
+        if active_status in {"yes", "no"}:
+            accounts = accounts.filter(is_active=active_status == "yes")
+        for flag in ("is_gst", "is_bank", "is_member_related", "is_vendor_related", "is_contra", "is_clearing"):
+            flag_value = request.GET.get(flag, "")
+            if flag_value in {"yes", "no"}:
+                accounts = accounts.filter(**{flag: flag_value == "yes"})
+
+        accounts = accounts.order_by("code", "name")[:20]
+
+        return JsonResponse({
+            "results": [
+                {
+                    "name": account.name,
+                    "code": account.code or "",
+                    "category": account.category.name,
+                    "account_type": account.get_account_type_display(),
+                }
+                for account in accounts
+            ]
+        })
+
+
+account_tree_search_view = AccountTreeSearchView.as_view()
 
 
 class AccountModalFormView(LoginRequiredMixin, PermissionRequiredMixin, View):
@@ -266,6 +712,37 @@ class AccountModalFormView(LoginRequiredMixin, PermissionRequiredMixin, View):
             raise Http404("Account not found in selected scope.")
         return account
 
+    def _suggest_account_code(self, society, parent):
+        """Suggest a free next code using every code in the society chart."""
+        if not society:
+            return ""
+
+        prefix = f"{parent.code}." if parent and parent.code else ""
+        existing_codes = set(
+            Account.objects.filter(society=society)
+            .exclude(code__isnull=True)
+            .exclude(code="")
+            .values_list("code", flat=True)
+        )
+        used_segments = set()
+        for code in existing_codes:
+            if prefix:
+                if not code.startswith(prefix):
+                    continue
+                remainder = code[len(prefix):]
+            else:
+                remainder = code
+            first_segment = remainder.split(".", 1)[0]
+            if first_segment.isdigit():
+                used_segments.add(int(first_segment))
+
+        next_segment = max(used_segments, default=0) + 1
+        while True:
+            candidate = f"{prefix}{next_segment}"
+            if candidate not in existing_codes:
+                return candidate
+            next_segment += 1
+
     def _get_form_kwargs(self):
         selected_society = self._get_selected_society()
         parent = self._get_parent() if self.mode == "create" else None
@@ -295,12 +772,19 @@ class AccountModalFormView(LoginRequiredMixin, PermissionRequiredMixin, View):
         parent = self._get_parent() if self.mode == "create" else None
         account = self._get_account() if self.mode == "update" else None
         society = selected_society or (parent.society if parent else None) or (account.society if account else None)
+        return_url = self.request.GET.get("next", "")
+        if not url_has_allowed_host_and_scheme(
+            return_url, allowed_hosts={self.request.get_host()}, require_https=self.request.is_secure()
+        ):
+            return_url = ""
         if self.mode == "create":
             action_url = reverse("accounting:account-add")
             if parent:
                 action_url = f"{action_url}?parent={parent.pk}"
         else:
             action_url = reverse("accounting:account-edit", kwargs={"pk": account.pk})
+        if return_url:
+            action_url += ("&" if "?" in action_url else "?") + urlencode({"next": return_url})
 
         context = {
             "form": form,
@@ -317,8 +801,14 @@ class AccountModalFormView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 else "Update the account details while keeping its place in the hierarchy."
             ),
             "society": society,
+            "return_url": return_url,
             "parent_account": parent,
             "account": account,
+            "assigned_code": (
+                self._suggest_account_code(society, parent)
+                if self.mode == "create"
+                else account.code or "—"
+            ),
             "submit_label": "Create account" if self.mode == "create" else "Save changes",
         }
         return context
@@ -330,22 +820,52 @@ class AccountModalFormView(LoginRequiredMixin, PermissionRequiredMixin, View):
     def post(self, request, *args, **kwargs):
         form = self.get_form()
         if form.is_valid():
-            with transaction.atomic():
-                account = form.save(commit=False)
-                selected_society = self._get_selected_society()
-                parent = self._get_parent() if self.mode == "create" else None
-                if self.mode == "create":
-                    account.society = selected_society or (parent.society if parent else account.society)
-                    account.parent = parent
-                else:
-                    existing = self._get_account()
-                    account.society = existing.society
-                    account.parent = existing.parent
-                account.save()
+            try:
+                with transaction.atomic():
+                    account = form.save(commit=False)
+                    selected_society = self._get_selected_society()
+                    parent = self._get_parent() if self.mode == "create" else None
+                    if self.mode == "create":
+                        account.society = selected_society or (parent.society if parent else account.society)
+                        account.parent = parent
+                        if account.society:
+                            Society.objects.select_for_update().get(pk=account.society.pk)
+                            if parent:
+                                parent = Account.objects.select_related("parent").get(
+                                    pk=parent.pk, society_id=account.society.pk
+                                )
+                                account.parent = parent
+                                account.is_active = account.is_active and _account_ancestors_are_active(parent)
+                            account.code = self._suggest_account_code(account.society, parent)
+                    else:
+                        existing = self._get_account()
+                        Society.objects.select_for_update().get(pk=existing.society_id)
+                        existing = Account.objects.select_for_update().select_related(
+                            "society", "category", "parent"
+                        ).get(pk=existing.pk)
+                        account.society = existing.society
+                        account.parent = existing.parent
+                    account.save()
+                    if self.mode == "update" and existing.is_active != account.is_active:
+                        Account.objects.filter(
+                            pk__in=_account_branch_ids(
+                                existing, include_ancestors=account.is_active
+                            )
+                        ).exclude(pk=existing.pk).update(is_active=account.is_active)
+            except ValidationError as exc:
+                for error in exc.messages:
+                    form.add_error(None, error)
+                response = render(request, self.template_name, self.get_context_data(form=form))
+                return response
 
+            return_url = request.POST.get("return_url", "")
+            if not url_has_allowed_host_and_scheme(
+                return_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+            ):
+                return_url = reverse("accounting:account-tree")
             payload = {
                 "success": True,
-                "redirect_url": reverse("accounting:account-tree"),
+                "redirect_url": return_url,
                 "message": f"Account {'created' if self.mode == 'create' else 'updated'} successfully.",
             }
             if self._is_xhr():
@@ -374,6 +894,113 @@ class AccountUpdateView(AccountModalFormView):
 
 
 account_update_view = AccountUpdateView.as_view()
+
+
+class AccountDeleteView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        selected_society, _ = get_selected_scope(request)
+        account = get_object_or_404(
+            Account.objects.select_related("society"), pk=pk
+        )
+        if selected_society and account.society_id != selected_society.pk:
+            raise Http404("Account not found in selected scope.")
+        if not has_permission(
+            request.user, "accounting.account.delete", account.society
+        ):
+            raise PermissionDenied("You do not have permission to delete accounts.")
+        try:
+            account.delete()
+            messages.success(request, f"Account '{account.name}' deleted.")
+        except (ProtectedError, ValidationError):
+            messages.error(
+                request,
+                f"Account '{account.name}' cannot be deleted because it is protected or in use.",
+            )
+        return_url = request.GET.get("next", "")
+        if not url_has_allowed_host_and_scheme(
+            return_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+        ):
+            return_url = reverse("accounting:account-tree")
+        return redirect(return_url)
+
+
+account_delete_view = AccountDeleteView.as_view()
+
+
+class AccountToggleActiveView(LoginRequiredMixin, View):
+    def post(self, request, pk):
+        selected_society, _ = get_selected_scope(request)
+        account = get_object_or_404(
+            Account.objects.select_related("society"), pk=pk
+        )
+        if selected_society and account.society_id != selected_society.pk:
+            raise Http404("Account not found in selected scope.")
+        if not has_permission(request.user, "accounting.account.edit", account.society):
+            raise PermissionDenied("You do not have permission to edit accounts.")
+
+        is_htmx = request.headers.get("HX-Request") == "true"
+        with transaction.atomic():
+            Society.objects.select_for_update().get(pk=account.society_id)
+            account = Account.objects.select_for_update().select_related("society").get(pk=pk)
+            next_active = not account.is_active
+            branch_ids = _account_branch_ids(account, include_ancestors=next_active)
+            Account.objects.filter(pk__in=branch_ids).update(is_active=next_active)
+        account.is_active = next_active
+        if not is_htmx:
+            messages.success(
+                request,
+                f"Account '{account.name}' is now {'active' if account.is_active else 'inactive'}.",
+            )
+        return_url = request.GET.get("next", "")
+        valid_return_url = url_has_allowed_host_and_scheme(
+            return_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+        )
+        if is_htmx:
+            accounts = list(
+                Account.objects.filter(society=account.society)
+                .select_related("society", "category", "parent")
+                .order_by("code", "name", "pk")
+            )
+            filtered_accounts = _accounts_visible_in_tree(
+                accounts, return_url if valid_return_url else ""
+            )
+            tree = _build_account_tree(filtered_accounts)
+
+            def contains_account(node, account_id):
+                return node["account"].pk == account_id or any(
+                    contains_account(child, account_id) for child in node["children"]
+                )
+
+            root_node = next(
+                (node for node in tree if contains_account(node, account.pk)), None
+            )
+            if root_node:
+                return render(
+                    request,
+                    "accounting/partials/account_tree_node.html",
+                    {
+                        "node": root_node,
+                        "level": 0,
+                        "can_create_account": has_permission(
+                            request.user, "accounting.account.create", account.society
+                        ),
+                        "can_edit_account": has_permission(
+                            request.user, "accounting.account.edit", account.society
+                        ),
+                        "can_delete_account": has_permission(
+                            request.user, "accounting.account.delete", account.society
+                        ),
+                        "account_return_url": return_url if valid_return_url else "",
+                    },
+                )
+            return HttpResponse("")
+
+        if not valid_return_url:
+            return_url = reverse("accounting:account-tree")
+        return redirect(return_url)
+
+
+account_toggle_active_view = AccountToggleActiveView.as_view()
 
 
 class AccountLedgerView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView):

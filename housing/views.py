@@ -1624,10 +1624,10 @@ class SocietyAdminView(LoginRequiredMixin, DetailView):
         )
         context['onboarding_wizard'] = onboarding_wizard
         if onboarding_wizard:
-            # 28 total steps in the wizard; clamp progress to [0, 100].
+            # 27 total steps in the wizard; clamp progress to [0, 100].
             current_step = max(onboarding_wizard.current_step or 0, 0)
             context['onboarding_progress_percent'] = min(
-                int((current_step / 28) * 100), 100
+                int((current_step / 27) * 100), 100
             )
 
             # --- Detailed onboarding dashboard data ---
@@ -1640,20 +1640,25 @@ class SocietyAdminView(LoginRequiredMixin, DetailView):
                 .values("step_number", "status", "completed_at")
             )
             # Build a lookup: step_number -> latest status for quick access.
-            step_status_map = {log["step_number"]: log["status"] for log in step_logs}
+            # Step logs predating the FY screen merge retain their original
+            # numbers; translate them for the renumbered stepper display.
+            step_status_map = {
+                (log["step_number"] if log["step_number"] <= 4 else log["step_number"] - 1): log["status"]
+                for log in step_logs
+            }
             completed_steps = {
-                log["step_number"]
+                (log["step_number"] if log["step_number"] <= 4 else log["step_number"] - 1)
                 for log in step_logs
                 if log["status"] == WizardStepLog.Status.COMPLETED
             }
 
-            # Build the full 28-step list with per-step status for the stepper UI.
+            # Build the full 27-step list with per-step status for the stepper UI.
             # A step is considered:
             #   - "completed" if it has a COMPLETED step log
             #   - "current" if it equals the wizard's current_step and not completed
             #   - "pending" otherwise
             onboarding_steps = []
-            for step_num in range(1, 29):
+            for step_num in range(1, 28):
                 step_status = step_status_map.get(step_num)
                 if step_num in completed_steps:
                     state = "completed"
@@ -1669,7 +1674,7 @@ class SocietyAdminView(LoginRequiredMixin, DetailView):
                 })
             context['onboarding_steps'] = onboarding_steps
             context['onboarding_completed_steps'] = len(completed_steps)
-            context['onboarding_total_steps'] = 28
+            context['onboarding_total_steps'] = 27
 
             # --- Migration data status (upload batches) ---
             # UploadBatch is tenant-scoped via TenantManager; use .unscoped()
@@ -1705,7 +1710,7 @@ class SocietyAdminView(LoginRequiredMixin, DetailView):
             context['onboarding_progress_percent'] = 0
             context['onboarding_steps'] = []
             context['onboarding_completed_steps'] = 0
-            context['onboarding_total_steps'] = 28
+            context['onboarding_total_steps'] = 27
             context['onboarding_upload_batches'] = []
             context['onboarding_uploaded_count'] = 0
             context['onboarding_total_staging_rows'] = 0

@@ -3,7 +3,10 @@ from django.urls import path
 from accounting.views import account_list_view
 from accounting.views import account_create_view
 from accounting.views import account_update_view
+from accounting.views import account_delete_view
+from accounting.views import account_toggle_active_view
 from accounting.views import account_tree_view
+from accounting.views import account_tree_search_view
 from accounting.views import accounting_dashboard_view
 from accounting.views import voucher_entry_view
 from accounting.views import voucher_list_view
@@ -28,7 +31,10 @@ urlpatterns = [
     path("accounts/", view=account_list_view, name="account-list"),
     path("accounts/add/", view=account_create_view, name="account-add"),
     path("accounts/tree/", view=account_tree_view, name="account-tree"),
+    path("accounts/tree/search/", view=account_tree_search_view, name="account-tree-search"),
     path("accounts/<int:pk>/edit/", view=account_update_view, name="account-edit"),
+    path("accounts/<int:pk>/delete/", view=account_delete_view, name="account-delete"),
+    path("accounts/<int:pk>/toggle-active/", view=account_toggle_active_view, name="account-toggle-active"),
     path("accounts/<int:pk>/ledger/", view=account_ledger_view, name="account-ledger"),
     path(
         "accounts/<int:pk>/ledger/export.csv/",

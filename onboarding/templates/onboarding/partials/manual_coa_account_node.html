@@ -1,0 +1,49 @@
+{% load i18n %}
+{% if node.children %}
+  <details class="coa-account-branch" open>
+    <summary class="coa-account-row coa-parent-row">
+      <span class="coa-account-heading">
+        <span class="font-monospace small text-muted">{{ node.account.code|default:"—" }}</span>
+        <span class="fw-semibold">{{ node.account.name }}</span>
+        <span class="badge text-bg-light border">{{ node.account.get_account_type_display }}</span>
+        <span class="badge text-bg-secondary">{% trans "Parent" %}</span>
+        <small class="coa-posted-summary text-muted">{% trans "Posted" %}: <span class="text-primary">DR {{ node.debit|floatformat:2 }}</span> · <span class="text-success">CR {{ node.credit|floatformat:2 }}</span></small>
+      </span>
+      <span></span><span></span>
+    </summary>
+    <div class="coa-account-children">
+      {% for child in node.children %}
+        {% include "onboarding/partials/manual_coa_account_node.html" with node=child depth=depth|add:1 %}
+      {% endfor %}
+    </div>
+  </details>
+{% else %}
+  <div class="coa-account-row coa-posting-row">
+    <span class="coa-account-heading">
+      <span class="font-monospace small text-muted">{{ node.account.code|default:"—" }}</span>
+      <span class="fw-semibold">{{ node.account.name }}</span>
+      <span class="badge text-bg-light border">{{ node.account.get_account_type_display }}</span>
+      {% if node.entry_form %}<span class="badge text-bg-success">{% trans "Posting" %}</span>{% else %}<span class="badge text-bg-secondary">{% trans "Inactive" %}</span>{% endif %}
+      <small class="coa-posted-summary text-muted">{% trans "Posted" %}: <span class="text-primary">DR {{ node.debit|floatformat:2 }}</span> · <span class="text-success">CR {{ node.credit|floatformat:2 }}</span></small>
+    </span>
+    {% if node.entry_form %}
+      {{ node.entry_form.account_code.as_hidden }}
+      {{ node.entry_form.account_name.as_hidden }}
+      {{ node.entry_form.account_group.as_hidden }}
+      {{ node.entry_form.account_type.as_hidden }}
+      {{ node.entry_form.parent_code.as_hidden }}
+      {{ node.entry_form.nature.as_hidden }}
+      <span class="coa-balance-input">
+        {{ node.entry_form.opening_debit }}
+        {% for error in node.entry_form.opening_debit.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+      </span>
+      <span class="coa-balance-input">
+        {{ node.entry_form.opening_credit }}
+        {% for error in node.entry_form.opening_credit.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+      </span>
+      {% for error in node.entry_form.account_code.errors %}<small class="text-danger">{{ error }}</small>{% endfor %}
+    {% else %}
+      <span></span><span></span>
+    {% endif %}
+  </div>
+{% endif %}

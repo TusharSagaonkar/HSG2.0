@@ -1,5 +1,5 @@
 """Financial year setup service for the Society Creation & Accounting Migration
-Wizard (Steps 4 & 5 — Accounting Start Year and Financial Year Creation).
+Wizard (Step 4 — Accounting Start Year and Financial Year Creation).
 
 This service creates a :class:`FinancialYear` for the society being onboarded.
 The ``FinancialYear.save()`` method auto-creates monthly
@@ -164,6 +164,38 @@ class FinancialYearSetupService:
         return fy
 
     @staticmethod
+    @transaction.atomic
+    def create_financial_years_through_current(wizard, start_year, user=None) -> list[FinancialYear]:
+        """Create every FY from the selected start through the current FY.
+
+        Each FinancialYear creates its monthly AccountingPeriod records on
+        save. Existing years are reused, so retrying this action is safe.
+        """
+        fy_pattern = FinancialYearSetupService.get_financial_year_pattern(wizard.society)
+        selected_start = FinancialYearSetupService._parse_start_year(start_year)
+        current_label = FinancialYearSetupService.get_fy_options(fy_pattern)[0]
+        current_start = FinancialYearSetupService._parse_start_year(current_label)
+        if selected_start > current_start:
+            raise ValidationError("The selected start year cannot be after the current financial year.")
+
+        labels = [
+            f"{year}-{str(year + 1)[-2:]}"
+            for year in range(selected_start, current_start + 1)
+        ]
+        years = [
+            FinancialYearSetupService.create_financial_year(wizard, label, user=user)
+            for label in labels
+        ]
+        data = dict(wizard.wizard_data or {})
+        data["accounting_start_year"] = start_year
+        data["fy_pattern"] = fy_pattern
+        if years:
+            data["financial_year_id"] = str(years[-1].pk)
+        wizard.wizard_data = data
+        wizard.save(update_fields=["wizard_data"])
+        return years
+
+    @staticmethod
     def get_financial_year_pattern(society) -> str:
         """Return the FY pattern for the society.
 
@@ -233,7 +265,7 @@ class FinancialYearSetupService:
 
     @staticmethod
     def get_fy_options(fy_pattern=FY_PATTERN_APRIL_MARCH, reference_year=None) -> list[str]:
-        """Generate the current FY label followed by the previous ten years.
+        """Generate every FY from the current FY back through 1900.
 
         Parameters
         ----------
@@ -246,8 +278,7 @@ class FinancialYearSetupService:
         Returns
         -------
         list[str]
-            Eleven labels in descending order, e.g. ``["2026-27", ...,
-            "2016-17"]``.
+            Labels in descending order, ending at ``1900-01``.
         """
         if fy_pattern not in VALID_FY_PATTERNS:
             raise ValidationError(
@@ -261,8 +292,7 @@ class FinancialYearSetupService:
             reference_year = today.year if today.month >= start_month else today.year - 1
 
         labels = []
-        for offset in range(11):
-            start_year = reference_year - offset
+        for start_year in range(reference_year, 1899, -1):
             end_year_short = str(start_year + 1)[-2:]
             labels.append(f"{start_year}-{end_year_short}")
         return labels

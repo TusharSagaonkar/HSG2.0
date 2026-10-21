@@ -17,32 +17,189 @@ const initShortcutHelpTrigger = () => {
   });
 };
 
-const initAccountTreeModal = () => {
-  const modalElement = document.getElementById("accountFormModal");
+const initAccountTreeControls = () => {
+  const syncToggle = (root = document) => {
+    const details = Array.from(root.querySelectorAll(".tree-container details"));
+    root.querySelectorAll("[data-account-tree-toggle-all]").forEach((button) => {
+      const expanded = details.length > 0 && details.every((branch) => branch.open);
+      const label = expanded ? button.dataset.collapseLabel : button.dataset.expandLabel;
+      const labelElement = button.querySelector("[data-account-tree-toggle-label]");
+      const icon = button.querySelector("[data-account-tree-toggle-icon]");
+      if (labelElement) labelElement.textContent = label;
+      if (icon) {
+        icon.classList.toggle("fa-expand-alt", !expanded);
+        icon.classList.toggle("fa-compress-alt", expanded);
+      }
+      button.setAttribute("aria-label", expanded ? button.dataset.collapseAria : button.dataset.expandAria);
+      button.disabled = details.length === 0;
+    });
+  };
 
-  if (!modalElement || !window.bootstrap) {
-    return;
-  }
-
-  const titleElement = modalElement.querySelector("[data-account-form-title]");
-  const subtitleElement = modalElement.querySelector("[data-account-form-subtitle]");
-  const bodyElement = modalElement.querySelector("[data-account-form-body]");
-  const modal = window.bootstrap.Modal.getOrCreateInstance(modalElement);
-
-  const setPlaceholder = () => {
-    if (!bodyElement) {
+  document.addEventListener("click", (event) => {
+    const button = event.target.closest("[data-account-tree-toggle-all]");
+    if (!button) {
       return;
     }
 
-    bodyElement.innerHTML = `
-      <div class="text-center py-4">
-        <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
-        <p class="text-muted mt-3 mb-0">Loading account form...</p>
-      </div>
-    `;
+    const tree = button.closest(".page-inner") || document;
+    const details = Array.from(tree.querySelectorAll(".tree-container details"));
+    const expand = !details.length || !details.every((branch) => branch.open);
+    details.forEach((branch) => { branch.open = expand; });
+    syncToggle(tree);
+  });
+
+  syncToggle();
+  document.body.addEventListener("htmx:afterSwap", (event) => syncToggle(event.detail?.target || document));
+};
+
+const initAccountTreeSearch = () => {
+  let searchTimer = null;
+  let activeRequest = null;
+
+  const renderResults = (form, results) => {
+    const container = form.querySelector("[data-account-tree-search-results]");
+    if (!container) return;
+    container.replaceChildren();
+
+    if (!results.length) {
+      const empty = document.createElement("p");
+      empty.className = "tree-search-no-results";
+      empty.textContent = form.dataset.noResultsLabel || "No matching accounts found.";
+      container.appendChild(empty);
+      container.hidden = false;
+      return;
+    }
+
+    results.forEach((account) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "tree-search-result";
+      button.dataset.accountTreeSearchValue = account.code || account.name;
+      button.setAttribute("role", "listitem");
+
+      const main = document.createElement("span");
+      main.className = "tree-search-result-main";
+      const name = document.createElement("strong");
+      name.textContent = account.name;
+      main.appendChild(name);
+
+      const details = document.createElement("small");
+      details.className = "tree-search-result-meta";
+      details.textContent = [account.code, account.category, account.account_type].filter(Boolean).join(" · ");
+
+      button.append(main, details);
+      container.appendChild(button);
+    });
+    container.hidden = false;
+  };
+
+  document.addEventListener("input", (event) => {
+    const input = event.target.closest("[data-account-tree-search-input]");
+    if (!input) return;
+
+    const form = input.closest("[data-account-tree-search-form]");
+    const container = form?.querySelector("[data-account-tree-search-results]");
+    const query = input.value.trim();
+    window.clearTimeout(searchTimer);
+    activeRequest?.abort();
+
+    if (!form || !container || !query) {
+      if (container) {
+        container.replaceChildren();
+        container.hidden = true;
+      }
+      return;
+    }
+
+    searchTimer = window.setTimeout(async () => {
+      const controller = new AbortController();
+      activeRequest = controller;
+      const url = new URL(form.dataset.searchUrl, window.location.href);
+      new FormData(form).forEach((value, key) => {
+        if (key === "q") return;
+        if (value) url.searchParams.set(key, value);
+      });
+      url.searchParams.set("q", query);
+      container.replaceChildren();
+      const loading = document.createElement("p");
+      loading.className = "tree-search-no-results";
+      loading.textContent = form.dataset.loadingLabel || "Searching accounts…";
+      container.appendChild(loading);
+      container.hidden = false;
+
+      try {
+        const response = await fetch(url, {
+          headers: { "X-Requested-With": "XMLHttpRequest", Accept: "application/json" },
+          signal: controller.signal,
+        });
+        if (!response.ok) throw new Error("Account search failed");
+        const payload = await response.json();
+        if (input.value.trim() === query) renderResults(form, payload.results || []);
+      } catch (error) {
+        if (error.name !== "AbortError" && input.value.trim() === query) {
+          renderResults(form, []);
+        }
+      }
+    }, 180);
+  });
+
+  document.addEventListener("click", (event) => {
+    const result = event.target.closest("[data-account-tree-search-value]");
+    if (result) {
+      const form = result.closest("[data-account-tree-search-form]");
+      const input = form?.querySelector("[data-account-tree-search-input]");
+      if (form && input) {
+        event.preventDefault();
+        input.value = result.dataset.accountTreeSearchValue;
+        form.requestSubmit();
+      }
+      return;
+    }
+
+    if (!event.target.closest("[data-account-tree-search-form]")) {
+      document.querySelectorAll("[data-account-tree-search-results]").forEach((container) => {
+        container.hidden = true;
+      });
+    }
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && event.target.matches("[data-account-tree-search-input]")) {
+      event.target.closest("[data-account-tree-search-form]")?.querySelector("[data-account-tree-search-results]")?.setAttribute("hidden", "");
+    }
+    if (event.key === "ArrowDown" && event.target.matches("[data-account-tree-search-input]")) {
+      const firstResult = event.target.closest("[data-account-tree-search-form]")?.querySelector("[data-account-tree-search-value]");
+      if (firstResult) {
+        event.preventDefault();
+        firstResult.focus();
+      }
+    }
+  });
+};
+
+const initAccountTreeModal = () => {
+  if (!window.bootstrap) {
+    return;
+  }
+
+  const getModalElements = () => {
+    const modalElement = document.getElementById("accountFormModal");
+    if (!modalElement) {
+      return null;
+    }
+
+    return {
+      modalElement,
+      titleElement: modalElement.querySelector("[data-account-form-title]"),
+      subtitleElement: modalElement.querySelector("[data-account-form-subtitle]"),
+      bodyElement: modalElement.querySelector("[data-account-form-body]"),
+      modal: window.bootstrap.Modal.getOrCreateInstance(modalElement),
+    };
   };
 
   const focusFirstField = () => {
+    const modalElements = getModalElements();
+    const bodyElement = modalElements?.bodyElement;
     const firstField = bodyElement?.querySelector("input:not([type=hidden]), select, textarea");
     if (firstField) {
       firstField.focus();
@@ -50,6 +207,12 @@ const initAccountTreeModal = () => {
   };
 
   const loadForm = async (url, trigger) => {
+    const modalElements = getModalElements();
+    if (!modalElements?.bodyElement) {
+      return;
+    }
+
+    const { titleElement, subtitleElement, bodyElement, modal } = modalElements;
     if (titleElement) {
       titleElement.textContent = trigger?.getAttribute("data-account-form-title") || "Account";
     }
@@ -59,41 +222,48 @@ const initAccountTreeModal = () => {
         ? `Parent branch: ${parentPath}`
         : "Use this form to create or update the selected account.";
     }
-
-    setPlaceholder();
+    bodyElement.innerHTML = `
+      <div class="text-center py-4">
+        <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+        <p class="text-muted mt-3 mb-0">Loading account form...</p>
+      </div>
+    `;
     modal.show();
 
     try {
       const response = await fetch(url, {
-        headers: {
-          "X-Requested-With": "XMLHttpRequest",
-          Accept: "text/html",
-        },
+        headers: { "X-Requested-With": "XMLHttpRequest", Accept: "text/html" },
       });
-
       if (!response.ok) {
         throw new Error("Failed to load account form");
       }
-
-      if (bodyElement) {
-        bodyElement.innerHTML = await response.text();
-        focusFirstField();
-      }
+      bodyElement.innerHTML = await response.text();
+      focusFirstField();
     } catch (error) {
-      if (bodyElement) {
-        bodyElement.innerHTML = `
-          <div class="alert alert-danger mb-0" role="alert">
-            Unable to load the account form. Please try again.
-          </div>
-        `;
-      }
+      bodyElement.innerHTML = `
+        <div class="alert alert-danger mb-0" role="alert">
+          Unable to load the account form. Please try again.
+        </div>
+      `;
     }
   };
 
-  const submitForm = async (form) => {
-    if (!bodyElement) {
+  document.addEventListener("click", (event) => {
+    const trigger = event.target.closest("[data-account-form-url]");
+    if (!trigger) {
       return;
     }
+    event.preventDefault();
+    event.stopPropagation();
+    loadForm(trigger.getAttribute("data-account-form-url"), trigger);
+  });
+
+  const submitForm = async (form) => {
+    const modalElements = getModalElements();
+    if (!modalElements?.bodyElement) {
+      return;
+    }
+    const { bodyElement, modal } = modalElements;
 
     const response = await fetch(form.action, {
       method: "POST",
@@ -126,23 +296,6 @@ const initAccountTreeModal = () => {
     focusFirstField();
   };
 
-  document.addEventListener("click", (event) => {
-    const trigger = event.target.closest("[data-account-form-url]");
-    if (!trigger) {
-      return;
-    }
-
-    event.preventDefault();
-    event.stopPropagation();
-
-    const url = trigger.getAttribute("data-account-form-url");
-    if (!url) {
-      return;
-    }
-
-    loadForm(url, trigger);
-  });
-
   document.addEventListener("submit", (event) => {
     const form = event.target.closest("form[data-account-form]");
     if (!form) {
@@ -151,8 +304,9 @@ const initAccountTreeModal = () => {
 
     event.preventDefault();
     submitForm(form).catch(() => {
-      if (bodyElement) {
-        bodyElement.innerHTML = `
+      const modalElements = getModalElements();
+      if (modalElements?.bodyElement) {
+        modalElements.bodyElement.innerHTML = `
           <div class="alert alert-danger mb-0" role="alert">
             The account could not be saved right now.
           </div>
@@ -161,15 +315,24 @@ const initAccountTreeModal = () => {
     });
   });
 
-  modalElement.addEventListener("hidden.bs.modal", () => {
-    if (bodyElement) {
-      bodyElement.innerHTML = "";
+  document.addEventListener("hidden.bs.modal", (event) => {
+    if (event.target?.id !== "accountFormModal") {
+      return;
     }
-    if (titleElement) {
-      titleElement.textContent = "Account";
+
+    const modalElements = getModalElements();
+    if (!modalElements) {
+      return;
     }
-    if (subtitleElement) {
-      subtitleElement.textContent = "Loading account form...";
+
+    if (modalElements.bodyElement) {
+      modalElements.bodyElement.innerHTML = "";
+    }
+    if (modalElements.titleElement) {
+      modalElements.titleElement.textContent = "Account";
+    }
+    if (modalElements.subtitleElement) {
+      modalElements.subtitleElement.textContent = "Loading account form...";
     }
   });
 };
@@ -1001,6 +1164,11 @@ const initPersistentWorkspace = () => {
     if (!rawHref || rawHref.startsWith("#")) {
       return false;
     }
+    // Some primary destinations need a normal document navigation so redirects,
+    // access checks, and their complete page shell are handled by the browser.
+    if (link.hasAttribute("data-full-navigation")) {
+      return false;
+    }
     if (link.hasAttribute("download") || link.getAttribute("target") && link.getAttribute("target") !== "_self") {
       return false;
     }
@@ -1116,6 +1284,8 @@ window.addEventListener("DOMContentLoaded", () => {
   initLayoutToggles();
   initVoucherDetailModal();
   initAccountTreeModal();
+  initAccountTreeControls();
+  initAccountTreeSearch();
   initWorkspaceContent();
   initShortcutHelpTrigger();
   initPwa();

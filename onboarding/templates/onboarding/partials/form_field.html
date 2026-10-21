@@ -1,0 +1,27 @@
+{% comment %}
+  Renders one form field with its label, required marker, widget, help text
+  and validation errors. Pass the bound field via ``field``.
+
+  Styling lives in the global form system (components.css) so every form
+  using this partial — or the .form-field markup — stays consistent.
+
+  Usage:
+    {% include "onboarding/partials/form_field.html" with field=form.name %}
+{% endcomment %}
+
+<div class="form-field{% if field.errors %} form-field--invalid{% endif %}">
+  <label for="{{ field.id_for_label }}" class="form-label">
+    {{ field.label }}
+    {% if field.field.required %}<span class="form-required" aria-hidden="true">*</span>{% endif %}
+  </label>
+  {{ field }}
+  {% if field.help_text %}
+    <small class="form-text">{{ field.help_text }}</small>
+  {% endif %}
+  {% for error in field.errors %}
+    <div class="form-error">
+      <i class="fas fa-exclamation-circle" aria-hidden="true"></i>
+      <span>{{ error }}</span>
+    </div>
+  {% endfor %}
+</div>

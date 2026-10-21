@@ -1,157 +1,117 @@
+{% extends "components/form_base.html" %}
 {% load i18n %}
 
-<form method="post" action="{{ action_url }}" class="account-form" data-account-form>
-  {% csrf_token %}
+{% block form_attributes %}class="app-form" data-account-form{% endblock form_attributes %}
 
-  {% if form.non_field_errors %}
-    <div class="alert alert-danger mb-3" role="alert">
-      {{ form.non_field_errors }}
-    </div>
-  {% endif %}
+{% block form_kicker %}
+  {% if mode == "create" %}{% translate "New account" %}{% else %}{% translate "Account details" %}{% endif %}
+{% endblock form_kicker %}
 
-  <div class="account-form-intro">
-    <div class="account-form-intro-copy">
-      <div class="account-form-kicker">
-        {% if mode == "create" %}
-          {% translate "Adding into" %}
-        {% else %}
-          {% translate "Editing" %}
-        {% endif %}
-      </div>
-      <h3 class="account-form-title">{{ title }}</h3>
-      <p class="account-form-subtitle">{{ subtitle }}</p>
+{% block form_header_meta %}
+  <div class="app-form-header-meta">
+    <div class="app-form-code" aria-label="{% translate 'Account code assigned automatically' %}">
+      <span class="app-form-code-label">{% translate "Account code" %}</span>
+      <strong>{{ assigned_code }}</strong>
+      <span class="app-form-code-note"><i class="fas fa-lock me-1" aria-hidden="true"></i>{% translate "Assigned automatically" %}</span>
     </div>
-
-    <div class="account-form-intro-meta">
-      {% if society %}
-        <span class="account-form-chip"><i class="fas fa-building me-1"></i>{{ society.name }}</span>
-      {% endif %}
-      {% if parent_account %}
-        <span class="account-form-chip account-form-chip--muted">
-          <i class="fas fa-sitemap me-1"></i>{{ parent_account.full_path }}
-        </span>
-      {% else %}
-        <span class="account-form-chip account-form-chip--muted">
-          <i class="fas fa-layer-group me-1"></i>{% translate "Root level account" %}
-        </span>
-      {% endif %}
-    </div>
+    <button type="button" class="btn-close app-form-close" data-bs-dismiss="modal" aria-label="{% translate 'Close' %}"></button>
   </div>
+{% endblock form_header_meta %}
 
+{% block form_context %}
+  {% if return_url %}<input type="hidden" name="return_url" value="{{ return_url }}">{% endif %}
+  <div class="app-form-context">
+    <span class="app-form-context-icon"><i class="fas fa-sitemap" aria-hidden="true"></i></span>
+    <span class="app-form-context-copy">
+      <small>{% translate "Parent branch" %}</small>
+      <strong>{% if parent_account %}{{ parent_account.full_path }}{% else %}{% translate "Root level account" %}{% endif %}</strong>
+    </span>
+    {% if society %}<span class="app-form-context-society"><i class="fas fa-building me-1" aria-hidden="true"></i>{{ society.name }}</span>{% endif %}
+  </div>
+{% endblock form_context %}
+
+{% block essential_title %}{% translate "Essential details" %}{% endblock essential_title %}
+{% block essential_description %}<p>{% translate "Choose a name and account classification." %}</p>{% endblock essential_description %}
+{% block required_note %}<span class="app-form-required-note"><span aria-hidden="true">*</span> {% translate "Required" %}</span>{% endblock required_note %}
+
+{% block essential_fields %}
   <div class="row g-3">
-    <div class="col-12 col-lg-7">
-      <div class="account-form-section">
-        <div class="account-form-section-header">
-          <h6 class="mb-0">{% translate "Core details" %}</h6>
-          <span>{% translate "Name, code, and category" %}</span>
-        </div>
-
-        <div class="row g-3">
-          <div class="col-12">
-            <label class="form-label" for="{{ form.name.id_for_label }}">{{ form.name.label }}</label>
-            {{ form.name }}
-            {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors }}</div>{% endif %}
-          </div>
-          <div class="col-md-6">
-            <label class="form-label" for="{{ form.code.id_for_label }}">{{ form.code.label }}</label>
-            {{ form.code }}
-            <div class="form-text">{% translate "Use dotted numbers for children, for example 1.2.3." %}</div>
-            {% if form.code.errors %}<div class="invalid-feedback d-block">{{ form.code.errors }}</div>{% endif %}
-          </div>
-          <div class="col-md-6">
-            <label class="form-label" for="{{ form.category.id_for_label }}">{{ form.category.label }}</label>
-            {{ form.category }}
-            {% if form.category.errors %}<div class="invalid-feedback d-block">{{ form.category.errors }}</div>{% endif %}
-          </div>
-          <div class="col-md-6">
-            <label class="form-label" for="{{ form.account_type.id_for_label }}">{{ form.account_type.label }}</label>
-            {{ form.account_type }}
-            {% if form.account_type.errors %}<div class="invalid-feedback d-block">{{ form.account_type.errors }}</div>{% endif %}
-          </div>
-          <div class="col-md-6">
-            <label class="form-label" for="{{ form.sub_type.id_for_label }}">{{ form.sub_type.label }}</label>
-            {{ form.sub_type }}
-            {% if form.sub_type.errors %}<div class="invalid-feedback d-block">{{ form.sub_type.errors }}</div>{% endif %}
-          </div>
-        </div>
-      </div>
+    <div class="col-12">
+      <label class="form-label" for="{{ form.name.id_for_label }}">{{ form.name.label }} <span class="app-form-required-mark">*</span></label>
+      {{ form.name }}
+      {% if form.name.errors %}<div class="invalid-feedback d-block">{{ form.name.errors }}</div>{% endif %}
     </div>
-
-    <div class="col-12 col-lg-5">
-      <div class="account-form-section account-form-section--stacked">
-        <div class="account-form-section-header">
-          <h6 class="mb-0">{% translate "Account flags" %}</h6>
-          <span>{% translate "Activate and classify the account" %}</span>
-        </div>
-
-        <div class="account-form-toggle-grid">
-          <label class="account-form-toggle">
-            {{ form.is_active }}
-            <span>
-              <strong>{% translate "Active" %}</strong>
-              <small>{% translate "Visible in posting and the tree." %}</small>
-            </span>
-          </label>
-          <label class="account-form-toggle">
-            {{ form.is_gst }}
-            <span>
-              <strong>{% translate "GST account" %}</strong>
-              <small>{% translate "Use for input or output GST ledgers." %}</small>
-            </span>
-          </label>
-          <label class="account-form-toggle">
-            {{ form.is_bank }}
-            <span>
-              <strong>{% translate "Bank account" %}</strong>
-              <small>{% translate "Marks this as a bank-side account." %}</small>
-            </span>
-          </label>
-          <label class="account-form-toggle">
-            {{ form.is_member_related }}
-            <span>
-              <strong>{% translate "Member related" %}</strong>
-              <small>{% translate "Useful for member-specific balances." %}</small>
-            </span>
-          </label>
-          <label class="account-form-toggle">
-            {{ form.is_vendor_related }}
-            <span>
-              <strong>{% translate "Vendor related" %}</strong>
-              <small>{% translate "Use when the account tracks vendors." %}</small>
-            </span>
-          </label>
-          <label class="account-form-toggle">
-            {{ form.is_contra }}
-            <span>
-              <strong>{% translate "Contra" %}</strong>
-              <small>{% translate "Treat this as an offsetting account." %}</small>
-            </span>
-          </label>
-          <label class="account-form-toggle">
-            {{ form.is_clearing }}
-            <span>
-              <strong>{% translate "Clearing" %}</strong>
-              <small>{% translate "Use for temporary clearing balances." %}</small>
-            </span>
-          </label>
-        </div>
-
-        <div class="mt-3">
-          <label class="form-label" for="{{ form.gst_type.id_for_label }}">{{ form.gst_type.label }}</label>
-          {{ form.gst_type }}
-          <div class="form-text">{% translate "GST type should stay at None unless GST is enabled." %}</div>
-          {% if form.gst_type.errors %}<div class="invalid-feedback d-block">{{ form.gst_type.errors }}</div>{% endif %}
-        </div>
-      </div>
+    <div class="col-12 col-md-4">
+      <label class="form-label" for="{{ form.category.id_for_label }}">{{ form.category.label }} <span class="app-form-required-mark">*</span></label>
+      {{ form.category }}
+      {% if form.category.errors %}<div class="invalid-feedback d-block">{{ form.category.errors }}</div>{% endif %}
+    </div>
+    <div class="col-12 col-md-4">
+      <label class="form-label" for="{{ form.account_type.id_for_label }}">{{ form.account_type.label }} <span class="app-form-required-mark">*</span></label>
+      {{ form.account_type }}
+      {% if form.account_type.errors %}<div class="invalid-feedback d-block">{{ form.account_type.errors }}</div>{% endif %}
+    </div>
+    <div class="col-12 col-md-4">
+      <label class="form-label" for="{{ form.sub_type.id_for_label }}">{{ form.sub_type.label }} <span class="app-form-required-mark">*</span></label>
+      {{ form.sub_type }}
+      {% if form.sub_type.errors %}<div class="invalid-feedback d-block">{{ form.sub_type.errors }}</div>{% endif %}
     </div>
   </div>
+{% endblock essential_fields %}
 
-  <div class="account-form-footer">
-    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
-      {% translate "Cancel" %}
-    </button>
-    <button type="submit" class="btn btn-primary">
-      <i class="fas fa-save me-1"></i>{{ submit_label }}
-    </button>
-  </div>
-</form>
+{% block additional_sections %}
+  <details class="app-form-advanced" {% if form.is_active.errors or form.is_posting.errors or form.is_gst.errors or form.gst_type.errors or form.is_bank.errors or form.is_member_related.errors or form.is_vendor_related.errors or form.is_contra.errors or form.is_clearing.errors %}open{% endif %}>
+    <summary>
+      <span class="app-form-advanced-icon"><i class="fas fa-sliders-h" aria-hidden="true"></i></span>
+      <span class="app-form-advanced-copy">
+        <strong>{% translate "Additional settings" %}</strong>
+        <small>{% translate "Posting, status, GST, bank, member, vendor, and balance options" %}</small>
+      </span>
+      <i class="fas fa-chevron-down app-form-advanced-chevron" aria-hidden="true"></i>
+    </summary>
+    <div class="app-form-advanced-body">
+      <div class="app-form-toggle-grid">
+        <label class="app-form-toggle">
+          {{ form.is_active }}
+          <span><strong>{% translate "Active" %}</strong><small>{% translate "Available for posting and shown in the tree." %}</small></span>
+        </label>
+        <label class="app-form-toggle">
+          {{ form.is_posting }}
+          <span><strong>{% translate "Posting account" %}</strong><small>{% translate "Allow journal lines on this account. Parent accounts cannot be posted to." %}</small>{% if form.is_posting.errors %}<small class="text-danger">{{ form.is_posting.errors|join:", " }}</small>{% endif %}</span>
+        </label>
+        <label class="app-form-toggle">
+          {{ form.is_gst }}
+          <span><strong>{% translate "GST account" %}</strong><small>{% translate "Use for input or output GST ledgers." %}</small></span>
+        </label>
+        <label class="app-form-toggle">
+          {{ form.is_bank }}
+          <span><strong>{% translate "Bank account" %}</strong><small>{% translate "Marks this as a bank-side account." %}</small></span>
+        </label>
+        <label class="app-form-toggle">
+          {{ form.is_member_related }}
+          <span><strong>{% translate "Member related" %}</strong><small>{% translate "Tracks balances linked to members." %}</small></span>
+        </label>
+        <label class="app-form-toggle">
+          {{ form.is_vendor_related }}
+          <span><strong>{% translate "Vendor related" %}</strong><small>{% translate "Tracks balances linked to vendors." %}</small></span>
+        </label>
+        <label class="app-form-toggle">
+          {{ form.is_contra }}
+          <span><strong>{% translate "Contra" %}</strong><small>{% translate "Offsets another account balance." %}</small></span>
+        </label>
+        <label class="app-form-toggle">
+          {{ form.is_clearing }}
+          <span><strong>{% translate "Clearing" %}</strong><small>{% translate "Used for temporary clearing balances." %}</small></span>
+        </label>
+      </div>
+      <div class="app-form-gst-type">
+        <label class="form-label" for="{{ form.gst_type.id_for_label }}">{{ form.gst_type.label }}</label>
+        {{ form.gst_type }}
+        <div class="form-text">{% translate "Select input or output only when GST account is enabled." %}</div>
+        {% if form.gst_type.errors %}<div class="invalid-feedback d-block">{{ form.gst_type.errors }}</div>{% endif %}
+      </div>
+    </div>
+  </details>
+{% endblock additional_sections %}
+
+{% block submit_label %}<i class="fas fa-check me-2" aria-hidden="true"></i>{{ submit_label }}{% endblock submit_label %}

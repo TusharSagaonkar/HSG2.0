@@ -10,12 +10,12 @@ Step → Form mapping:
     2  SocietyTypeForm
     3  ModuleSelectionForm
     4  AccountingStartYearForm
-    6  StructureForm
-    7  UnitConfigurationForm
-    8  MemberAssignmentForm
-    25 FinalApprovalForm
+    5  StructureForm
+    6  UnitConfigurationForm
+    7  MemberAssignmentForm
+    24 FinalApprovalForm
 
-Steps 5, 9, 10–24, 26–28 do not use a dedicated form (they are either
+Steps 8–23 and 25–27 do not use a dedicated form (they are either
 auto-generated or use inline / display-only templates).
 """
 
@@ -548,24 +548,15 @@ class UnitConfigurationForm(BootstrapForm):
         seen_keys: set[str] = set()
         valid_unit_types = {key for key, _ in UNIT_TYPE_CHOICES}
 
-        # Pre-fetch the society's structures and existing unit identifiers
-        # per structure so we can validate structure_id references and detect
-        # duplicates against already-created units. Units are unique per
-        # structure (a unit "101" can exist under building A AND wing B).
+        # Pre-fetch structures to validate submitted structure references.
         structures_by_id: dict[int, "Structure"] = {}
-        existing_by_structure: dict[int, set[str]] = {}
         if self._society_id:
-            from members.models import Structure, Unit
+            from members.models import Structure
 
             structures_by_id = {
                 s.pk: s
                 for s in Structure.objects.filter(society_id=self._society_id)
             }
-            existing = Unit.objects.filter(
-                structure__society_id=self._society_id
-            ).values_list("structure_id", "identifier")
-            for sid, ident in existing:
-                existing_by_structure.setdefault(sid, set()).add(ident)
 
         for index, row in enumerate(data, start=1):
             if not isinstance(row, dict):
@@ -622,40 +613,9 @@ class UnitConfigurationForm(BootstrapForm):
                 )
             seen_keys.add(dup_key)
 
-            # Flag duplicates against units already saved in the database.
-            if structure_id:
-                db_set = existing_by_structure.get(sid)
-            else:
-                db_set = existing_by_structure.get(None)
-                # Legacy: look up by building subtree (best effort).
-                if db_set is None and self._society_id:
-                    from members.models import Structure, Unit
-                    bids = list(
-                        Structure.objects.filter(
-                            society_id=self._society_id,
-                            parent__isnull=True,
-                            name=building,
-                        ).values_list("id", flat=True)
-                    )
-                    subtree = set(bids)
-                    subtree.update(
-                        Structure.objects.filter(
-                            parent_id__in=bids
-                        ).values_list("id", flat=True)
-                    )
-                    db_set = set(
-                        Unit.objects.filter(
-                            structure_id__in=subtree
-                        ).values_list("identifier", flat=True)
-                    )
-            if db_set is not None and identifier in db_set:
-                raise ValidationError(
-                    _(
-                        "Unit '%(id)s' already exists in this structure. "
-                        "Remove it from the grid or use a different identifier."
-                    )
-                    % {"id": identifier},
-                )
+            # Existing rows are included when the user reopens Step 7. The
+            # setup service upserts those rows, while seen_keys above still
+            # rejects duplicate identifiers within this submitted grid.
 
             unit_type = str(row.get("unit_type") or "FLAT").strip().upper()
             if unit_type not in valid_unit_types:
@@ -739,7 +699,7 @@ class UnitConfigurationForm(BootstrapForm):
 
 
 # --------------------------------------------------------------------------- #
-# Step 8 — Member Assignment
+# Step 7 — Member Assignment
 # --------------------------------------------------------------------------- #
 
 MEMBER_TYPE_CHOICES = (
@@ -756,7 +716,7 @@ OCCUPATION_STATUS_CHOICES = (
 
 
 class MemberAssignmentForm(BootstrapForm):
-    """Step 8 — Assign members to units.
+    """Step 7 — Assign members to units.
 
     Members are submitted as a JSON array in ``members_json``. Each
     member must have at least ``member_name``, ``unit_identifier``,
@@ -823,11 +783,11 @@ class MemberAssignmentForm(BootstrapForm):
 
 
 # --------------------------------------------------------------------------- #
-# Step 25 — Final Approval
+# Step 24 — Final Approval
 # --------------------------------------------------------------------------- #
 
 class FinalApprovalForm(BootstrapForm):
-    """Step 25 — Explicit final approval with warning confirmation.
+    """Step 24 — Explicit final approval with warning confirmation.
 
     The user must check the confirmation checkbox acknowledging that
     opening balances will become permanent and cannot be undone.
@@ -849,7 +809,7 @@ class FinalApprovalForm(BootstrapForm):
 
 
 # --------------------------------------------------------------------------- #
-# Step 11 — Manual template entry
+# Step 10 — Manual template entry
 # --------------------------------------------------------------------------- #
 
 def _humanize_template_column(column_name: str) -> str:
@@ -915,8 +875,8 @@ STEP_FORMS: dict[int, type[forms.Form]] = {
     2: SocietyTypeForm,
     3: ModuleSelectionForm,
     4: AccountingStartYearForm,
-    6: StructureForm,
-    7: UnitConfigurationForm,
-    8: MemberAssignmentForm,
-    25: FinalApprovalForm,
+    5: StructureForm,
+    6: UnitConfigurationForm,
+    7: MemberAssignmentForm,
+    24: FinalApprovalForm,
 }

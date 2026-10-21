@@ -70,11 +70,8 @@ class LedgerEntry(models.Model):
         if self.voucher.posted_at:
             raise ValidationError("Cannot modify entries of a posted voucher.")
 
-        if self.account and not self.account.is_active:
-            raise ValidationError({"account": "Cannot post to an inactive account."})
-
-        if self.account and self.voucher and self.account.society_id != self.voucher.society_id:
-            raise ValidationError({"account": "Account must belong to the voucher society."})
+        if self.account and self.voucher:
+            self.account.validate_can_receive_posting(self.voucher.society)
 
         if self.unit and self.voucher and self.unit.structure.society_id != self.voucher.society_id:
             raise ValidationError({"unit": "Unit must belong to the voucher society."})

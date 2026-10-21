@@ -9,6 +9,7 @@ from accounting.services.standard_accounts import DEFAULT_ACCOUNT_DEFINITIONS
 from accounting.services.standard_accounts import DEFAULT_CATEGORY_DEFINITIONS
 from accounting.services.standard_accounts import GROUP_ACCOUNT_DEFINITIONS
 from accounting.services.standard_accounts import LEAF_PARENT_MAP
+from accounting.services.standard_accounts import NEW_ACCOUNT_TREE
 from housing.models import Society
 
 pytestmark = pytest.mark.django_db
@@ -98,3 +99,33 @@ def test_default_asset_hierarchy_groups_and_parents_are_assigned():
         assert leaf is not None
         assert leaf.parent is not None
         assert leaf.parent.name == parent_name
+
+
+def test_default_accounts_follow_the_tree_contract():
+    society = Society.objects.create(name="Tree Contract Society")
+
+    accounts = {
+        account.code: account
+        for account in Account.objects.filter(society=society)
+    }
+
+    for node in NEW_ACCOUNT_TREE:
+        account = accounts[node.code]
+        assert account.name == node.name
+        assert account.account_type == node.account_type
+        assert account.is_posting is node.is_posting
+        assert account.is_active is True
+        assert account.system_protected is True
+        assert account.parent_id == (
+            accounts[node.parent_code].id if node.parent_code else None
+        )
+
+
+def test_default_account_names_are_unique_per_society():
+    society = Society.objects.create(name="Unique Names Society")
+
+    names = list(
+        Account.objects.filter(society=society).values_list("name", flat=True)
+    )
+
+    assert len(names) == len(set(names))

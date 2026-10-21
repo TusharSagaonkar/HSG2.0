@@ -161,6 +161,23 @@ class VoucherTemplateRowInline(admin.TabularInline):
     fields = ("account", "unit", "side", "default_amount", "order")
     raw_id_fields = ("account", "unit")
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "account":
+            kwargs["queryset"] = Account.objects.filter(
+                is_active=True,
+                is_posting=True,
+                children__isnull=True,
+            ).distinct().order_by("society__name", "code", "name")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+        if obj:
+            formset.form.base_fields["account"].queryset = formset.form.base_fields["account"].queryset.filter(
+                society=obj.society
+            )
+        return formset
+
 
 @admin.register(VoucherTemplate)
 class VoucherTemplateAdmin(admin.ModelAdmin):
@@ -204,6 +221,15 @@ class VoucherTemplateRowAdmin(admin.ModelAdmin):
     raw_id_fields = ("account", "unit")
     ordering = ("template", "order", "id")
 
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "account":
+            kwargs["queryset"] = Account.objects.filter(
+                is_active=True,
+                is_posting=True,
+                children__isnull=True,
+            ).distinct().order_by("society__name", "code", "name")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
 
 @admin.register(FinancialYear)
 class FinancialYearAdmin(admin.ModelAdmin):
@@ -246,13 +272,41 @@ class AccountCategoryAdmin(admin.ModelAdmin):
 
 @admin.register(Account)
 class AccountAdmin(admin.ModelAdmin):
-    list_display = ("name", "account_type", "is_active")
-    list_filter = ("category__account_type",)
+    list_display = (
+        "code",
+        "name",
+        "parent",
+        "category",
+        "account_type",
+        "sub_type",
+        "is_posting",
+        "is_active",
+    )
+    list_filter = ("society", "category__account_type", "is_posting", "is_active")
+    ordering = ("society", "account_type", "code", "name")
+    list_select_related = ("society", "parent", "category")
 
 
 class LedgerEntryInline(admin.TabularInline):
     model = LedgerEntry
     extra = 0
+
+    def formfield_for_foreignkey(self, db_field, request, **kwargs):
+        if db_field.name == "account":
+            kwargs["queryset"] = Account.objects.filter(
+                is_active=True,
+                is_posting=True,
+                children__isnull=True,
+            ).distinct().order_by("society__name", "code", "name")
+        return super().formfield_for_foreignkey(db_field, request, **kwargs)
+
+    def get_formset(self, request, obj=None, **kwargs):
+        formset = super().get_formset(request, obj, **kwargs)
+        if obj:
+            formset.form.base_fields["account"].queryset = formset.form.base_fields["account"].queryset.filter(
+                society=obj.society
+            )
+        return formset
 
     def has_add_permission(self, request, obj):
         return not (obj and obj.posted_at)
@@ -266,8 +320,23 @@ class LedgerEntryInline(admin.TabularInline):
 
 @admin.action(description="Post selected vouchers")
 def post_vouchers(modeladmin, request, queryset):
+    posted = 0
     for voucher in queryset:
-        voucher.post()
+        try:
+            voucher.post()
+            posted += 1
+        except ValidationError as exc:
+            modeladmin.message_user(
+                request,
+                f"{voucher}: {exc}",
+                level=messages.ERROR,
+            )
+    if posted:
+        modeladmin.message_user(
+            request,
+            f"Posted {posted} voucher(s).",
+            level=messages.SUCCESS,
+        )
 
 
 @admin.register(Voucher)
@@ -286,6 +355,14 @@ class VoucherAdmin(admin.ModelAdmin):
 
     def has_change_permission(self, request, obj=None):
         return not (obj and obj.posted_at)
+
+    def has_delete_permission(self, request, obj=None):
+        return not (obj and obj.posted_at)
+
+    def get_actions(self, request):
+        actions = super().get_actions(request)
+        actions.pop("delete_selected", None)
+        return actions
 
 
 @admin.register(PeriodStatusLog)

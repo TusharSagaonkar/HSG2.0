@@ -1,0 +1,44 @@
+{% load i18n %}
+
+{# Shared visual shell for project forms. Extend this template and fill its field/action blocks. #}
+<form method="post" action="{{ action_url }}" {% block form_attributes %}class="app-form"{% endblock form_attributes %}>
+  {% csrf_token %}
+
+  {% block form_errors %}
+    {% if form.non_field_errors %}
+      <div class="alert alert-danger mb-3" role="alert">{{ form.non_field_errors }}</div>
+    {% endif %}
+  {% endblock form_errors %}
+
+  <header class="app-form-intro">
+    <div class="app-form-intro-copy">
+      <span class="app-form-kicker">{% block form_kicker %}{% if mode == "create" %}{% translate "New record" %}{% else %}{% translate "Record details" %}{% endif %}{% endblock form_kicker %}</span>
+      <h3 class="app-form-title">{% block form_title %}{{ title }}{% endblock form_title %}</h3>
+      <p class="app-form-subtitle">{% block form_subtitle %}{{ subtitle }}{% endblock form_subtitle %}</p>
+    </div>
+    {% block form_header_meta %}{% endblock form_header_meta %}
+  </header>
+
+  {% block form_context %}{% endblock form_context %}
+
+  <section class="app-form-section app-form-essential" aria-labelledby="app-form-essential-title">
+    <div class="app-form-section-header">
+      <span class="app-form-step">{% block form_step %}1{% endblock form_step %}</span>
+      <div>
+        <h4 id="app-form-essential-title">{% block essential_title %}{% translate "Essential details" %}{% endblock essential_title %}</h4>
+        {% block essential_description %}{% endblock essential_description %}
+      </div>
+      {% block required_note %}{% endblock required_note %}
+    </div>
+    {% block essential_fields %}{% endblock essential_fields %}
+  </section>
+
+  {% block additional_sections %}{% endblock additional_sections %}
+
+  <footer class="app-form-footer">
+    {% block form_actions %}
+      <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{% translate "Cancel" %}</button>
+      <button type="submit" class="btn btn-primary app-form-submit">{% block submit_label %}{{ submit_label }}{% endblock submit_label %}</button>
+    {% endblock form_actions %}
+  </footer>
+</form>

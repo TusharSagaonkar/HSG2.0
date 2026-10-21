@@ -19,44 +19,91 @@
     <a href="{% url 'accounting:trial-balance' %}" class="btn btn-outline-primary"><i class="fas fa-balance-scale me-1"></i>{% translate "Trial Balance" %}</a>
   </div>
 
+  <form method="get" class="mb-3" role="search">
+    <label class="visually-hidden" for="account-search">{% translate "Search by account name or code" %}</label>
+    <div class="input-group">
+      <span class="input-group-text" aria-hidden="true"><i class="fas fa-search"></i></span>
+      <input id="account-search" type="search" name="q" value="{{ search_query }}" class="form-control" placeholder="{% translate 'Search by account name or code' %}">
+      <select class="form-select" name="mode" aria-label="{% translate 'Trial balance display mode' %}" style="max-width: 230px">
+        {% for value, label in mode_choices %}<option value="{{ value }}" {% if mode == value %}selected{% endif %}>{{ label }}</option>{% endfor %}
+      </select>
+      <button type="submit" class="btn btn-primary">{% translate "Search" %}</button>
+      {% if search_query %}<a href="{% url 'accounting:account-list' %}" class="btn btn-outline-secondary">{% translate "Clear" %}</a>{% endif %}
+    </div>
+  </form>
+
   <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
-      <thead>
-        <tr>
-          <th>{% translate "Name" %}</th>
-          <th>{% translate "Society" %}</th>
-          <th>{% translate "Category" %}</th>
-          <th>{% translate "Parent" %}</th>
-          <th class="text-center">{% translate "Status" %}</th>
-          <th class="text-end">{% translate "Ledger" %}</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for account in accounts %}
-          <tr>
-            <td>{{ account.name }}</td>
-            <td>{{ account.society.name }}</td>
-            <td>{{ account.category.name }} ({{ account.category.get_account_type_display }})</td>
-            <td>{{ account.parent.name|default:"-" }}</td>
-            <td class="text-center">
-              {% if account.is_active %}
-                <span class="badge text-bg-success">{% translate "Active" %}</span>
-              {% else %}
-                <span class="badge text-bg-secondary">{% translate "Inactive" %}</span>
-              {% endif %}
-            </td>
-            <td class="text-end">
-              <a href="{% url 'accounting:account-ledger' account.pk %}" class="btn btn-sm btn-outline-primary">
-                <i class="fas fa-eye me-1"></i>{% translate "View" %}
-              </a>
-            </td>
+    {% if mode == "detailed" %}
+      <table class="table table-hover table-sm align-middle mb-0">
+        <thead>
+          <tr class="small text-nowrap">
+            <th colspan="6">
+              <form method="get" class="m-0">
+                {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}<input type="hidden" name="mode" value="{{ mode }}">
+                <label class="form-check mb-0"><input class="form-check-input" type="checkbox" name="exclude_zero" value="1" {% if exclude_zero %}checked{% endif %} onchange="this.form.submit()"><span class="form-check-label">{% translate "Hide zero-balance accounts" %}</span></label>
+              </form>
+            </th>
+            <th class="text-end">{% translate "Total DR" %} <strong class="text-primary">{{ total_debit_balance|floatformat:2 }}</strong></th>
+            <th class="text-end">{% translate "Total CR" %} <strong class="text-success">{{ total_credit_balance|floatformat:2 }}</strong></th><th></th>
           </tr>
-        {% empty %}
-          <tr>
-            <td colspan="6" class="text-center text-muted py-4">{% translate "No accounts available." %}</td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+          <tr><th>{% translate "Code" %}</th><th>{% translate "Account" %}</th><th>{% translate "Parent" %}</th><th class="text-end">{% translate "Opening balance" %}</th><th class="text-end">{% translate "Period DR" %}</th><th class="text-end">{% translate "Period CR" %}</th><th class="text-end">{% translate "Closing DR" %}</th><th class="text-end">{% translate "Closing CR" %}</th><th class="text-end">{% translate "Ledger" %}</th></tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}{% with account=row.account %}
+            <tr><td>{{ account.code|default:"-" }}</td><td>{{ account.name }}</td><td>{{ account.parent.name|default:"-" }}</td>
+              <td class="text-end text-nowrap">{% if account.opening_debit_balance %}{{ account.opening_debit_balance|floatformat:2 }} DR{% elif account.opening_credit_balance %}{{ account.opening_credit_balance|floatformat:2 }} CR{% else %}0.00{% endif %}</td>
+              <td class="text-end">{{ account.period_debit|floatformat:2 }}</td><td class="text-end">{{ account.period_credit|floatformat:2 }}</td>
+              <td class="text-end">{{ account.closing_debit_balance|floatformat:2 }}</td><td class="text-end">{{ account.closing_credit_balance|floatformat:2 }}</td>
+              <td class="text-end"><a href="{% url 'accounting:account-ledger' account.pk %}" class="btn btn-sm btn-outline-primary">{% translate "View" %}</a></td></tr>
+          {% endwith %}{% empty %}<tr><td colspan="9" class="text-center text-muted py-4">{% translate "No accounts available." %}</td></tr>{% endfor %}
+        </tbody>
+      </table>
+    {% elif mode == "grouped" %}
+      <div class="table-responsive">
+        <div class="grouped-trial-balance" data-grouped-trial-balance style="min-width: 900px">
+          <div class="d-grid align-items-center gap-2 border-bottom py-2 small fw-semibold text-muted" style="grid-template-columns: minmax(260px, 2fr) repeat(6, minmax(85px, 1fr))">
+            <div>{% translate "Account hierarchy" %}</div><div class="text-end">{% translate "Opening DR" %}</div><div class="text-end">{% translate "Opening CR" %}</div><div class="text-end">{% translate "Period DR" %}</div><div class="text-end">{% translate "Period CR" %}</div><div class="text-end">{% translate "Closing DR" %}</div><div class="text-end">{% translate "Closing CR" %}</div>
+          </div>
+          <div class="d-grid align-items-center gap-2 border-bottom bg-body-tertiary px-2 py-2 small" style="grid-template-columns: minmax(260px, 2fr) repeat(6, minmax(85px, 1fr))">
+            <div>
+              <form method="get" class="m-0">
+                {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}<input type="hidden" name="mode" value="{{ mode }}">
+                <div class="d-flex align-items-center gap-3 flex-wrap">
+                  <label class="form-check mb-0"><input class="form-check-input" type="checkbox" name="exclude_zero" value="1" {% if exclude_zero %}checked{% endif %} onchange="this.form.submit()"><span class="form-check-label">{% translate "Hide zero-balance accounts" %}</span></label>
+                  <button type="button" class="btn btn-link btn-sm p-0" data-grouped-expand-toggle data-expanded="true" data-expand-label="{% translate 'Expand all' %}" data-collapse-label="{% translate 'Collapse all' %}">{% translate "Collapse all" %}</button>
+                </div>
+              </form>
+            </div>
+            <div></div><div></div><div></div><div></div>
+            <div class="text-end fw-semibold text-primary">{{ total_debit_balance|floatformat:2 }}</div><div class="text-end fw-semibold text-success">{{ total_credit_balance|floatformat:2 }}</div>
+          </div>
+          {% for node in rows %}{% include "accounting/partials/account_group_nodes.html" with node=node %}{% empty %}<p class="text-center text-muted py-4">{% translate "No accounts available." %}</p>{% endfor %}
+        </div>
+      </div>
+      <script>
+        document.querySelectorAll("[data-grouped-expand-toggle]").forEach((button) => {
+          button.addEventListener("click", () => {
+            const container = button.closest("[data-grouped-trial-balance]");
+            const expand = button.dataset.expanded !== "true";
+            container.querySelectorAll("details").forEach((branch) => { branch.open = expand; });
+            button.dataset.expanded = String(expand);
+            button.textContent = expand ? button.dataset.collapseLabel : button.dataset.expandLabel;
+          });
+        });
+      </script>
+    {% else %}
+      <table class="table table-hover table-sm align-middle mb-0">
+        <thead>
+          <tr class="small"><th>
+            <form method="get" class="m-0">
+              {% if search_query %}<input type="hidden" name="q" value="{{ search_query }}">{% endif %}<input type="hidden" name="mode" value="{{ mode }}">
+              <label class="form-check mb-0"><input class="form-check-input" type="checkbox" name="exclude_zero" value="1" {% if exclude_zero %}checked{% endif %} onchange="this.form.submit()"><span class="form-check-label">{% translate "Hide zero-balance accounts" %}</span></label>
+            </form>
+          </th><th class="text-end">{% translate "Total DR" %} <strong class="text-primary">{{ total_debit_balance|floatformat:2 }}</strong></th><th class="text-end">{% translate "Total CR" %} <strong class="text-success">{{ total_credit_balance|floatformat:2 }}</strong></th></tr>
+          <tr><th>{% translate "Root category" %}</th><th class="text-end">{% translate "Debit balance" %}</th><th class="text-end">{% translate "Credit balance" %}</th></tr>
+        </thead>
+        <tbody>{% for row in rows %}<tr><td>{{ row.name }}</td><td class="text-end">{{ row.closing_debit|floatformat:2 }}</td><td class="text-end">{{ row.closing_credit|floatformat:2 }}</td></tr>{% empty %}<tr><td colspan="3" class="text-center text-muted py-4">{% translate "No balances available." %}</td></tr>{% endfor %}</tbody>
+      </table>
+    {% endif %}
   </div>
 {% endblock content %}

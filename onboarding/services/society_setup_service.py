@@ -93,7 +93,7 @@ class SocietySetupService:
         * Step 1 — :meth:`create_society`
         * Step 6 — :meth:`create_structure`
         * Step 7 — :meth:`create_units`
-        * Step 8 — :meth:`assign_members`
+        * Step 7 — :meth:`assign_members`
     """
 
     # ------------------------------------------------------------------ #
@@ -402,13 +402,20 @@ class SocietySetupService:
 
             # Map usage_type to UnitType.
             usage_type = (unit_data.get("usage_type") or "RESIDENTIAL").upper()
-            unit_type = _USAGE_TYPE_TO_UNIT_TYPE.get(usage_type, Unit.UnitType.FLAT)
+            requested_type = (unit_data.get("unit_type") or "").upper()
+            valid_types = {value for value, _label in Unit.UnitType.choices}
+            unit_type = (
+                requested_type
+                if requested_type in valid_types
+                else _USAGE_TYPE_TO_UNIT_TYPE.get(usage_type, Unit.UnitType.FLAT)
+            )
 
             # Parse area.
             area = SocietySetupService._parse_decimal(unit_data.get("area"))
 
-            # Create or get the unit.
-            unit, _ = Unit.objects.get_or_create(
+            # Upsert so reopening and saving the populated Step 7 grid does
+            # not reject or duplicate units already entered in the wizard.
+            unit, _ = Unit.objects.update_or_create(
                 structure=structure,
                 identifier=flat_number,
                 defaults={
@@ -530,7 +537,7 @@ class SocietySetupService:
         return unit_count
 
     # ------------------------------------------------------------------ #
-    # Step 8: Member assignment
+    # Step 7: Member assignment
     # ------------------------------------------------------------------ #
 
     @staticmethod

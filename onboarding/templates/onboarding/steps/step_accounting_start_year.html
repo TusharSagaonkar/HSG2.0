@@ -6,14 +6,16 @@
     <div class="content-card__body">
       <p class="text-muted mb-3">
         {% blocktrans %}
-          Select the financial year from which accounting will begin.
-          This determines the start and end dates of the first financial
-          year for the society.
+          Select the financial year from which accounting will begin. The
+          first financial year will be created when you continue.
         {% endblocktrans %}
       </p>
 
-      <form method="post"
-            action="{% url 'onboarding:wizard-step-save' wizard.id step_number %}">
+      <form method="post" id="accountingStartYearForm"
+            action="{% url 'onboarding:wizard-step-save' wizard.id step_number %}"
+            hx-post="{% url 'onboarding:wizard-step-save' wizard.id step_number %}"
+            hx-target="#workspace" hx-select="#workspace" hx-swap="innerHTML"
+            hx-indicator="#workspace-loading">
         {% csrf_token %}
 
         {% if form.non_field_errors %}
@@ -39,8 +41,11 @@
         {% endfor %}
 
         <div class="form-actions mt-4">
-          <button type="submit" class="btn btn-primary">
-            <i class="fas fa-check me-1"></i>{% trans "Save & Continue" %}
+          <button type="button" class="btn btn-primary" id="confirmFinancialYearButton">
+            <i class="fas fa-calendar-plus me-1"></i>{% trans "Add Financial Year" %}
+          </button>
+          <button type="submit" name="continue_wizard" value="1" class="btn btn-success">
+            <i class="fas fa-arrow-right me-1"></i>{% trans "Continue" %}
           </button>
           <a href="{% url 'onboarding:wizard-step' wizard.id 3 %}"
              class="btn btn-outline-secondary">
@@ -50,4 +55,66 @@
       </form>
     </div>
   </div>
+
+  {% include "onboarding/partials/financial_year_list.html" %}
+
+  <div class="modal fade" id="financialYearConfirmModal" tabindex="-1"
+       aria-labelledby="financialYearConfirmTitle" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="financialYearConfirmTitle">{% trans "Create Financial Year?" %}</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"
+                  aria-label="{% trans 'Cancel' %}"></button>
+        </div>
+        <div class="modal-body text-center py-4">
+          <p class="text-muted mb-2">{% trans "Do you want to create this financial year?" %}</p>
+          <div id="financialYearConfirmLabel" class="display-5 fw-bold text-primary"
+               aria-live="polite">—</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">{% trans "Cancel" %}</button>
+          <button type="button" class="btn btn-primary" id="createFinancialYearConfirm"
+                  hx-post="{% url 'onboarding:wizard-step-save' wizard.id step_number %}"
+                  hx-include="#accountingStartYearForm" hx-target="#financial-year-list"
+                  hx-select="#financial-year-list" hx-swap="outerHTML"
+                  hx-indicator="#workspace-loading">
+            {% trans "Yes, Create Year" %}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+    (function () {
+      const select = document.getElementById("id_accounting_start_year");
+      const modalElement = document.getElementById("financialYearConfirmModal");
+      const label = document.getElementById("financialYearConfirmLabel");
+      const form = document.getElementById("accountingStartYearForm");
+      const showButton = document.getElementById("confirmFinancialYearButton");
+      const confirmButton = document.getElementById("createFinancialYearConfirm");
+      if (!select || !form || !showButton || !confirmButton) return;
+      const modal = modalElement && window.bootstrap
+        ? bootstrap.Modal.getOrCreateInstance(modalElement)
+        : null;
+      showButton.addEventListener("click", function () {
+        if (!select.value) {
+          select.focus();
+          return;
+        }
+        if (!modal) {
+          form.requestSubmit();
+          return;
+        }
+        label.textContent = select.options[select.selectedIndex].text;
+        modal.show();
+      });
+      confirmButton.addEventListener("click", function (event) {
+        if (!window.htmx) {
+          event.preventDefault();
+          form.requestSubmit();
+        }
+      });
+    })();
+  </script>
 {% endblock wizard_content %}

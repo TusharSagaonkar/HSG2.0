@@ -1,6 +1,6 @@
 {% load i18n %}
 
-<div class="tree-node level-{{ level }}{% if not node.children %} leaf{% endif %}" style="--tree-depth: {{ level }};">
+<div id="account-tree-node-{{ node.account.pk }}" class="tree-node level-{{ level }}{% if not node.children %} leaf{% endif %}" style="--tree-depth: {{ level }};">
   <div class="tree-node-content">
     {% if node.children %}
       <details class="tree-details" open>
@@ -14,40 +14,13 @@
           <span class="tree-node-title">
             <span class="tree-node-name">{{ node.account.name }}</span>
             <span class="tree-node-meta">
-              {% if node.account.code %}
-                <span class="tree-node-code">{{ node.account.code }}</span>
-              {% endif %}
+              {% if node.account.code %}<span class="tree-node-code">{{ node.account.code }}</span>{% endif %}
               <span class="tree-node-type">{{ node.account.get_account_type_display }}</span>
+              <span class="badge {% if node.account.is_active %}bg-success{% else %}bg-secondary{% endif %}">{% if node.account.is_active %}{% translate "Active" %}{% else %}{% translate "Inactive" %}{% endif %}</span>
             </span>
           </span>
-          <div class="tree-node-actions">
-            <a href="{% url 'accounting:account-ledger' node.account.pk %}" class="btn btn-sm btn-outline-secondary tree-action-link">
-              <i class="fas fa-eye me-1"></i>{% translate "Ledger" %}
-            </a>
-            {% if can_create_account %}
-              <button
-                type="button"
-                class="btn btn-sm btn-outline-success tree-action-link"
-                data-account-form-url="{% url 'accounting:account-add' %}?parent={{ node.account.pk }}"
-                data-account-form-title="{% translate 'Add child account' %}"
-                data-account-form-parent="{{ node.account.full_path }}"
-              >
-                <i class="fas fa-plus me-1"></i>{% translate "Add" %}
-              </button>
-            {% endif %}
-            {% if can_edit_account %}
-              <button
-                type="button"
-                class="btn btn-sm btn-outline-primary tree-action-link"
-                data-account-form-url="{% url 'accounting:account-edit' node.account.pk %}"
-                data-account-form-title="{% translate 'Edit account' %}"
-              >
-                <i class="fas fa-pen me-1"></i>{% translate "Edit" %}
-              </button>
-            {% endif %}
-          </div>
+          {% include "accounting/partials/account_tree_node_actions.html" with account=node.account %}
         </summary>
-
         <div class="tree-children">
           {% for child in node.children %}
             {% include "accounting/partials/account_tree_node.html" with node=child level=level|add:1 %}
@@ -61,38 +34,12 @@
         <span class="tree-node-title">
           <span class="tree-node-name">{{ node.account.name }}</span>
           <span class="tree-node-meta">
-            {% if node.account.code %}
-              <span class="tree-node-code">{{ node.account.code }}</span>
-            {% endif %}
+            {% if node.account.code %}<span class="tree-node-code">{{ node.account.code }}</span>{% endif %}
             <span class="tree-node-type">{{ node.account.get_account_type_display }}</span>
+            <span class="badge {% if node.account.is_active %}bg-success{% else %}bg-secondary{% endif %}">{% if node.account.is_active %}{% translate "Active" %}{% else %}{% translate "Inactive" %}{% endif %}</span>
           </span>
         </span>
-        <div class="tree-node-actions">
-          <a href="{% url 'accounting:account-ledger' node.account.pk %}" class="btn btn-sm btn-outline-secondary tree-action-link">
-            <i class="fas fa-eye me-1"></i>{% translate "Ledger" %}
-          </a>
-          {% if can_create_account %}
-            <button
-              type="button"
-              class="btn btn-sm btn-outline-success tree-action-link"
-              data-account-form-url="{% url 'accounting:account-add' %}?parent={{ node.account.pk }}"
-              data-account-form-title="{% translate 'Add child account' %}"
-              data-account-form-parent="{{ node.account.full_path }}"
-            >
-              <i class="fas fa-plus me-1"></i>{% translate "Add" %}
-            </button>
-          {% endif %}
-          {% if can_edit_account %}
-            <button
-              type="button"
-              class="btn btn-sm btn-outline-primary tree-action-link"
-              data-account-form-url="{% url 'accounting:account-edit' node.account.pk %}"
-              data-account-form-title="{% translate 'Edit account' %}"
-            >
-              <i class="fas fa-pen me-1"></i>{% translate "Edit" %}
-            </button>
-          {% endif %}
-        </div>
+        {% include "accounting/partials/account_tree_node_actions.html" with account=node.account %}
       </div>
     {% endif %}
   </div>

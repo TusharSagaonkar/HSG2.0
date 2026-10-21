@@ -1,0 +1,23 @@
+{% load i18n %}
+<details class="grouped-account border-bottom" open>
+  <summary class="d-grid align-items-center gap-2 px-2 py-2" style="grid-template-columns: minmax(260px, 2fr) repeat(6, minmax(85px, 1fr))">
+    <span class="d-flex align-items-center gap-2" style="padding-left: {{ node.depth }}rem">
+      <span class="font-monospace small text-muted">{{ node.account.code|default:"—" }}</span>
+      <span class="fw-semibold">{{ node.account.name }}</span>
+      {% if node.children %}<span class="badge text-bg-light border">{% blocktrans count count=node.children|length %}{{ count }} child{% plural %}{{ count }} children{% endblocktrans %}</span>{% else %}<span class="small text-muted">{{ node.account.category.name }}</span>{% endif %}
+      {% if node.orphan %}<span class="badge text-bg-warning">{% translate "Parent outside selected scope" %}</span>{% endif %}
+      {% if not node.children %}<a class="small ms-auto" href="{% url 'accounting:account-ledger' node.account.pk %}" onclick="event.stopPropagation()">{% translate "Ledger" %}</a>{% endif %}
+    </span>
+    <span class="text-end small text-nowrap">{{ node.opening_debit|floatformat:2 }}</span>
+    <span class="text-end small text-nowrap">{{ node.opening_credit|floatformat:2 }}</span>
+    <span class="text-end small text-nowrap">{{ node.period_debit|floatformat:2 }}</span>
+    <span class="text-end small text-nowrap">{{ node.period_credit|floatformat:2 }}</span>
+    <span class="text-end small text-nowrap fw-semibold">{{ node.closing_debit|floatformat:2 }}</span>
+    <span class="text-end small text-nowrap fw-semibold">{{ node.closing_credit|floatformat:2 }}</span>
+  </summary>
+  {% if node.children %}
+    <div class="grouped-account-children">
+      {% for child_node in node.children %}{% include "accounting/partials/account_group_nodes.html" with node=child_node %}{% endfor %}
+    </div>
+  {% endif %}
+</details>

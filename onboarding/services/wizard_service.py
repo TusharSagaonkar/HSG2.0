@@ -23,9 +23,9 @@ Design notes
       ``COMPLETED`` step log.
     * ``go_to_step`` allows backward navigation (review/correction) or
       re-entering the immediate next step. It logs a ``STARTED`` step log.
-- **Branch handling at Step 9:** when ``society_type == NEW``, the wizard
-  jumps from Step 9 directly to Step 28 (Society Ready), skipping the
-  migration steps 10–27 which only apply to EXISTING societies.
+- **Branch handling at Step 8:** when ``society_type == NEW``, the wizard
+  jumps from Step 8 directly to Step 27 (Society Ready), skipping the
+  migration steps 9–26 which only apply to EXISTING societies.
 """
 
 from __future__ import annotations
@@ -53,60 +53,58 @@ STEP_SOCIETY_DETAILS = 1
 STEP_SOCIETY_TYPE = 2
 STEP_MODULE_SELECTION = 3
 STEP_ACCOUNTING_START_YEAR = 4
-STEP_FINANCIAL_YEAR_CREATION = 5
-STEP_SOCIETY_STRUCTURE = 6
-STEP_UNIT_CONFIGURATION = 7
-STEP_MEMBER_ASSIGNMENT = 8
-STEP_ACCOUNTING_SETUP = 9
-STEP_CHART_OF_ACCOUNTS = 10
-STEP_IMPORT_TEMPLATES = 11
-STEP_STAGING_AREA = 12
-STEP_IMPORT_VALIDATION = 13
-STEP_DELETE_REUPLOAD = 14
-STEP_OPENING_TRIAL_BALANCE = 15
-STEP_MEMBER_OUTSTANDING = 16
-STEP_VENDOR_OUTSTANDING = 17
-STEP_BANK_OPENING = 18
-STEP_CASH_OPENING = 19
-STEP_FUNDS = 20
-STEP_FIXED_ASSETS = 21
-STEP_LOANS = 22
-STEP_RECONCILIATION_DASHBOARD = 23
-STEP_MIGRATION_VALIDATION_CHECKLIST = 24
-STEP_FINAL_APPROVAL = 25
-STEP_CREATE_OPENING_JOURNAL = 26
-STEP_LOCK_MIGRATION = 27
-STEP_SOCIETY_READY = 28
+STEP_SOCIETY_STRUCTURE = 5
+STEP_UNIT_CONFIGURATION = 6
+STEP_MEMBER_ASSIGNMENT = 7
+STEP_ACCOUNTING_SETUP = 8
+STEP_CHART_OF_ACCOUNTS = 9
+STEP_IMPORT_TEMPLATES = 10
+STEP_STAGING_AREA = 11
+STEP_IMPORT_VALIDATION = 12
+STEP_DELETE_REUPLOAD = 13
+STEP_OPENING_TRIAL_BALANCE = 14
+STEP_MEMBER_OUTSTANDING = 15
+STEP_VENDOR_OUTSTANDING = 16
+STEP_BANK_OPENING = 17
+STEP_CASH_OPENING = 18
+STEP_FUNDS = 19
+STEP_FIXED_ASSETS = 20
+STEP_LOANS = 21
+STEP_RECONCILIATION_DASHBOARD = 22
+STEP_MIGRATION_VALIDATION_CHECKLIST = 23
+STEP_FINAL_APPROVAL = 24
+STEP_CREATE_OPENING_JOURNAL = 25
+STEP_LOCK_MIGRATION = 26
+STEP_SOCIETY_READY = 27
 
 STEP_NAMES = {
     1: "Society Details",
     2: "Society Type",
     3: "Module Selection",
     4: "Accounting Start Year",
-    5: "Financial Year Creation",
-    6: "Society Structure",
-    7: "Unit Configuration",
-    8: "Member Assignment",
-    9: "Accounting Setup",
-    10: "Chart of Accounts",
-    11: "Import Templates",
-    12: "Staging Area",
-    13: "Import Validation",
-    14: "Delete & Re-upload",
-    15: "Opening Trial Balance",
-    16: "Member Outstanding",
-    17: "Vendor Outstanding",
-    18: "Bank Opening Balances",
-    19: "Cash Opening Balance",
-    20: "Funds",
-    21: "Fixed Assets",
-    22: "Loans",
-    23: "Reconciliation Dashboard",
-    24: "Migration Validation Checklist",
-    25: "Final Approval",
-    26: "Create Opening Journal",
-    27: "Lock Migration",
-    28: "Society Ready",
+    5: "Society Structure",
+    6: "Unit Configuration",
+    7: "Member Assignment",
+    8: "Accounting Setup",
+    9: "Chart of Accounts",
+    10: "Import Templates",
+    11: "Staging Area",
+    12: "Import Validation",
+    13: "Delete & Re-upload",
+    14: "Opening Trial Balance",
+    15: "Member Outstanding",
+    16: "Vendor Outstanding",
+    17: "Bank Opening Balances",
+    18: "Cash Opening Balance",
+    19: "Funds",
+    20: "Fixed Assets",
+    21: "Loans",
+    22: "Reconciliation Dashboard",
+    23: "Migration Validation Checklist",
+    24: "Final Approval",
+    25: "Create Opening Journal",
+    26: "Lock Migration",
+    27: "Society Ready",
 }
 
 # --------------------------------------------------------------------------- #
@@ -235,7 +233,7 @@ class WizardService:
 
         Branch handling: if the current step is :data:`STEP_ACCOUNTING_SETUP`
         (9) and ``society_type == NEW``, the wizard jumps directly to
-        :data:`STEP_SOCIETY_READY` (28), skipping the migration steps.
+        :data:`STEP_SOCIETY_READY` (27), skipping the migration steps.
 
         Parameters
         ----------
@@ -277,7 +275,7 @@ class WizardService:
             data_snapshot=step_data or {},
         )
 
-        # Determine the next step (with branch handling at Step 9).
+        # Determine the next step (with branch handling at Step 8).
         next_step = WizardService._compute_next_step(wizard, current)
 
         before = WizardService._serialize_wizard(wizard)
@@ -313,7 +311,7 @@ class WizardService:
         wizard : OnboardingWizard
             The wizard to navigate.
         step_number : int
-            The target step number (1–28).
+            The target step number (1–27).
         user : User, optional
             The user performing the action.
 
@@ -603,13 +601,16 @@ class WizardService:
     def visible_steps(wizard) -> list[int]:
         """Return the ordered list of step numbers that apply to this wizard.
 
-        For ``NEW`` societies, the migration steps (10–27) are skipped, so
-        only steps 1–9 and 28 are visible. For ``EXISTING`` societies (or
-        before the society type is chosen), all 28 steps are visible.
+        For ``NEW`` societies, the migration steps (9–26) are skipped, so
+        only steps 1–8 and 27 are visible. For ``EXISTING`` societies (or
+        before the society type is chosen), all 27 steps are visible.
         """
+        steps = list(range(1, MAX_STEP + 1))
         if wizard.society_type == OnboardingWizard.SocietyType.NEW:
-            return list(range(1, STEP_ACCOUNTING_SETUP + 1)) + [STEP_SOCIETY_READY]
-        return list(range(1, MAX_STEP + 1))
+            return [
+                step for step in steps if step <= STEP_ACCOUNTING_SETUP
+            ] + [STEP_SOCIETY_READY]
+        return steps
 
     @staticmethod
     def get_step_navigation(wizard, step_number: int) -> dict:
@@ -648,10 +649,10 @@ class WizardService:
 
     @staticmethod
     def _compute_next_step(wizard, current_step) -> int:
-        """Compute the next step number, applying branch logic at Step 9.
+        """Compute the next step number, applying branch logic at Step 8.
 
-        For ``NEW`` societies, the migration steps (10–27) are skipped —
-        the wizard jumps from Step 9 (Accounting Setup) directly to Step 28
+        For ``NEW`` societies, the migration steps (9–26) are skipped —
+        the wizard jumps from Step 8 (Accounting Setup) directly to Step 27
         (Society Ready).
         """
         if (
