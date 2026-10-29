@@ -85,6 +85,22 @@ class HomeDashboardView(LoginRequiredMixin, TemplateView):
             permits_qs = permits_qs.filter(society=selected_society)
             rotation_apps_qs = rotation_apps_qs.filter(cycle__society=selected_society)
             gate_events_qs = gate_events_qs.filter(society=selected_society)
+        else:
+            societies_qs = societies_qs.none()
+            structures_qs = structures_qs.none()
+            units_qs = units_qs.none()
+            occupancies_qs = occupancies_qs.none()
+            members_qs = members_qs.none()
+            templates_qs = templates_qs.none()
+            bills_qs = bills_qs.none()
+            receipts_qs = receipts_qs.none()
+            reminders_qs = reminders_qs.none()
+            vouchers_qs = vouchers_qs.none()
+            periods_qs = periods_qs.none()
+            vehicles_qs = vehicles_qs.none()
+            permits_qs = permits_qs.none()
+            rotation_apps_qs = rotation_apps_qs.none()
+            gate_events_qs = gate_events_qs.none()
 
         if selected_financial_year:
             bills_qs = self._filter_date_range(

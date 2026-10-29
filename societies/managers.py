@@ -55,3 +55,12 @@ class TenantManager(models.Manager.from_queryset(TenantQuerySet)):
         # .filter()/.exclude() calls keep the scoping without re-applying it
         # (which previously caused infinite recursion via _clone → filter → _clone).
         return super().get_queryset()._apply_tenant_filter()
+
+    def unscoped(self):
+        """Return a fresh queryset without tenant or soft-delete filters.
+
+        Calling ``TenantQuerySet.unscoped()`` on ``get_queryset()`` cannot
+        remove filters already added by ``TenantManager.get_queryset()``.
+        Start from the base manager queryset instead.
+        """
+        return super().get_queryset()

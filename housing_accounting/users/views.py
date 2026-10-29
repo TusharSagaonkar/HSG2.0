@@ -1,8 +1,11 @@
+from urllib.parse import urlsplit
+
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.messages.views import SuccessMessageMixin
 from django.db.models import QuerySet
 from django.shortcuts import redirect
 from django.urls import reverse
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils.translation import gettext_lazy as _
 from django.views import View
 from django.views.generic import DetailView
@@ -58,6 +61,17 @@ class GlobalSelectionUpdateView(LoginRequiredMixin, View):
         next_url = request.POST.get("next") or request.META.get("HTTP_REFERER") or reverse(
             "home"
         )
+        if request.headers.get("HX-Request") == "true":
+            current_url = request.headers.get("HX-Current-URL", "")
+            if url_has_allowed_host_and_scheme(
+                current_url,
+                allowed_hosts={request.get_host()},
+                require_https=request.is_secure(),
+            ):
+                current_parts = urlsplit(current_url)
+                next_url = current_parts.path or reverse("home")
+                if current_parts.query:
+                    next_url = f"{next_url}?{current_parts.query}"
 
         society_id = request.POST.get("selected_society_id")
         accessible_societies = get_accessible_societies_qs(request.user)

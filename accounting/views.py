@@ -72,6 +72,10 @@ class AccountingDashboardView(LoginRequiredMixin, PermissionRequiredMixin, Templ
             accounts_qs = accounts_qs.filter(society=selected_society)
             vouchers_qs = vouchers_qs.filter(society=selected_society)
             periods_qs = periods_qs.filter(society=selected_society)
+        else:
+            accounts_qs = accounts_qs.none()
+            vouchers_qs = vouchers_qs.none()
+            periods_qs = periods_qs.none()
 
         if selected_financial_year:
             vouchers_qs = vouchers_qs.filter(
@@ -147,6 +151,8 @@ class AccountListView(LoginRequiredMixin, PermissionRequiredMixin, TenantScopeMi
         )
         if selected_society:
             queryset = queryset.filter(society=selected_society)
+        else:
+            queryset = queryset.none()
         return queryset
 
     @staticmethod
@@ -479,10 +485,14 @@ class AccountTreeView(LoginRequiredMixin, PermissionRequiredMixin, TemplateView)
         ).order_by("society__name", "name")
         if selected_society:
             queryset = queryset.filter(society=selected_society)
+        else:
+            queryset = queryset.none()
 
         categories = AccountCategory.objects.order_by("account_type", "name")
         if selected_society:
             categories = categories.filter(society=selected_society)
+        else:
+            categories = categories.none()
 
         filters = {
             "q": self.request.GET.get("q", "").strip(),
@@ -623,6 +633,8 @@ class AccountTreeSearchView(LoginRequiredMixin, PermissionRequiredMixin, View):
         accounts = Account.objects.select_related("society", "category").all()
         if selected_society:
             accounts = accounts.filter(society=selected_society)
+        else:
+            accounts = accounts.none()
         search_query = Q(name__icontains=query) | Q(code__icontains=query)
         if compact_code_query:
             accounts = accounts.annotate(
@@ -643,7 +655,7 @@ class AccountTreeSearchView(LoginRequiredMixin, PermissionRequiredMixin, View):
         if selected_society:
             categories = AccountCategory.objects.filter(society=selected_society)
         else:
-            categories = AccountCategory.objects.all()
+            categories = AccountCategory.objects.none()
         try:
             category_id = int(request.GET.get("category", ""))
         except (TypeError, ValueError):
@@ -698,7 +710,7 @@ class AccountModalFormView(LoginRequiredMixin, PermissionRequiredMixin, View):
         except (Account.DoesNotExist, TypeError, ValueError):
             return None
         selected_society = self._get_selected_society()
-        if selected_society and parent.society_id != selected_society.id:
+        if not selected_society or parent.society_id != selected_society.id:
             return None
         return parent
 
@@ -708,7 +720,7 @@ class AccountModalFormView(LoginRequiredMixin, PermissionRequiredMixin, View):
             pk=self.kwargs["pk"],
         )
         selected_society = self._get_selected_society()
-        if selected_society and account.society_id != selected_society.id:
+        if not selected_society or account.society_id != selected_society.id:
             raise Http404("Account not found in selected scope.")
         return account
 
@@ -902,7 +914,7 @@ class AccountDeleteView(LoginRequiredMixin, View):
         account = get_object_or_404(
             Account.objects.select_related("society"), pk=pk
         )
-        if selected_society and account.society_id != selected_society.pk:
+        if not selected_society or account.society_id != selected_society.pk:
             raise Http404("Account not found in selected scope.")
         if not has_permission(
             request.user, "accounting.account.delete", account.society
@@ -933,7 +945,7 @@ class AccountToggleActiveView(LoginRequiredMixin, View):
         account = get_object_or_404(
             Account.objects.select_related("society"), pk=pk
         )
-        if selected_society and account.society_id != selected_society.pk:
+        if not selected_society or account.society_id != selected_society.pk:
             raise Http404("Account not found in selected scope.")
         if not has_permission(request.user, "accounting.account.edit", account.society):
             raise PermissionDenied("You do not have permission to edit accounts.")
@@ -1015,7 +1027,7 @@ class AccountLedgerView(LoginRequiredMixin, PermissionRequiredMixin, TemplateVie
             pk=self.kwargs["pk"],
         )
 
-        if selected_society and account.society_id != selected_society.id:
+        if not selected_society or account.society_id != selected_society.id:
             raise Http404("Account not found in selected scope.")
 
         to_date = None
@@ -1081,7 +1093,7 @@ class AccountLedgerExportCsvView(LoginRequiredMixin, PermissionRequiredMixin, Vi
             Account.objects.select_related("society", "category"),
             pk=pk,
         )
-        if selected_society and account.society_id != selected_society.id:
+        if not selected_society or account.society_id != selected_society.id:
             raise Http404("Account not found in selected scope.")
 
         to_date = None
@@ -1220,6 +1232,8 @@ class VoucherListView(LoginRequiredMixin, PermissionRequiredMixin, TenantScopeMi
         queryset = base_queryset
         if selected_society:
             queryset = queryset.filter(society=selected_society)
+        else:
+            queryset = queryset.none()
 
         if selected_financial_year:
             scoped_queryset = queryset.filter(

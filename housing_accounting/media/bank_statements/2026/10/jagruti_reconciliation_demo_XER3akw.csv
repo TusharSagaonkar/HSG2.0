@@ -1,0 +1,4 @@
+Date,Narration,Ref No,Debit,Credit,Balance
+2026-10-16,Receipt for bill #7 - Sagar Kulkarni,JG-DEMO-REC-001,,2580.00,252580.00
+2026-10-19,Receipt for bill #8 - Meera Sawant,JG-DEMO-REC-002,,2687.24,255267.24
+2026-10-20,Vendor payment against payable,JG-DEMO-PAY-001,4200.00,,251067.24

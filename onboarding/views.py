@@ -25,6 +25,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q
 from django.db.models.deletion import ProtectedError
 from django.http import HttpRequest
 from django.http import HttpResponse
@@ -48,6 +49,7 @@ from onboarding.forms import (
 )
 from housing.forms import StructureForm as HousingStructureForm
 from onboarding.models import OnboardingWizard
+from housing_accounting.selection import get_selected_scope
 from onboarding.services.financial_year_service import (
     FY_PATTERN_APRIL_MARCH,
     FinancialYearSetupService,
@@ -141,17 +143,20 @@ STEP_TO_TEMPLATE_TYPE: dict[int, str] = {
 # Helper functions
 # --------------------------------------------------------------------------- #
 
-def _get_wizard(wizard_id: int, user) -> OnboardingWizard:
-    """Retrieve a wizard scoped to the requesting user.
+def _get_wizard(wizard_id: int, request) -> OnboardingWizard:
+    """Retrieve a wizard scoped to the requesting user and active society.
 
     Uses ``.unscoped()`` so the wizard can be fetched even before a
     society is associated (the TenantManager would otherwise filter
     it out when no tenant contextvar is set).
     """
-    return get_object_or_404(
-        OnboardingWizard.objects.unscoped().filter(created_by=user),
-        pk=wizard_id,
-    )
+    selected_society, _ = get_selected_scope(request)
+    queryset = OnboardingWizard.objects.unscoped().filter(created_by=request.user)
+    if selected_society:
+        queryset = queryset.filter(Q(society=selected_society) | Q(society__isnull=True))
+    else:
+        queryset = queryset.filter(society__isnull=True)
+    return get_object_or_404(queryset, pk=wizard_id)
 
 
 def _get_step_form(step_number: int, wizard: OnboardingWizard, data=None, files=None):
@@ -978,34 +983,24 @@ def _render_template_download(template_type: str, rows: list[dict[str, Any]], *,
 @login_required
 def wizard_list(request: HttpRequest) -> HttpResponse:
     """List all wizards created by the current user."""
-    wizards = list(
-        OnboardingWizard.objects.unscoped()
-        .filter(created_by=request.user)
-        .order_by("-started_at")
-        .select_related("society")
-    )
+    selected_society, _ = get_selected_scope(request)
+    wizard_queryset = OnboardingWizard.objects.unscoped().filter(created_by=request.user)
+    if selected_society:
+        wizard_queryset = wizard_queryset.filter(
+            Q(society=selected_society) | Q(society__isnull=True)
+        )
+    wizards = list(wizard_queryset.order_by("-started_at").select_related("society"))
 
-    # Summary stats for the dashboard cards.
-    in_progress_count = sum(
-        1 for w in wizards if w.status == OnboardingWizard.Status.IN_PROGRESS
-    )
-    completed_count = sum(
-        1 for w in wizards if w.status == OnboardingWizard.Status.COMPLETED
-    )
-    abandoned_count = sum(
-        1 for w in wizards if w.status == OnboardingWizard.Status.ABANDONED
-    )
+    return render(request, "onboarding/wizard_list.html", _wizard_list_context(wizards))
 
-    return render(
-        request,
-        "onboarding/wizard_list.html",
-        {
-            "wizards": wizards,
-            "in_progress_count": in_progress_count,
-            "completed_count": completed_count,
-            "abandoned_count": abandoned_count,
-        },
-    )
+
+def _wizard_list_context(wizards):
+    return {
+        "wizards": wizards,
+        "in_progress_count": sum(1 for w in wizards if w.status == OnboardingWizard.Status.IN_PROGRESS),
+        "completed_count": sum(1 for w in wizards if w.status == OnboardingWizard.Status.COMPLETED),
+        "abandoned_count": sum(1 for w in wizards if w.status == OnboardingWizard.Status.ABANDONED),
+    }
 
 
 @login_required
@@ -1022,6 +1017,13 @@ def wizard_start(request: HttpRequest) -> HttpResponse:
         return redirect("onboarding:wizard-list")
 
     messages.success(request, _("Wizard started. Let's set up your society."))
+    if request.headers.get("HX-Request") == "true":
+        response = HttpResponse(status=204)
+        response["HX-Redirect"] = reverse(
+            "onboarding:wizard-step",
+            kwargs={"wizard_id": wizard.pk, "step_number": 1},
+        )
+        return response
     return redirect(
         "onboarding:wizard-step",
         wizard_id=wizard.pk,
@@ -1030,9 +1032,32 @@ def wizard_start(request: HttpRequest) -> HttpResponse:
 
 
 @login_required
+@require_http_methods(["POST"])
+def wizard_delete(request: HttpRequest, wizard_id: int) -> HttpResponse:
+    """Delete one of the requesting user's onboarding wizard records."""
+    wizard = _get_wizard(wizard_id, request)
+    wizard.delete()
+    messages.success(request, _("Wizard deleted."))
+    if request.headers.get("HX-Request") == "true":
+        selected_society, _ = get_selected_scope(request)
+        wizard_queryset = OnboardingWizard.objects.unscoped().filter(created_by=request.user)
+        if selected_society:
+            wizard_queryset = wizard_queryset.filter(
+                Q(society=selected_society) | Q(society__isnull=True)
+            )
+        wizards = list(
+            wizard_queryset
+            .order_by("-started_at")
+            .select_related("society")
+        )
+        return render(request, "onboarding/wizard_list.html", _wizard_list_context(wizards))
+    return redirect("onboarding:wizard-list")
+
+
+@login_required
 def wizard_detail(request: HttpRequest, wizard_id: int) -> HttpResponse:
     """Redirect to the wizard's current step."""
-    wizard = _get_wizard(wizard_id, request.user)
+    wizard = _get_wizard(wizard_id, request)
 
     if wizard.status == OnboardingWizard.Status.COMPLETED:
         return redirect("onboarding:wizard-complete", wizard_id=wizard.pk)
@@ -1059,7 +1084,7 @@ def wizard_step(
     Validates that the step is accessible (not a future step) and
     dispatches to the appropriate form and template.
     """
-    wizard = _get_wizard(wizard_id, request.user)
+    wizard = _get_wizard(wizard_id, request)
 
     # Prevent accessing future steps.
     if step_number > wizard.current_step:
@@ -1140,7 +1165,7 @@ def wizard_step(
 @require_http_methods(["POST"])
 def wizard_reset_accounts(request: HttpRequest, wizard_id: int) -> HttpResponse:
     """Replace a wizard society's chart with the system standard accounts."""
-    wizard = _get_wizard(wizard_id, request.user)
+    wizard = _get_wizard(wizard_id, request)
     if wizard.current_step < 9 or not wizard.society:
         messages.error(request, _("The chart of accounts is not available to reset yet."))
         return redirect("onboarding:wizard-step", wizard_id=wizard.pk, step_number=wizard.current_step)
@@ -1172,7 +1197,7 @@ def wizard_units_delete(
         messages.error(request, _("Invalid request method."))
         return redirect("onboarding:wizard-step", wizard_id=wizard_id, step_number=6)
 
-    wizard = _get_wizard(wizard_id, request.user)
+    wizard = _get_wizard(wizard_id, request)
     if wizard.status != OnboardingWizard.Status.IN_PROGRESS:
         messages.error(request, _("This wizard is no longer in progress."))
         return redirect("onboarding:wizard-list")
@@ -1209,7 +1234,7 @@ def wizard_structure_delete(
             "onboarding:wizard-step", wizard_id=wizard_id, step_number=5
         )
 
-    wizard = _get_wizard(wizard_id, request.user)
+    wizard = _get_wizard(wizard_id, request)
     if wizard.status != OnboardingWizard.Status.IN_PROGRESS:
         messages.error(request, _("This wizard is no longer in progress."))
         return redirect("onboarding:wizard-list")
@@ -1343,7 +1368,7 @@ def wizard_member_list_api(
     request: HttpRequest, wizard_id: int
 ) -> JsonResponse:
     """GET: return structures (with units) + members grouped by unit."""
-    wizard = _get_wizard(wizard_id, request.user)
+    wizard = _get_wizard(wizard_id, request)
     if wizard.status != OnboardingWizard.Status.IN_PROGRESS:
         return JsonResponse(
             {"error": "This wizard is no longer in progress."}, status=403
@@ -1368,7 +1393,7 @@ def wizard_member_create_api(
     request: HttpRequest, wizard_id: int
 ) -> JsonResponse:
     """POST: create a member via :class:`MemberForm` and sync lifecycle."""
-    wizard = _get_wizard(wizard_id, request.user)
+    wizard = _get_wizard(wizard_id, request)
     if wizard.status != OnboardingWizard.Status.IN_PROGRESS:
         return JsonResponse(
             {"error": "This wizard is no longer in progress."}, status=403
@@ -1427,7 +1452,7 @@ def wizard_member_update_api(
     request: HttpRequest, wizard_id: int, member_id: int
 ) -> JsonResponse:
     """POST (PATCH semantics): update an existing member."""
-    wizard = _get_wizard(wizard_id, request.user)
+    wizard = _get_wizard(wizard_id, request)
     if wizard.status != OnboardingWizard.Status.IN_PROGRESS:
         return JsonResponse(
             {"error": "This wizard is no longer in progress."}, status=403
@@ -1499,7 +1524,7 @@ def wizard_member_delete_api(
     request: HttpRequest, wizard_id: int, member_id: int
 ) -> JsonResponse:
     """POST (DELETE semantics): hard-delete a member + end-date lifecycle rows."""
-    wizard = _get_wizard(wizard_id, request.user)
+    wizard = _get_wizard(wizard_id, request)
     if wizard.status != OnboardingWizard.Status.IN_PROGRESS:
         return JsonResponse(
             {"error": "This wizard is no longer in progress."}, status=403
@@ -1542,7 +1567,7 @@ def wizard_step_save(
             step_number=step_number,
         )
 
-    wizard = _get_wizard(wizard_id, request.user)
+    wizard = _get_wizard(wizard_id, request)
 
     if wizard.status != OnboardingWizard.Status.IN_PROGRESS:
         messages.error(request, _("This wizard is no longer in progress."))
@@ -1754,7 +1779,7 @@ def wizard_step_save(
 @require_http_methods(["POST"])
 def wizard_financial_year_delete(request: HttpRequest, wizard_id: int, financial_year_id: int) -> HttpResponse:
     """Delete a financial year belonging to the society in this active wizard."""
-    wizard = _get_wizard(wizard_id, request.user)
+    wizard = _get_wizard(wizard_id, request)
     if wizard.status != OnboardingWizard.Status.IN_PROGRESS or not wizard.society_id:
         messages.error(request, _("This wizard cannot manage financial years."))
         return redirect("onboarding:wizard-list")
@@ -2024,7 +2049,7 @@ def template_download(
         else:
             file_format = "csv"
         wizard_id = request.GET.get("wizard_id")
-        wizard = _get_wizard(int(wizard_id), request.user) if wizard_id else None
+        wizard = _get_wizard(int(wizard_id), request) if wizard_id else None
         rows = _build_sample_template_rows(wizard)
         canonical = StagingService._normalize_template_type(template_type)
     except (ValueError, ValidationError) as exc:
@@ -2045,7 +2070,7 @@ def template_manual_entry(
     template_type: str,
 ) -> HttpResponse:
     """Render and submit a direct typed-entry form for a staging template."""
-    wizard = _get_wizard(wizard_id, request.user)
+    wizard = _get_wizard(wizard_id, request)
 
     if wizard.current_step < 10:
         messages.error(request, _("Please complete step 10 before manual entry."))
@@ -2243,7 +2268,7 @@ def staging_upload(
     template_type: str,
 ) -> HttpResponse:
     """Upload a file to the staging area."""
-    wizard = _get_wizard(wizard_id, request.user)
+    wizard = _get_wizard(wizard_id, request)
 
     if request.method == "POST" and request.FILES.get("file"):
         try:
@@ -2276,7 +2301,7 @@ def staging_view(
     template_type: str,
 ) -> HttpResponse:
     """View staging data and validation errors for a template type."""
-    wizard = _get_wizard(wizard_id, request.user)
+    wizard = _get_wizard(wizard_id, request)
 
     try:
         staging_data = StagingService.get_staging_data(
@@ -2323,7 +2348,7 @@ def staging_delete(
             template_type=template_type,
         )
 
-    wizard = _get_wizard(wizard_id, request.user)
+    wizard = _get_wizard(wizard_id, request)
     try:
         StagingService.delete_batch(
             wizard=wizard,
@@ -2356,7 +2381,7 @@ def staging_approve(
             template_type=template_type,
         )
 
-    wizard = _get_wizard(wizard_id, request.user)
+    wizard = _get_wizard(wizard_id, request)
     try:
         StagingService.approve_batch(
             wizard=wizard,
@@ -2384,7 +2409,7 @@ def reconciliation_dashboard(
     wizard_id: int,
 ) -> HttpResponse:
     """Render the reconciliation dashboard (Step 22)."""
-    wizard = _get_wizard(wizard_id, request.user)
+    wizard = _get_wizard(wizard_id, request)
 
     dashboard = {}
     if wizard.society:
@@ -2415,7 +2440,7 @@ def validation_checklist(
     wizard_id: int,
 ) -> HttpResponse:
     """Render the 9-check validation checklist (Step 23)."""
-    wizard = _get_wizard(wizard_id, request.user)
+    wizard = _get_wizard(wizard_id, request)
 
     checklist = {}
     if wizard.society:
@@ -2447,7 +2472,7 @@ def finalize_migration(
     wizard_id: int,
 ) -> HttpResponse:
     """Handle final approval and trigger migration finalization (Steps 24–26)."""
-    wizard = _get_wizard(wizard_id, request.user)
+    wizard = _get_wizard(wizard_id, request)
 
     if request.method == "POST":
         form = FinalApprovalForm(request.POST)
@@ -2544,7 +2569,7 @@ def wizard_complete(
     wizard_id: int,
 ) -> HttpResponse:
     """Render the success / summary page (Step 27)."""
-    wizard = _get_wizard(wizard_id, request.user)
+    wizard = _get_wizard(wizard_id, request)
 
     finalization_summary = {}
     if wizard.society:

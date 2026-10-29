@@ -73,7 +73,13 @@ class Bill(models.Model):
     @property
     def allocated_amount(self):
         value = self.receipt_allocations.aggregate(total=Sum("amount"))["total"]
-        return value or Decimal("0.00")
+        if value is None:
+            return Decimal("0.00")
+        if not isinstance(value, Decimal):
+            value = Decimal(str(value))
+        # SQLite returns float-backed decimals for aggregates, which carry a
+        # long binary tail; round to paise so validation stays portable.
+        return value.quantize(Decimal("0.01"))
 
     @property
     def outstanding_amount(self):

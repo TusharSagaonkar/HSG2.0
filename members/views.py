@@ -31,7 +31,7 @@ class MemberDetailView(LoginRequiredMixin, DetailView):
     def get_object(self, queryset=None):
         member = super().get_object(queryset)
         selected_society, _ = get_selected_scope(self.request)
-        if selected_society and member.society_id != selected_society.id:
+        if not selected_society or member.society_id != selected_society.id:
             message = "Member not found in selected scope."
             raise Http404(message)
         return member

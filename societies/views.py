@@ -8,6 +8,8 @@ from django.forms import ModelForm
 from django import forms
 
 from societies.models import Society
+from housing_accounting.selection import get_selected_scope
+from societies.services import get_accessible_societies_qs
 
 
 class SocietyForm(ModelForm):
@@ -39,7 +41,9 @@ def society_list(request):
     """List all societies with search and filter capabilities."""
     search_query = request.GET.get('search', '').strip()
     
-    societies = Society.objects.all().select_related('created_by')
+    selected_society, _ = get_selected_scope(request)
+    societies = get_accessible_societies_qs(request.user).select_related('created_by')
+    societies = societies.filter(pk=selected_society.pk) if selected_society else societies.none()
     
     if search_query:
         societies = societies.filter(
@@ -65,7 +69,13 @@ def society_list(request):
 @require_http_methods(["GET"])
 def society_detail(request, pk):
     """Display detailed information about a society."""
-    society = get_object_or_404(Society, pk=pk)
+    selected_society, _ = get_selected_scope(request)
+    society = get_object_or_404(
+        get_accessible_societies_qs(request.user).filter(pk=selected_society.pk)
+        if selected_society
+        else Society.objects.none(),
+        pk=pk,
+    )
     
     # If HTMX request, return only the detail content
     if request.headers.get('HX-Request'):

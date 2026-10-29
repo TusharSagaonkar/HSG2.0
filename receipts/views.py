@@ -28,9 +28,7 @@ class ReceiptListView(LoginRequiredMixin, ListView):
             .prefetch_related("allocations__bill")
             .order_by("-receipt_date", "-id")
         )
-        if selected_society:
-            queryset = queryset.filter(society=selected_society)
-        return queryset
+        return queryset.filter(society=selected_society) if selected_society else queryset.none()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -56,7 +54,7 @@ class ReceiptDetailView(LoginRequiredMixin, DetailView):
     def get_object(self, queryset=None):
         receipt = super().get_object(queryset)
         selected_society, _ = get_selected_scope(self.request)
-        if selected_society and receipt.society_id != selected_society.id:
+        if not selected_society or receipt.society_id != selected_society.id:
             message = "Receipt not found in selected scope."
             raise Http404(message)
         return receipt

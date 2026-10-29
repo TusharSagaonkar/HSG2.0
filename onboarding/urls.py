@@ -26,6 +26,7 @@ app_name = "onboarding"
 urlpatterns = [
     path("", views.wizard_list, name="wizard-list"),
     path("start/", views.wizard_start, name="wizard-start"),
+    path("<int:wizard_id>/delete/", views.wizard_delete, name="wizard-delete"),
     path("template/<str:template_type>/download/", views.template_download, name="template-download"),
     path("<int:wizard_id>/", views.wizard_detail, name="wizard-detail"),
     path(

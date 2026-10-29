@@ -31,6 +31,7 @@ from django.shortcuts import get_object_or_404
 from django.shortcuts import render
 from django.utils import timezone
 from django.http import JsonResponse
+from django.http import Http404
 
 from housing.forms import SocietyConfigForm
 from housing.forms import SocietyForm
@@ -85,6 +86,17 @@ from societies.utils import get_user_role
 from auditlog.models import AuditLog
 
 
+def _selected_society_queryset(request):
+    selected_society, _ = get_selected_scope(request)
+    if selected_society is None:
+        return Society.objects.none()
+    return Society.objects.filter(pk=selected_society.pk)
+
+
+def _selected_society_or_404(request, pk):
+    return get_object_or_404(_selected_society_queryset(request), pk=pk)
+
+
 
 class StructureUnitDashboardView(LoginRequiredMixin, TemplateView):
     template_name = "housing/structure_unit_dashboard.html"
@@ -111,6 +123,7 @@ class StructureUnitDashboardView(LoginRequiredMixin, TemplateView):
         context = super().get_context_data(**kwargs)
         selected_society, _ = get_selected_scope(self.request)
         params = self.request.GET
+        accessible_societies = get_accessible_societies_qs(self.request.user)
 
         structures_qs = Structure.objects.select_related("society", "parent")
         units_qs = Unit.objects.select_related("structure", "structure__society").prefetch_related(
@@ -124,12 +137,24 @@ class StructureUnitDashboardView(LoginRequiredMixin, TemplateView):
         )
         active_occupancies_qs = UnitOccupancy.objects.filter(end_date__isnull=True)
 
+        # A missing scope must never turn the dashboard into an all-societies
+        # query. Limit the baseline to societies this user can access.
+        structures_qs = structures_qs.filter(society__in=accessible_societies)
+        units_qs = units_qs.filter(structure__society__in=accessible_societies)
+        active_occupancies_qs = active_occupancies_qs.filter(
+            unit__structure__society__in=accessible_societies
+        )
+
         if selected_society:
             structures_qs = structures_qs.filter(society=selected_society)
             units_qs = units_qs.filter(structure__society=selected_society)
             active_occupancies_qs = active_occupancies_qs.filter(
                 unit__structure__society=selected_society
             )
+        else:
+            structures_qs = structures_qs.none()
+            units_qs = units_qs.none()
+            active_occupancies_qs = active_occupancies_qs.none()
 
         search = params.get("q", "").strip()
         if search:
@@ -172,7 +197,7 @@ class StructureUnitDashboardView(LoginRequiredMixin, TemplateView):
 
         society_id = params.get("society", "").strip()
         if society_id.isdigit() and not selected_society:
-            units_qs = units_qs.filter(structure__society_id=int(society_id))
+            units_qs = units_qs.none()
 
         sort = params.get("sort", "structure")
         sort_map = {
@@ -185,11 +210,11 @@ class StructureUnitDashboardView(LoginRequiredMixin, TemplateView):
         units_qs = units_qs.order_by(*sort_map.get(sort, sort_map["structure"]))
 
         structures_qs = structures_qs.order_by("society__name", "name")
-        societies_qs = Society.objects.order_by("name")
+        societies_qs = accessible_societies
         if selected_society:
             societies_qs = societies_qs.filter(pk=selected_society.pk)
-        elif society_id.isdigit():
-            societies_qs = societies_qs.filter(pk=int(society_id))
+        else:
+            societies_qs = societies_qs.none()
 
         total_structures = structures_qs.count()
         root_structures = structures_qs.filter(parent__isnull=True).count()
@@ -316,7 +341,7 @@ class UnitDetailView(LoginRequiredMixin, DetailView):
     def get_object(self, queryset=None):
         unit = super().get_object(queryset)
         selected_society, _ = get_selected_scope(self.request)
-        if selected_society and unit.structure.society_id != selected_society.id:
+        if not selected_society or unit.structure.society_id != selected_society.id:
             raise Http404(_("Unit not found in selected society."))
         return unit
 
@@ -385,14 +410,7 @@ unit_detail_view = UnitDetailView.as_view()
 
 
 class SocietyListView(LoginRequiredMixin, ListView):
-    """Lists every society the logged-in user can access.
-
-    Unlike the previous implementation (which filtered down to only the
-    currently-selected society), this shows *all* accessible societies so
-    the user can browse, compare, and switch context. Each society is
-    annotated with structure/unit/member counts, the user's role, and the
-    latest onboarding-wizard status.
-    """
+    """Show the selected society and its summary to the logged-in user."""
 
     model = Society
     template_name = "housing/society_list.html"
@@ -412,8 +430,9 @@ class SocietyListView(LoginRequiredMixin, ListView):
             ),
         ).order_by("name")
 
-        societies = list(queryset.select_related("created_by"))
         selected_society, _ = get_selected_scope(self.request)
+        queryset = queryset.filter(pk=selected_society.pk) if selected_society else queryset.none()
+        societies = list(queryset.select_related("created_by"))
 
         # Attach per-society derived attributes without extra queries where
         # possible. ``get_user_role`` does a single membership lookup.
@@ -464,6 +483,9 @@ class SocietyDetailView(LoginRequiredMixin, DetailView):
     model = Society
     template_name = "housing/society_detail.html"
     context_object_name = "society"
+
+    def get_queryset(self):
+        return _selected_society_queryset(self.request)
 
     @staticmethod
     def _user_display_name(user):
@@ -618,7 +640,7 @@ class SocietyEmailSettingsView(LoginRequiredMixin, FormView):
     template_name = "housing/society_email_settings.html"
 
     def get_society(self):
-        return Society.objects.get(pk=self.kwargs["pk"])
+        return _selected_society_or_404(self.request, self.kwargs["pk"])
 
     def get_email_settings(self):
         return SocietyEmailSettings.objects.filter(
@@ -711,16 +733,14 @@ class StructureCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
 
     def get_initial(self):
         initial = super().get_initial()
-        society_id = self.request.GET.get("society")
-        if not society_id:
-            try:
-                selected_society, _ = get_selected_scope(self.request)
-                if selected_society:
-                    society_id = selected_society.pk
-            except Exception:
-                pass
-        if society_id:
-            initial["society"] = society_id
+        selected_society, _ = get_selected_scope(self.request)
+        requested_society_id = self.request.GET.get("society")
+        if requested_society_id and (
+            not selected_society or str(selected_society.pk) != requested_society_id
+        ):
+            raise Http404(_("Society not found in selected context."))
+        if selected_society:
+            initial["society"] = selected_society.pk
         return initial
 
     def get_context_data(self, **kwargs):
@@ -734,34 +754,23 @@ class StructureCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateView):
             context.update(kwargs)
         
         # Get society information
-        society_id = self.request.GET.get("society")
-        selected_society = None
+        selected_society, _ = get_selected_scope(self.request)
+        requested_society_id = self.request.GET.get("society")
+        if requested_society_id and (
+            not selected_society or str(selected_society.pk) != requested_society_id
+        ):
+            raise Http404(_("Society not found in selected context."))
+        society_id = selected_society.pk if selected_society else None
         structures = []
         society_name = ""
-        
-        if not society_id:
-            try:
-                selected_society, _ = get_selected_scope(self.request)
-                if selected_society:
-                    society_id = selected_society.pk
-            except Exception:
-                pass
-        
+
         # Get structures for the society
         if society_id:
-            try:
-                from societies.models import Society
-                if not selected_society:
-                    selected_society = Society.objects.get(id=society_id)
-                society_name = selected_society.name
-                
-                # Get root structures with their children
-                structures = Structure.objects.filter(
-                    society_id=society_id,
-                    parent__isnull=True
-                ).prefetch_related('children').order_by('display_order', 'name')
-            except Exception:
-                pass
+            society_name = selected_society.name
+            structures = Structure.objects.filter(
+                society=selected_society,
+                parent__isnull=True,
+            ).prefetch_related("children").order_by("display_order", "name")
         
         context.update({
             "form_title": "Add Structure",
@@ -983,6 +992,8 @@ class MemberListView(LoginRequiredMixin, ListView):
         )
         if selected_society:
             queryset = queryset.filter(society=selected_society)
+        else:
+            queryset = queryset.none()
 
         q = (self.request.GET.get("q") or "").strip()
         structure = (self.request.GET.get("structure") or "").strip()
@@ -1028,6 +1039,8 @@ class MemberListView(LoginRequiredMixin, ListView):
         )
         if selected_society:
             structures = structures.filter(society=selected_society)
+        else:
+            structures = structures.none()
 
         context["structure_options"] = structures
         context["filter_values"] = getattr(
@@ -1227,7 +1240,13 @@ class ChargeTemplateCreateView(LoginRequiredMixin, SuccessMessageMixin, CreateVi
         clone_from = self.request.GET.get("clone_from")
         if not clone_from:
             return None
-        return ChargeTemplate.objects.filter(pk=clone_from).first()
+        selected_society, _ = get_selected_scope(self.request)
+        if selected_society is None:
+            return None
+        return ChargeTemplate.objects.filter(
+            pk=clone_from,
+            society=selected_society,
+        ).first()
 
     def get_initial(self):
         initial = super().get_initial()
@@ -1307,11 +1326,10 @@ class BillingGenerateView(LoginRequiredMixin, FormView):
     def get_initial(self):
         initial = super().get_initial()
         query_society_id = self.request.GET.get("society")
-        if query_society_id:
-            query_society = Society.objects.filter(pk=query_society_id).first()
-            if query_society:
-                initial["society"] = query_society
         selected_society, _ = get_selected_scope(self.request)
+        if query_society_id:
+            if selected_society and str(selected_society.pk) == query_society_id:
+                initial["society"] = selected_society
         if selected_society and "society" not in initial:
             initial["society"] = selected_society
         today = timezone.localdate()
@@ -1362,9 +1380,7 @@ class ReceiptPostView(LoginRequiredMixin, FormView):
         query_society_id = self.request.GET.get("society")
         if query_society_id:
             query_society = Society.objects.filter(pk=query_society_id).first()
-            if query_society and (
-                selected_society is None or query_society.pk == selected_society.pk
-            ):
+            if query_society and selected_society and query_society.pk == selected_society.pk:
                 initial["society"] = query_society
         if selected_society and "society" not in initial:
             initial["society"] = selected_society
@@ -1376,7 +1392,7 @@ class ReceiptPostView(LoginRequiredMixin, FormView):
                 .filter(pk=query_bill_id)
                 .first()
             )
-            if bill and (selected_society is None or bill.society_id == selected_society.pk):
+            if bill and selected_society and bill.society_id == selected_society.pk:
                 outstanding_amount = bill.outstanding_amount
                 if outstanding_amount > 0:
                     initial["society"] = bill.society
@@ -1497,6 +1513,9 @@ class FinanceDashboardView(LoginRequiredMixin, TemplateView):
         if selected_society:
             bills_qs = bills_qs.filter(society=selected_society)
             receipts_qs = receipts_qs.filter(society=selected_society)
+        else:
+            bills_qs = bills_qs.none()
+            receipts_qs = receipts_qs.none()
 
         bills_with_balance = bills_qs.annotate(
             allocated_amount_value=allocated_amount,
@@ -1548,6 +1567,9 @@ class SocietyAdminView(LoginRequiredMixin, DetailView):
     model = Society
     template_name = "housing/society_admin.html"
     context_object_name = "society"
+
+    def get_queryset(self):
+        return _selected_society_queryset(self.request)
 
     def dispatch(self, request, *args, **kwargs):
         society = self.get_object()
@@ -1741,7 +1763,7 @@ class SocietySettingsUpdateView(LoginRequiredMixin, View):
     """
 
     def dispatch(self, request, *args, **kwargs):
-        society = get_object_or_404(Society, pk=kwargs["pk"])
+        society = _selected_society_or_404(request, kwargs["pk"])
         if not has_permission(request.user, "societies.membership.edit", society):
             raise PermissionDenied(
                 _("You do not have permission to edit society settings.")
@@ -1801,7 +1823,7 @@ class SocietyProfileUpdateView(LoginRequiredMixin, View):
     """
 
     def dispatch(self, request, *args, **kwargs):
-        society = get_object_or_404(Society, pk=kwargs["pk"])
+        society = _selected_society_or_404(request, kwargs["pk"])
         if not has_permission(request.user, "societies.membership.edit", society):
             raise PermissionDenied(
                 _("You do not have permission to edit the society profile.")
@@ -1862,7 +1884,7 @@ class SocietyUserCreateView(LoginRequiredMixin, FormView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_society(self):
-        return Society.objects.get(pk=self.kwargs["pk"])
+        return _selected_society_or_404(self.request, self.kwargs["pk"])
 
     def get_form_kwargs(self):
         kwargs = super().get_form_kwargs()
@@ -2006,7 +2028,7 @@ class ResendVerificationEmailView(LoginRequiredMixin, View):
         from housing_accounting.users.models import User
         
         try:
-            society = Society.objects.get(pk=society_pk)
+            society = _selected_society_or_404(request, society_pk)
             
             if not has_permission(request.user, "societies.membership.edit", society):
                 raise PermissionDenied(_("You don't have permission to resend verification emails."))
@@ -2100,7 +2122,7 @@ class UpdateMembershipView(LoginRequiredMixin, View):
         from housing_accounting.users.models import User
         
         try:
-            society = Society.objects.get(pk=society_pk)
+            society = _selected_society_or_404(request, society_pk)
             
             if not has_permission(request.user, "societies.membership.edit", society):
                 raise PermissionDenied(_("You don't have permission to update memberships."))
@@ -2194,6 +2216,9 @@ class SocietyVoucherTemplatesView(LoginRequiredMixin, DetailView):
     model = Society
     template_name = "housing/society_voucher_templates.html"
     context_object_name = "society"
+
+    def get_queryset(self):
+        return _selected_society_queryset(self.request)
 
     def dispatch(self, request, *args, **kwargs):
         self.object = self.get_object()

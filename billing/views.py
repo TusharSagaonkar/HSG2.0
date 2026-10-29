@@ -36,9 +36,7 @@ class ChargeTemplateListView(LoginRequiredMixin, ListView):
             "income_account",
             "receivable_account",
         ).order_by("society__name", "name", "-effective_from", "-version_no")
-        if selected_society:
-            queryset = queryset.filter(society=selected_society)
-        return queryset
+        return queryset.filter(society=selected_society) if selected_society else queryset.none()
 
 
 charge_template_list_view = ChargeTemplateListView.as_view()
@@ -48,7 +46,7 @@ class ChargeTemplateStatusUpdateView(LoginRequiredMixin, View):
     def post(self, request, pk):
         template = get_object_or_404(ChargeTemplate, pk=pk)
         selected_society, _ = get_selected_scope(request)
-        if selected_society and template.society_id != selected_society.id:
+        if not selected_society or template.society_id != selected_society.id:
             message = "Template not found in selected scope."
             raise Http404(message)
 
@@ -93,7 +91,7 @@ class ChargeTemplateDeactivateAndCreateView(LoginRequiredMixin, View):
     def post(self, request, pk):
         template = get_object_or_404(ChargeTemplate, pk=pk)
         selected_society, _ = get_selected_scope(request)
-        if selected_society and template.society_id != selected_society.id:
+        if not selected_society or template.society_id != selected_society.id:
             message = "Template not found in selected scope."
             raise Http404(message)
 
@@ -148,9 +146,7 @@ class BillListView(LoginRequiredMixin, ListView):
             allocated_amount_value=allocated_amount,
             outstanding_amount_value=outstanding_amount,
         ).order_by("-bill_date", "-id")
-        if selected_society:
-            queryset = queryset.filter(society=selected_society)
-        return queryset
+        return queryset.filter(society=selected_society) if selected_society else queryset.none()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -175,7 +171,7 @@ class BillDetailView(LoginRequiredMixin, DetailView):
     def get_object(self, queryset=None):
         bill = super().get_object(queryset)
         selected_society, _ = get_selected_scope(self.request)
-        if selected_society and bill.society_id != selected_society.id:
+        if not selected_society or bill.society_id != selected_society.id:
             message = "Bill not found in selected scope."
             raise Http404(message)
         return bill

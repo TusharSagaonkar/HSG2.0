@@ -268,8 +268,9 @@
                 <ul class="navbar-nav topbar-nav ms-md-auto align-items-center">
                   {% if request.user.is_authenticated %}
                     <li class="nav-item">
-                      <div class="selection-shell" role="group" aria-label="Society and Financial Year Selection">
-                        <form method="post" action="{% url 'users:selection-update' %}" class="selection-form" id="societySelectionForm" aria-label="Society and Financial Year Selection">
+                      <div class="selection-shell" id="selection-shell" role="group" aria-label="Society and Financial Year Selection">
+                        <form method="post" action="{% url 'users:selection-update' %}" class="selection-form" id="societySelectionForm" aria-label="Society and Financial Year Selection"
+                              onsubmit="this.querySelector('[name=next]').value = window.location.pathname + window.location.search;">
                           {% csrf_token %}
                           <input type="hidden" name="next" value="{{ request.get_full_path }}" id="nextUrlField" />
                           <div class="selection-control">

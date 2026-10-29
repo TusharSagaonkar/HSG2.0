@@ -15,6 +15,7 @@
 {% endblock dashboard_subtitle %}
 
 {% block content %}
+  <div id="wizard-list-content">
   {# -- Summary stats -------------------------------------------------------- #}
   <div class="row g-3 mb-4">
     <div class="col-6 col-md-3">
@@ -81,7 +82,8 @@
 
   {# -- Action bar ----------------------------------------------------------- #}
   <div class="d-flex flex-wrap align-items-center justify-content-between gap-2 mb-3">
-    <form method="post" action="{% url 'onboarding:wizard-start' %}">
+    <form method="post" action="{% url 'onboarding:wizard-start' %}"
+          hx-post="{% url 'onboarding:wizard-start' %}" hx-swap="none">
       {% csrf_token %}
       <button type="submit" class="btn btn-primary">
         <i class="fas fa-plus-circle me-1"></i>{% trans "Start New Wizard" %}
@@ -165,15 +167,29 @@
                     <small class="text-muted d-block">{{ wizard.society.name }}</small>
                   {% endif %}
                 </div>
-                <a href="{% url 'onboarding:wizard-detail' wizard.pk %}"
-                   class="btn btn-sm btn-outline-primary">
-                  {% if wizard.status == "COMPLETED" %}
-                    {% trans "View Summary" %}
-                  {% else %}
-                    {% trans "Resume" %}
-                  {% endif %}
-                  <i class="fas fa-arrow-right ms-1"></i>
-                </a>
+                <div class="d-flex gap-2">
+                  <a href="{% url 'onboarding:wizard-detail' wizard.pk %}"
+                     class="btn btn-sm btn-outline-primary">
+                    {% if wizard.status == "COMPLETED" %}
+                      {% trans "View Summary" %}
+                    {% else %}
+                      {% trans "Resume" %}
+                    {% endif %}
+                    <i class="fas fa-arrow-right ms-1"></i>
+                  </a>
+                  <form method="post"
+                        action="{% url 'onboarding:wizard-delete' wizard.pk %}"
+                        hx-post="{% url 'onboarding:wizard-delete' wizard.pk %}"
+                        hx-target="#wizard-list-content"
+                        hx-select="#wizard-list-content"
+                        hx-swap="outerHTML"
+                        onsubmit="return confirm('{% trans "Delete this wizard? Its saved progress will be removed." %}');">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-sm btn-outline-danger">
+                      <i class="fas fa-trash-alt me-1"></i>{% trans "Delete" %}
+                    </button>
+                  </form>
+                </div>
               </div>
             </div>
           </div>
@@ -193,7 +209,8 @@
         <p class="text-muted mb-3">
           {% trans "Start a new wizard to set up your society and migrate accounting data." %}
         </p>
-        <form method="post" action="{% url 'onboarding:wizard-start' %}" class="d-inline">
+        <form method="post" action="{% url 'onboarding:wizard-start' %}" class="d-inline"
+              hx-post="{% url 'onboarding:wizard-start' %}" hx-swap="none">
           {% csrf_token %}
           <button type="submit" class="btn btn-primary">
             <i class="fas fa-plus-circle me-1"></i>{% trans "Start New Wizard" %}
@@ -202,6 +219,7 @@
       </div>
     </div>
   {% endif %}
+  </div>
 
   <script>
     (function () {

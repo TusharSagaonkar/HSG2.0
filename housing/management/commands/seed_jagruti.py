@@ -2301,6 +2301,20 @@ class Command(BaseCommand):
     # ------------------------------------------------------------------
     # Current-year opening carry forward
     # ------------------------------------------------------------------
+    @staticmethod
+    def _as_decimal(value) -> Decimal:
+        """Coerce a DB aggregate result to a 2-decimal Decimal.
+
+        ``Sum`` over a ``DecimalField`` returns a ``Decimal`` on PostgreSQL but
+        a ``float`` on SQLite.
+        """
+
+        if value is None:
+            return Decimal("0.00")
+        if not isinstance(value, Decimal):
+            value = Decimal(str(value))
+        return value.quantize(Decimal("0.01"))
+
     def _ensure_current_year_opening(self, *, society, previous_fy, current_fy):
         narration = (
             f"{SEED_TAG} JG-{current_fy.name.replace(' ', '')}-OPEN-CF "
@@ -2339,15 +2353,17 @@ class Command(BaseCommand):
         opening_rows = []
 
         for item in rows:
+            # SQLite returns floats for SUM() over DecimalFields, while
+            # PostgreSQL returns Decimals. Normalize before arithmetic so the
+            # generated opening entries validate on either backend.
+            total_debit = self._as_decimal(item["total_debit"])
+            total_credit = self._as_decimal(item["total_credit"])
+
             if item["account__account_type"] == "ASSET":
-                net = (item["total_debit"] or Decimal("0.00")) - (
-                    item["total_credit"] or Decimal("0.00")
-                )
+                net = total_debit - total_credit
                 is_debit_side = net > 0
             else:
-                net = (item["total_credit"] or Decimal("0.00")) - (
-                    item["total_debit"] or Decimal("0.00")
-                )
+                net = total_credit - total_debit
                 is_debit_side = net < 0
 
             amount = abs(net)

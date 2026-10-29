@@ -330,6 +330,8 @@ class ImportHistoryView(LoginRequiredMixin, ListView):
         qs = BankStatementImport.objects.order_by("-uploaded_at")
         if society:
             qs = qs.filter(society=society)
+        else:
+            qs = qs.none()
         return qs
 
 
@@ -1756,6 +1758,8 @@ class LinkAuditView(LoginRequiredMixin, DetailView):
         )
         if society:
             qs = qs.filter(society=society)
+        else:
+            qs = qs.none()
         return qs
 
     def get_context_data(self, **kwargs):
@@ -1788,6 +1792,8 @@ class AuditLogView(LoginRequiredMixin, ListView):
 
         if society:
             qs = qs.filter(reconciliation_link__society=society)
+        else:
+            qs = qs.none()
 
         # Query param filters
         status = self.request.GET.get("status", "")
@@ -1827,6 +1833,7 @@ class AuditLogView(LoginRequiredMixin, ListView):
         else:
             user_ids = (
                 ReconciliationHistory.objects
+                .none()
                 .values_list("performed_by_id", flat=True)
                 .distinct()
             )
@@ -1849,6 +1856,8 @@ class AuditLogView(LoginRequiredMixin, ListView):
         base_qs = ReconciliationHistory.objects.all()
         if society:
             base_qs = base_qs.filter(reconciliation_link__society=society)
+        else:
+            base_qs = base_qs.none()
         context["total_changes"] = base_qs.count()
         most_recent = base_qs.order_by("-performed_at").first()
         context["most_recent_change"] = most_recent.performed_at if most_recent else None

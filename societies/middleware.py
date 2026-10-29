@@ -9,15 +9,19 @@ class SocietyMiddleware:
     def __call__(self, request):
         request.current_society = None
         request.current_membership = None
+        from societies.managers import _current_tenant
 
+        society = None
         if getattr(request, "user", None) and request.user.is_authenticated:
             society, _ = get_selected_scope(request, persist=True)
             request.current_society = society
             request.current_membership = get_user_membership(request.user, society)
-            # Set the tenant context variable for TenantManager auto-filtering
-            if society is not None:
-                from societies.managers import _current_tenant
 
-                _current_tenant.set(society)
-
-        return self.get_response(request)
+        # Context variables are reused across requests in a worker. Always set
+        # and reset the scope so a request with no selected society cannot
+        # inherit the previous request's tenant.
+        token = _current_tenant.set(society)
+        try:
+            return self.get_response(request)
+        finally:
+            _current_tenant.reset(token)

@@ -19,9 +19,7 @@ class ReminderLogListView(LoginRequiredMixin, ListView):
             "member",
             "bill",
         ).order_by("-scheduled_for", "-id")
-        if selected_society:
-            queryset = queryset.filter(society=selected_society)
-        return queryset
+        return queryset.filter(society=selected_society) if selected_society else queryset.none()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
